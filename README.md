@@ -1,2 +1,4 @@
 # m3db-operator
-Kubernetes custom operator for m3db 
+
+# Build and Deployment
+make -e IMAGE=<docker_repository_provider>/<repository_user>/m3db-operator -e NAMESPACE=<kubernetes_namespace>

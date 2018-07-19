@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Compiled operator binary
+build/output/**
+
+# Exclude vendor packages from repository
+vendor/
