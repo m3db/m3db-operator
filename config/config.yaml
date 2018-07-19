@@ -1,0 +1,3 @@
+apiVersion: m3db.github.io/v1alpha1
+kind: M3DB
+projectName: m3db-operator
