@@ -1,0 +1,6 @@
+apiVersion: "m3db.github.io/v1alpha1"
+kind: "M3DBService"
+metadata:
+  name: "example-m3db"
+spec:
+  size: 2

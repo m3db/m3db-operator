@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: m3db-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: m3db-operator
+  template:
+    metadata:
+      labels:
+        name: m3db-operator
+    spec:
+      containers:
+        - name: m3db-operator
+          image: quay.io/nerd00/m3db-operator
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - m3db-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAME
+              value: "m3db-operator"
