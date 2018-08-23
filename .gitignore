@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Disregard vendor packages 
+vendor/
+
+# Ignore build artifacts
+_output/**/*
