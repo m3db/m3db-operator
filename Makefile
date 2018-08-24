@@ -11,7 +11,7 @@ ifeq ($(LINUX_BUILD), 1)
 endif
 
 .PHONY: all
-all: clean build-docker 
+all: clean code-gen build-docker 
 
 .PHONY: help
 help:

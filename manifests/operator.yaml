@@ -5,59 +5,35 @@ metadata:
   labels:
     name: operator
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: m3db-operator
----
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   name: m3db-operator
 rules:
-- apiGroups:
-  - extensions
-  resources:
-  - deployments
-  - replicasets
-  - daemonsets
-  verbs:
-  - create
-  - get
-  - update
-  - delete
-  - list
-- apiGroups:
-  - operator.m3db.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  - endpoints
-  - persistentvolumeclaims
-  - events
-  - configmaps
-  - secrets
-  verbs:
-  - "*"
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - statefulsets
-  verbs:
-  - "*"
-- apiGroups:
-  - apiextensions.k8s.io
-  resources:
-  - customresourcedefinitions
-  verbs:
-  - "*"
+- apiGroups: ["extensions"]
+  resources: ["deployments", "replicasets", "daemonsets"]
+  verbs: ["create", "get", "update", "delete", "list"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["create", "get", "update", "delete", "list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "create", "delete", "deletecollection"]
+- apiGroups: [""]
+  resources: ["persistentvolumes", "persistentvolumeclaims", "services", "secrets", "configmaps"] 
+  verbs: ["create", "get", "update", "delete", "list"]
+- apiGroups: ["batch"]
+  resources: ["cronjobs", "jobs"]
+  verbs: ["create", "get", "deletecollection", "delete"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "get", "watch"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets", "deployments"]
+  verbs: ["*"]
+- apiGroups: ["operator.m3db.io"]
+  resources: ["*"]
+  verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -70,6 +46,12 @@ roleRef:
   name: m3db-operator
 subjects:
 - kind: ServiceAccount
+  name: m3db-operator
+  namespace: operator
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: m3db-operator
   namespace: operator
 ---
@@ -90,7 +72,7 @@ spec:
     spec:
       containers:
         - name: m3db-operator
-          image: <registry>/<repo>/m3db-operator:latest
+          image: <registry>/<repository>/m3db-operator:<gitsha>
           ports:
           - containerPort: 60000
             name: metrics
