@@ -203,22 +203,27 @@ func (k *K8sops) BuildM3DBNodePorts() []v1.ContainerPort {
 	return []v1.ContainerPort{
 		v1.ContainerPort{
 			Name:          "client",
-			ContainerPort: 9200,
+			ContainerPort: 9000,
 			Protocol:      v1.ProtocolTCP,
 		},
 		v1.ContainerPort{
 			Name:          "cluster",
-			ContainerPort: 9201,
+			ContainerPort: 9001,
 			Protocol:      v1.ProtocolTCP,
 		},
 		v1.ContainerPort{
 			Name:          "http-node",
-			ContainerPort: 9202,
+			ContainerPort: 9002,
+			Protocol:      v1.ProtocolTCP,
+		},
+		v1.ContainerPort{
+			Name:          "http-cluster",
+			ContainerPort: 9003,
 			Protocol:      v1.ProtocolTCP,
 		},
 		v1.ContainerPort{
 			Name:          "debug",
-			ContainerPort: 9204,
+			ContainerPort: 9004,
 			Protocol:      v1.ProtocolTCP,
 		},
 		v1.ContainerPort{

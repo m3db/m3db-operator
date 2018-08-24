@@ -51,22 +51,27 @@ func (k *K8sops) BuildM3DBNodeSvcPorts() []v1.ServicePort {
 	return []v1.ServicePort{
 		v1.ServicePort{
 			Name:     "client",
-			Port:     9200,
+			Port:     9000,
 			Protocol: v1.ProtocolTCP,
 		},
 		v1.ServicePort{
 			Name:     "cluster",
-			Port:     9201,
+			Port:     9001,
 			Protocol: v1.ProtocolTCP,
 		},
 		v1.ServicePort{
 			Name:     "http-node",
-			Port:     9202,
+			Port:     9002,
+			Protocol: v1.ProtocolTCP,
+		},
+		v1.ServicePort{
+			Name:     "http-cluster",
+			Port:     9003,
 			Protocol: v1.ProtocolTCP,
 		},
 		v1.ServicePort{
 			Name:     "debug",
-			Port:     9204,
+			Port:     9004,
 			Protocol: v1.ProtocolTCP,
 		},
 		v1.ServicePort{

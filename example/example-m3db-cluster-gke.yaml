@@ -221,8 +221,8 @@ spec:
   data-volume-size: 10Gi
   resources:
     requests:
-      memory: 15Gi 
+      memory: 6Gi 
       cpu: '1'
     limits:
-      memory: 20Gi
+      memory: 8Gi
       cpu: '2'
