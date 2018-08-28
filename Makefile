@@ -39,10 +39,7 @@ test: $(wildcard **/*.go) _output
 
 .PHONY: dep-install
 dep-install: ## Ensure dep is installed
-	@which dep > /dev/null || (go get -u https://github.com/golang/dep && \
-    cd $(GOPATH)/src/github.com/golang/dep && \
-    git checkout v0.5.0 && \
-    go install && git checkout master)
+	@which dep > /dev/null || ./build/install-dep.sh
 
 .PHONY: dep-ensure
 dep-ensure: dep-install ## Run dep ensure to generate vendor directory
@@ -60,4 +57,4 @@ build-bin: _output ## Build m3db-operator binary
 
 .PHONY: build-docker 
 build-docker: build-bin## Build m3db-operator docker image with go binary
-	@./build/build_docker.sh
+	@./build/build-docker.sh
