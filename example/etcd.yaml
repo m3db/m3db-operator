@@ -91,7 +91,8 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: fast
         resources:
           requests:
             storage: 50Gi
+          limits:
+            storage: 55Gi

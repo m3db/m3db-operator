@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
         - name: m3db-operator
-          image: <registry>/<repository>/m3db-operator:<gitsha>
+          image: quay.io/nerd00/m3db-operator:latest
           ports:
           - containerPort: 60000
             name: metrics

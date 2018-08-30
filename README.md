@@ -4,12 +4,41 @@
 
 ### Kubernetes cluster prerequisites 
 
+
+### GKE 
 When running on GKE, the user applying the manifests will need the ability to 
 allow `cluster-admin-binding` during the installation. Use the following
 `ClusterRoleBinding` with the user name provided by gloud 
 
 ```
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=<name@domain.com>
+```
+
+Apply the persistent disk storage resource
+
+```
+kubectl apply -f example/storage-fast-gcp.yaml
+```
+
+## Minikube 
+
+Ensure Minikube has enough memory and cpu resources
+```
+minikube stop && minikube delete && minikube start --cpus 4 --memory 819
+```
+
+Apply the persistent disk storage resource
+
+```
+kubectl apply -f example/storage-fast-minikube.yaml
+```
+
+## Deploy etcd cluster
+
+Apply the `etcd` cluster
+
+```
+kubectl apply -f example/etcd.yaml
 ```
 
 ### Build and Deploy M3 Cluster
@@ -33,28 +62,15 @@ Update the [operator manifest](https://github.com/m3db/m3db-operator/blob/master
 ``` 
 
 
-Apply the persistent disk storage resource
-
-```
-kubectl apply -f example/storage-fast-gcp.yaml
-```
-
 Apply the `m3db-operator` operator 
 
 ```
 kubectl apply -f manifests/operator.yaml
 ```
-
-Apply the `etcd` cluster
-
-```
-kubectl apply -f example/etcd.yaml
-```
-
 Apply the `m3db` cluster
 
 ```
-kubectl apply -f example/example-m3db-cluster-gke.yaml
+kubectl apply -f example/m3db-cluster.yaml
 ```
 
 ### Delete M3 Cluster
@@ -62,7 +78,7 @@ kubectl apply -f example/example-m3db-cluster-gke.yaml
 Delete M3 Cluster
 
 ```
-kubectl delete -f example/example-m3db-cluster-gke.yaml
+kubectl delete -f example/m3db-cluster.yaml
 ```
 
 Delete M3DB Operator 
