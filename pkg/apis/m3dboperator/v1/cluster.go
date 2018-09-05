@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ type M3DBCluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Type              string      `json:"type"`
 	Spec              ClusterSpec `json:"spec"`
-	Status            CRDStatus   `json:"status,omitempty"`
+	Status            M3DBStatus  `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -45,14 +45,20 @@ type M3DBClusterList struct {
 	Items           []M3DBCluster `json:"items"`
 }
 
-type CRDStatus struct {
-	State   CRDState `json:"state,omitempty"`
-	Message string   `json:"message,omitempty"`
+type M3DBStatus struct {
+	State   M3DBState `json:"state,omitempty"`
+	Message string    `json:"message,omitempty"`
 }
 
-type CRDState string
+type M3DBState string
 
-// ClusterSpec defines cluster options
+const (
+	GreenState  M3DBState = "green"
+	YellowState M3DBState = "yellow"
+	RedState    M3DBState = "red"
+)
+
+// ClusterSpec defines the desired state for a M3 cluster to be converge to.
 type ClusterSpec struct {
 	// Image specifies which docker image to use with the cluster
 	Image string `json:"image"`
@@ -63,16 +69,74 @@ type ClusterSpec struct {
 	// NumberOfShards defines how many shards in total
 	NumberOfShards int32 `json:"numberOfShards"`
 
-	// Zones specifies a map of key-value pairs. Defines which zones
+	// IsolationGroups specifies a map of key-value pairs. Defines which isolation groups
 	// to deploy persistent volumes for data nodes
-	Zones []string `json:"zones,omitempty"`
-
-	// DataDiskSize specifies how large the persistent volume should be attached
-	// to the data nodes in the ES cluster
-	DataDiskSize string `json:"data-volume-size"`
+	IsolationGroups []IsolationGroup `json:"isolationGroups"`
 
 	// Resources defines memory / cpu constraints
 	Resources Resources `json:"resources"`
+
+	// ServiceConfiguration contains the requested service configurations
+	ServiceConfigurations []ServiceConfiguration `json:"serviceConfigurations"`
+}
+
+// Label is meta to reference the resource by
+type Label struct {
+	// Name of the label
+	Name string `json:"name"`
+
+	// Value of the label
+	Value string `json:"value"`
+}
+
+// Selector is used to match a set of resources given a label name and value
+type Selector struct {
+	// Name of the selector
+	Name string `json:"name"`
+
+	// Value of the selector
+	Value string `json:"value"`
+}
+
+// Port is which ports should be forwarded to a service and it's corresponding
+// resources
+type Port struct {
+	// Name denotes the puprose of the port
+	Name string `json:"name"`
+
+	// Number is the port number
+	Number int32 `json:"number"`
+
+	// Protocol is the protocol to use
+	Protocol string `json:"protocol"`
+}
+
+// ServiceConfiguration contains the service configuration
+type ServiceConfiguration struct {
+	// Name of the service
+	Name string `json:"name"`
+
+	// Labels for the service
+	Labels []Label `json:"labels"`
+
+	// Selectors for the service
+	Selectors []Selector `json:"selectors"`
+
+	// Ports for the service
+	Ports []Port `json:"ports"`
+
+	// ClusterIP specifies if a ClusterIP should be associated or not
+	ClusterIP bool `json:"clusterIP"`
+}
+
+// IsolationGroup defines the name of zone as well attributes for the zone configuration
+// TODO(PS) Should this belong within the service configurations?
+type IsolationGroup struct {
+	// Name
+	Name string `json:"name"`
+
+	// NumInstances defines the number of instances
+	NumInstances int32 `json:"numInstances"`
 }
 
 // Resources defines CPU / Memory restrictions on pods

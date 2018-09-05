@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: m3dbnode-configuration
+  name: m3-configuration
 data:
-  m3dbnode.yml: |+
+  m3.yml: |+
     coordinator:
       listenAddress:
         type: "config"
@@ -76,7 +76,6 @@ data:
         queue:
             calculationType: fixed
             size: 2097152
-        retentionPeriod: 24h
         blockSize: 10m
 
       fs:
@@ -210,20 +209,55 @@ data:
 apiVersion: operator.m3db.io/v1
 kind: M3DBCluster
 metadata:
-  name: example-small-m3db-cluster
+  name: m3db-cluster
 spec:
   image: quay.io/m3/m3dbnode:latest
-  replicationFactor: 1
-  numberOfShards: 16
-  zones:
-  - us-west1-a
-  - us-west1-b
-  - us-west1-c
-  data-volume-size: 10Gi
+  replicationFactor: 2
+  numberOfShards: 8
+  isolationGroups:
+    - name: us-west1-a 
+      numInstances: 1
+    - name: us-west1-b
+      numInstances: 1 
+  serviceConfigurations:
+    - name: m3dbnode
+      labels:
+        - name: app
+          value: m3dbnode
+      selectors:
+        - name: app
+          value: m3dbnode
+      ports:
+        - number: 9000
+          name: client
+        - number: 9001
+          name: cluster
+        - number: 9002
+          name: http-node
+        - number: 9003
+          name: http-cluster
+        - number: 9004
+          name: debug
+        - number: 7201
+          name: coordinator
+        - number: 7203
+          name: metrics
+    - name: m3coordinator
+      labels:
+        - name: app
+          value: m3coordinator
+      selectors:
+        - name: app
+          value: m3dbnode # allow m3coordinator to communicate with the db
+      ports:
+        - number: 7201
+          name: coordinator
+        - number: 7203
+          name: metrics
   resources:
     requests:
-      memory: 2Gi 
+      memory: 1Gi
       cpu: '1'
     limits:
-      memory: 3Gi
+      memory: 2Gi
       cpu: '2'

@@ -18,23 +18,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
+package m3admin
 
 import (
-	"fmt"
+	"bytes"
+	"net/http"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	retryhttp "github.com/hashicorp/go-retryablehttp"
 )
 
-const (
-	ResourceKind   = "M3DBCluster"
-	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
-)
-
-var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+// DoHttpReqeust is a simple helper for HTTP requests
+func DoHttpRequest(
+	client *retryhttp.Client,
+	action, url string,
+	data *bytes.Buffer,
+) (*http.Response, error) {
+	var request *retryhttp.Request
+	var err error
+	if data == nil {
+		request, err = retryhttp.NewRequest(action, url, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		request, err = retryhttp.NewRequest(action, url, data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	request.Header.Add("Content-Type", "application/json")
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}

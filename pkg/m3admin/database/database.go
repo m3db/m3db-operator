@@ -18,23 +18,4 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
-
-import (
-	"fmt"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-)
-
-const (
-	ResourceKind   = "M3DBCluster"
-	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
-)
-
-var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+package database

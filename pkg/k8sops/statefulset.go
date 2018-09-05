@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,236 +21,184 @@
 package k8sops
 
 import (
+	errorz "errors"
 	"fmt"
+	"strings"
+	"time"
 
-	m3spec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-const (
-	_probeTimeoutSeconds      = 30
-	_probeInitialDelaySeconds = 10
-	_probeFailureThreshold    = 15
-	_probePort                = 9000
-	_probePath                = "/api/v1/health"
-
-	_baseImage              = "quay.io/m3/m3dbnode:latest"
-	_dataDirectory          = "/var/lib/m3db/"
-	_configurationDirectory = "/etc/m3db/"
-	_configurationName      = "m3dbnode-configuration"
-	_configurationFileName  = "m3dbnode.yml"
-)
-
-var (
-	_configurationFileLocation = fmt.Sprintf("%s%s", _configurationDirectory, _configurationFileName)
-)
-
-func (k *K8sops) StatefulsetName(clusterName, zone string, replicaFactor int32) string {
-	return fmt.Sprintf("%s-%s-%d", clusterName, zone, replicaFactor)
+// MultiLabelSelector
+func (k *K8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
+	var selector string
+	for k, v := range kvs {
+		selector = fmt.Sprintf("%s %s=%s", selector, k, v)
+	}
+	selector = strings.Join(strings.Split(strings.TrimRight(selector, " "), " "), ",")
+	return metav1.ListOptions{LabelSelector: selector}
 }
 
-// BuildStatefulset provides a statefulset object for a m3db cluster
-func (k *K8sops) BuildStatefulset(
-	clusterSpec m3spec.ClusterSpec,
-	clusterName string,
-	namespace string,
-	zone string,
-	replicas *int32,
-	replicaFactor int32,
-) (*appsv1.StatefulSet, error) {
-
-	// Parse CPU / Memory
-	limitCPU, _ := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
-	limitMemory, _ := resource.ParseQuantity(clusterSpec.Resources.Limits.Memory)
-	requestCPU, _ := resource.ParseQuantity(clusterSpec.Resources.Requests.CPU)
-	requestMemory, _ := resource.ParseQuantity(clusterSpec.Resources.Requests.Memory)
-
-	//	probe := &v1.Probe{
-	//		TimeoutSeconds:      _probeTimeoutSeconds,
-	//		InitialDelaySeconds: _probeInitialDelaySeconds,
-	//		FailureThreshold:    _probeFailureThreshold,
-	//		Handler: v1.Handler{
-	//			HTTPGet: &v1.HTTPGetAction{
-	//				Port:   intstr.FromInt(_probePort),
-	//				Path:   _probePath,
-	//				Scheme: v1.URISchemeHTTP,
-	//			},
-	//		},
-	//	}
-	statefulset := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: k.StatefulsetName(clusterName, zone, replicaFactor),
-			Labels: map[string]string{
-				"cluster":     clusterName,
-				"app":         "m3dbnode",
-				"statefulset": k.StatefulsetName(clusterName, zone, replicaFactor),
-			},
-		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode",
-			PodManagementPolicy: "Parallel",
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster":     clusterName,
-					"app":         "m3dbnode",
-					"statefulset": k.StatefulsetName(clusterName, zone, replicaFactor),
-				},
-			},
-			Replicas: replicas,
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster":     clusterName,
-						"app":         "m3dbnode",
-						"statefulset": k.StatefulsetName(clusterName, zone, replicaFactor),
-					},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						v1.Container{
-							Name: k.StatefulsetName(clusterName, zone, replicaFactor),
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &[]bool{true}[0],
-								Capabilities: &v1.Capabilities{
-									Add: []v1.Capability{
-										"IPC_LOCK",
-									},
-								},
-							},
-							Command: []string{
-								"m3dbnode",
-							},
-							Args: []string{
-								"-f",
-								_configurationFileLocation,
-							},
-							Image:           clusterSpec.Image,
-							ImagePullPolicy: "Always",
-							Env: []v1.EnvVar{
-								v1.EnvVar{
-									Name: "NAMESPACE",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
-											FieldPath: "metadata.namespace",
-										},
-									},
-								},
-							},
-							Ports: k.BuildM3DBNodePorts(),
-							VolumeMounts: []v1.VolumeMount{
-								v1.VolumeMount{
-									Name:      "storage",
-									MountPath: _dataDirectory,
-								},
-								v1.VolumeMount{
-									Name:      _configurationName,
-									MountPath: _configurationDirectory,
-								},
-								v1.VolumeMount{
-									Name:      "cache",
-									MountPath: "/var/lib/m3kv/",
-								},
-							},
-							Resources: v1.ResourceRequirements{
-								Limits: v1.ResourceList{
-									"cpu":    limitCPU,
-									"memory": limitMemory,
-								},
-								Requests: v1.ResourceList{
-									"cpu":    requestCPU,
-									"memory": requestMemory,
-								},
-							},
-						},
-					},
-					Volumes: []v1.Volume{
-						v1.Volume{
-							Name: "storage",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: "cache",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: _configurationName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: _configurationName,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	return statefulset, nil
+// LabelSelector
+func (k *K8sops) LabelSelector(key, value string) metav1.ListOptions {
+	selector := fmt.Sprintf("%s=%s", key, value)
+	return metav1.ListOptions{LabelSelector: selector}
 }
 
-// BuildM3DBNodePorts create an array of the default ports of the m3db node service
-func (k *K8sops) BuildM3DBNodePorts() []v1.ContainerPort {
-	return []v1.ContainerPort{
-		v1.ContainerPort{
-			Name:          "client",
-			ContainerPort: 9000,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "cluster",
-			ContainerPort: 9001,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "http-node",
-			ContainerPort: 9002,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "http-cluster",
-			ContainerPort: 9003,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "debug",
-			ContainerPort: 9004,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "query",
-			ContainerPort: 7201,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "query-metrics",
-			ContainerPort: 7203,
-			Protocol:      v1.ProtocolTCP,
-		},
+// DeleteStatefulSets
+func (k *K8sops) DeleteStatefuleSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
+	statefulSets, err := k.GetStatefulSets(cluster, listOpts)
+	if err != nil {
+		return err
 	}
+	for _, statefulSet := range statefulSets.Items {
+		if err := k.Kclient.
+			AppsV1().
+			StatefulSets(cluster.GetNamespace()).
+			Delete(statefulSet.GetName(), &metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+		k.logger.Info("deleting StatefulSet", zap.String("StatefulSet", statefulSet.GetName()))
+	}
+	return nil
 }
 
-// BuildM3DBCoordinatorPorts create an array of the default ports of the m3db coordinator service
-func (k *K8sops) BuildM3DBCoordinatorPorts() []v1.ContainerPort {
-	return []v1.ContainerPort{
-		v1.ContainerPort{
-			Name:          "query",
-			ContainerPort: 7201,
-			Protocol:      v1.ProtocolTCP,
-		},
-		v1.ContainerPort{
-			Name:          "query-metrics",
-			ContainerPort: 7203,
-			Protocol:      v1.ProtocolTCP,
-		},
+// GetStatefulSets provides all the StatefulSets contained within a
+// cluster
+func (k *K8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
+	statefulSets, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).List(listOpts)
+	if err != nil {
+		return nil, err
 	}
+	if len(statefulSets.Items) == 0 {
+		return nil, errorz.New("failed find any StatefulSets")
+	}
+	return statefulSets, nil
+}
+
+// GetPlacementDetails provides the pod to isolation group mapping
+func (k *K8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]string, error) {
+	placementDetails := make(map[string]string)
+	for _, ig := range cluster.Spec.IsolationGroups {
+		pods, err := k.GetPodsByLabel(cluster, k.LabelSelector("isolationGroup", ig.Name))
+		if err != nil {
+			return nil, err
+		}
+		for _, pod := range pods.Items {
+			placementDetails[pod.GetName()] = ig.Name
+		}
+	}
+	return placementDetails, nil
+}
+
+// GetPodsByLabel
+func (k *K8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*v1.PodList, error) {
+	pods, err := k.Kclient.CoreV1().Pods(cluster.GetNamespace()).List(listOpts)
+	if err != nil {
+		return nil, err
+	}
+	return pods, nil
+}
+
+// EnsureStatefulSets will create StatefulSets based the Spec configuration
+// if they don't exist already
+func (k *K8sops) EnsureStatefulSets(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
+	for _, attrs := range cluster.Spec.IsolationGroups {
+		statefulSetName := k.StatefulSetName(cluster.GetName(), attrs.Name)
+		statefulSet, err := k.GetStatefulSet(cluster, statefulSetName)
+		if errors.IsNotFound(err) {
+			k.logger.Info("building statefulset configuration", zap.String("isolationGroup", attrs.Name))
+			statefulSet, err = k.GenerateStatefulSet(cluster, cluster.Spec, svcCfg, attrs.Name, &attrs.NumInstances)
+			if err != nil {
+				k.logger.Error("failed to build statefulset", zap.Error(err))
+				return err
+			}
+			statefulSet, err = k.CreateStatefulSet(cluster, statefulSet)
+			if err != nil {
+				return err
+			}
+
+		} else if errors.IsAlreadyExists(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreateStatefulSet will create a StatefulSet and ensure all Pod replicas are
+// ready before returning
+func (k *K8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Create(statefulSet)
+	if err != nil {
+		k.logger.Error("failed to create statefulset", zap.Error(err), zap.String("statefulset", statefulSet.GetName()))
+	}
+	statefulSet, err = k.CheckStatefulStatus(cluster, statefulSet)
+	if err != nil {
+		return nil, err
+	}
+	k.logger.Info("statefulset created")
+
+	return statefulSet, nil
+}
+
+// GetStatefulSet simply returns a StatefulSet given the current cluster
+func (k *K8sops) GetStatefulSet(cluster *myspec.M3DBCluster, name string) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return statefulSet, nil
+}
+
+// UpdateStatefulSet simply updates a statefulset
+func (k *K8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Update(statefulSet)
+	if err != nil {
+		return nil, err
+	}
+	statefulSet, err = k.CheckStatefulStatus(cluster, statefulSet)
+	if err != nil {
+		return nil, err
+	}
+	k.logger.Info("updated ss", zap.Any("ss", statefulSet))
+	statefulSet, err = k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).UpdateStatus(statefulSet)
+	if err != nil {
+		return nil, err
+	}
+	k.logger.Info("updated ss status", zap.Any("ss", statefulSet))
+	return statefulSet, err
+}
+
+// CheckStatefulStatus
+func (k *K8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	// Poll newly created stateful set and ensure all PODs are in ready state
+	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
+		statefulSet, err := k.GetStatefulSet(cluster, statefulSet.GetName())
+		if err != nil {
+			return false, err
+		}
+		if statefulSet.Status.Replicas != statefulSet.Status.ReadyReplicas {
+			return false, nil
+		}
+		k.logger.Info("statefulstate has all replicas in a ready state", zap.Int32("readyReplicas", statefulSet.Status.ReadyReplicas))
+		return true, nil
+	})
+	if err != nil {
+		k.logger.Error("ss took longer than 60s to be in ready", zap.Error(err), zap.String("statefulset", statefulSet.GetName()))
+		return nil, err
+	}
+	statefulSet, err = k.GetStatefulSet(cluster, statefulSet.GetName())
+	if err != nil {
+		return nil, err
+	}
+	return statefulSet, nil
 }

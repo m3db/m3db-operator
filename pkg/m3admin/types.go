@@ -18,23 +18,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
+package m3admin
 
 import (
-	"fmt"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
 )
 
 const (
-	ResourceKind   = "M3DBCluster"
-	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
+	DefaultServicePort   = 7201
+	DefaultServiceName   = "m3coordinator"
+	DefaultServiceDomain = "default"
 )
 
-var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+type Namespace interface {
+	// Create will create a namepace with provided namespace name and defaults
+	Create(namespace string) error
+	// Get will retrieve a namespace given a name
+	Get() (*admin.NamespaceGetResponse, error)
+	// Delete will delete a namespace given a name
+	Delete(namespace string) error
+}
+
+type Placement interface {
+	// Init will initialize a placement give a valid placement request
+	Init(request *admin.PlacementInitRequest) error
+	// Get will provide a placement given a hostname e.g. a subdomin
+	Get() (*admin.PlacementGetResponse, error)
+	// Delete will delete a placment given a hostname e.g. a subdomain
+	Delete() error
+	// Add will add a placement given a hostname e.g. a subdomain
+	Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error)
+}

@@ -1,138 +1,60 @@
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package k8sops
 
 import (
-	"github.com/Sirupsen/logrus"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+
+	"go.uber.org/zap"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	_m3dbNodeSvcName      = "m3dbnode"
-	_m3CoordinatorSvcName = "m3coordinator"
-)
-
-// DeleteM3DBNodeSvc deletes the m3dbnode service
-func (k *K8sops) DeleteM3DBNodeSvc(cluster *myspec.M3DBCluster) error {
-	return k.Kclient.CoreV1().Services(cluster.GetNamespace()).Delete(_m3dbNodeSvcName, &metav1.DeleteOptions{})
+// GetService simply gets a service by name
+func (k *K8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
+	service, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
-// EnsureM3DBNodeSvc ensures that the m3dbnode service exists
-func (k *K8sops) EnsureM3DBNodeSvc(cluster *myspec.M3DBCluster) error {
-	svc, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Get(_m3dbNodeSvcName, metav1.GetOptions{})
-	if len(svc.Name) == 0 {
-		m3dbNodeSvc := &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: _m3dbNodeSvcName,
-				Labels: map[string]string{
-					"app": _m3dbNodeSvcName,
-				},
-			},
-			Spec: v1.ServiceSpec{
-				Selector: map[string]string{
-					"app": _m3dbNodeSvcName,
-				},
-				Ports:     k.BuildM3DBNodeSvcPorts(),
-				ClusterIP: "None",
-			},
-		}
+// DeleteService simply deletes a service by name
+func (k *K8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
+	k.logger.Info("deleting service", zap.String("service", name))
+	return k.Kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
+}
 
-		if _, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Create(m3dbNodeSvc); err != nil {
+// EnsureService will create a service by name if it doesn't exist
+func (k *K8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
+	_, err := k.GetService(cluster, svcCfg.Name)
+	if errors.IsNotFound(err) {
+		k.logger.Info("service doesn't exist, creating it", zap.String("service", svcCfg.Name))
+		svc := k.GenerateService(svcCfg)
+		k.logger.Info("service", zap.Any("obj", svc))
+		if _, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
 			return err
 		}
+		k.logger.Info("ensured service is created", zap.String("service", svc.GetName()))
+	} else if errors.IsAlreadyExists(err) {
+		return nil
 	} else if err != nil {
 		return err
 	}
-	logrus.Info("ensured m3dbnode service is created")
 	return nil
-}
-
-func (k *K8sops) BuildM3DBNodeSvcPorts() []v1.ServicePort {
-	return []v1.ServicePort{
-		v1.ServicePort{
-			Name:     "client",
-			Port:     9000,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "cluster",
-			Port:     9001,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "http-node",
-			Port:     9002,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "http-cluster",
-			Port:     9003,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "debug",
-			Port:     9004,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "query",
-			Port:     7201,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "query-metrics",
-			Port:     7203,
-			Protocol: v1.ProtocolTCP,
-		},
-	}
-}
-
-// DeleteM3CoordinatorSvc deletes the m3dbnode service
-func (k *K8sops) DeleteM3CoordinatorSvc(cluster *myspec.M3DBCluster) error {
-	return k.Kclient.CoreV1().Services(cluster.GetNamespace()).Delete(_m3CoordinatorSvcName, &metav1.DeleteOptions{})
-}
-
-// EnsureM3CoordinatorSvc ensures that the m3dbnode service exists
-func (k *K8sops) EnsureM3CoordinatorSvc(cluster *myspec.M3DBCluster) error {
-	svc, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Get(_m3CoordinatorSvcName, metav1.GetOptions{})
-	if len(svc.Name) == 0 {
-		m3CoordinatorSvc := &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: _m3CoordinatorSvcName,
-				Labels: map[string]string{
-					"app": _m3CoordinatorSvcName,
-				},
-			},
-			Spec: v1.ServiceSpec{
-				Selector: map[string]string{
-					"app": _m3dbNodeSvcName,
-				},
-				Ports: k.BuildM3CoordinatorSvcPorts(),
-			},
-		}
-
-		if _, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Create(m3CoordinatorSvc); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-	logrus.Info("ensured m3coordinator service is created")
-	return nil
-}
-
-// BuildM3CoordinatorSvcPorts creates the m3coordinator service ports
-func (k *K8sops) BuildM3CoordinatorSvcPorts() []v1.ServicePort {
-	return []v1.ServicePort{
-		v1.ServicePort{
-			Name:     "query",
-			Port:     7201,
-			Protocol: v1.ProtocolTCP,
-		},
-		v1.ServicePort{
-			Name:     "query-metrics",
-			Port:     7203,
-			Protocol: v1.ProtocolTCP,
-		},
-	}
 }

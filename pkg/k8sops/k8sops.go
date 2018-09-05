@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,12 @@ package k8sops
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	genclient "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 
+	"go.uber.org/zap"
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/fields"
@@ -49,15 +49,17 @@ type K8sops struct {
 	Kclient    kubernetes.Interface
 	KubeExt    apiextensionsclient.Interface
 	MasterHost string
+	logger     *zap.Logger
 }
 
 // New creates a new instance of k8sops
-func New(kubeCfgFile, masterHost string) (*K8sops, error) {
-	crdClient, kubeClient, kubeExt, err := newKubeClient(kubeCfgFile)
+func New(logger *zap.Logger, kubeCfgFile, masterHost string) (*K8sops, error) {
+	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, kubeCfgFile)
 	if err != nil {
-		logrus.Fatalf("could not init Kubernetes client: %s", err)
+		return nil, err
 	}
 	return &K8sops{
+		logger:     logger,
 		Kclient:    kubeClient,
 		MasterHost: masterHost,
 		CrdClient:  crdClient,
@@ -65,9 +67,10 @@ func New(kubeCfgFile, masterHost string) (*K8sops, error) {
 	}, nil
 }
 
-func buildConfig(kubeCfgFile string) (*rest.Config, error) {
+func buildConfig(logger *zap.Logger, kubeCfgFile string) (*rest.Config, error) {
 	if kubeCfgFile != "" {
-		logrus.Infof("using OutOfCluster k8s config with kubeConfigFile: %s", kubeCfgFile)
+
+		logger.Info("using OutOfCluster k8s config", zap.String("kubeFile", kubeCfgFile))
 		config, err := clientcmd.BuildConfigFromFlags("", kubeCfgFile)
 		if err != nil {
 			panic(err.Error())
@@ -75,13 +78,12 @@ func buildConfig(kubeCfgFile string) (*rest.Config, error) {
 
 		return config, nil
 	}
-
-	logrus.Info("using InCluster k8s config")
+	logger.Info("using InCluster k8s config")
 	return rest.InClusterConfig()
 }
 
-func newKubeClient(kubeCfgFile string) (genclient.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
-	config, err := buildConfig(kubeCfgFile)
+func newKubeClient(logger *zap.Logger, kubeCfgFile string) (genclient.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
+	config, err := buildConfig(logger, kubeCfgFile)
 	if err != nil {
 		panic(err)
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ import (
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,26 +40,12 @@ func (k *K8sops) CreateKubernetesCustomResourceDefinition() error {
 	crd, err := k.KubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Get(m3dboperator.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			crdObject := &apiextensionsv1beta1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: m3dboperator.Name,
-				},
-				Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-					Group:   m3dboperator.GroupName,
-					Version: m3dboperator.Version,
-					Scope:   apiextensionsv1beta1.NamespaceScoped,
-					Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-						Plural: m3dboperator.ResourcePlural,
-						Kind:   m3dboperator.ResourceKind,
-					},
-				},
-			}
-
+			k.logger.Debug("crd is missing, creating it")
+			crdObject := k.GenerateCRD()
 			_, err := k.KubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crdObject)
 			if err != nil {
 				panic(err)
 			}
-			logrus.Info("CRD missing, creating it")
 			// wait for CRD being established
 			err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
 				createdCRD, err := k.KubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Get(m3dboperator.Name, metav1.GetOptions{})
@@ -89,12 +75,12 @@ func (k *K8sops) CreateKubernetesCustomResourceDefinition() error {
 				return err
 			}
 
-			logrus.Info("CRD created")
+			k.logger.Info("CRD created")
 		} else {
 			panic(err)
 		}
 	} else {
-		logrus.Infof("CRD already exists %#v\n", crd.ObjectMeta.Name)
+		k.logger.Info("CRD already exists", zap.String("name", crd.ObjectMeta.Name))
 	}
 	return nil
 }

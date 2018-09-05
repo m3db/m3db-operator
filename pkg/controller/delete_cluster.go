@@ -18,23 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
+package controller
 
 import (
-	"fmt"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 )
 
-const (
-	ResourceKind   = "M3DBCluster"
-	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
-)
+func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
+	if err := c.namespaceClient.Delete(cluster.GetObjectMeta().GetName()); err != nil {
+		return err
+	}
+	if err := c.placementClient.Delete(); err != nil {
+		return err
+	}
+	if err := c.k8sclient.DeleteStatefuleSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
+		return err
+	}
+	if err := c.k8sclient.DeleteService(cluster, "m3dbnode"); err != nil {
+		return err
+	}
+	if err := c.k8sclient.DeleteService(cluster, "m3coordinator"); err != nil {
+		return err
+	}
 
-var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+	return nil
+}

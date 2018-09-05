@@ -37,9 +37,9 @@
    "k8s.io/gengo/args",
  ]
 
-[[constraint]]
-  name = "github.com/Sirupsen/logrus"
-  version = "1.0.6"
+ [[constraint]]
+  name = "github.com/m3db/m3"
+  version = "=v0.4.2"
 
  [[override]]
    name = "k8s.io/code-generator"
@@ -53,10 +53,11 @@
    name = "k8s.io/apimachinery"
    branch = "release-1.10"
 
-[[override]]
+ [[override]]
    name = "k8s.io/apiextensions-apiserver"
    branch = "release-1.10"
 
  [[override]]
    name = "k8s.io/client-go"
    branch = "release-7.0"
+

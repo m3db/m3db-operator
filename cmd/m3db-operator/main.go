@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,8 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
@@ -31,8 +31,10 @@ import (
 
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"go.uber.org/zap"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/m3db/m3/src/query/util/logging"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
@@ -46,45 +48,37 @@ var (
 func init() {
 	flag.StringVar(&kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
 	flag.StringVar(&masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
-	flag.StringVar(&logrusLevel, "log-level", "info", "Log level for logrus")
 	flag.Parse()
 }
 
-func printVersion() {
-	logrus.Infof("Go Version: %s", runtime.Version())
-	logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
-	logrus.Infof("Operator Version: %s", appVersion)
-}
-
 func main() {
-	// Identify the build
-	printVersion()
 
-	// Setup logger
-	logLevel, err := logrus.ParseLevel(logrusLevel)
-	if err != nil {
-		fmt.Println("failed to setup log level correctly")
-		os.Exit(1)
-	}
-	logrus.SetLevel(logLevel)
+	logging.InitWithCores(nil)
+	ctx := context.Background()
+	logger := logging.WithContext(ctx)
+	defer logger.Sync()
+
+	logger.Info("Go", zap.Any("VERSION", runtime.Version()))
+	logger.Info("Go", zap.Any("OS", runtime.GOOS), zap.Any("ARCH", runtime.GOARCH))
+	logger.Info("Operator", zap.String("version", appVersion))
 
 	// Create k8s client
-	k8sclient, err := k8sops.New(kubeCfgFile, masterHost)
+	k8sclient, err := k8sops.New(logger, kubeCfgFile, masterHost)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create k8sclient")
+		logger.Error("failed to create k8sclient", zap.Error(err))
 		os.Exit(1)
 	}
 
 	// Create controller
-	controller, err := controller.New(k8sclient)
+	controller, err := controller.New(logger, k8sclient)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create controller")
+		logger.Error("failed to create controller", zap.Error(err))
 		os.Exit(1)
 	}
 
 	// Init the controller
 	if err := controller.Init(); err != nil {
-		logrus.WithError(err).Error("failed to init controller")
+		logger.Error("failed to init controller", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -93,7 +87,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	if err := controller.Start(doneChan, &wg); err != nil {
-		logrus.WithError(err).Error("failed to start controler")
+		logger.Error("failed to start controler", zap.Error(err))
 	}
 
 	// Trap the INT and TERM signals
