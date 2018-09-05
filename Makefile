@@ -74,7 +74,7 @@ testhtml: test-internal
 
 .PHONY: test-ci-unit                                                              
 test-ci-unit: test-base                                                           
-	$(codecov_push) $(coverfile)
+	$(codecov_push) $(coverfile) 
 
 .PHONY: install-mockgen
 install-mockgen: install-vendor-dep
@@ -109,7 +109,8 @@ all-gen: mock-gen code-gen
 clean:
 	@rm -f *.html *.xml *.out *.test
 	@go clean
-	@rm -f build/output/bin/m3db-operator
+	@rm -f $(pwd)/_output/m3db-operator
+	@rm -rf vendor*
 
 .PHONY: all
 all: clean code-gen lint metalint test-ci-unit
