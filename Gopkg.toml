@@ -35,11 +35,45 @@
    "k8s.io/code-generator/cmd/informer-gen",
    "k8s.io/code-generator/cmd/openapi-gen",
    "k8s.io/gengo/args",
+   "github.com/apache/thrift/lib/go/thrift",
+   "github.com/m3db/stackmurmur3",
+   "github.com/m3db/bloom",
+   "github.com/coreos/bbolt",
+   "github.com/m3db/vellum/regexp",
+   "github.com/m3db/vellum/utf8",
+   "github.com/golang/mock/gomock",
+   "github.com/golang/mock/mockgen",
  ]
+
+ [[override]]
+  name = "github.com/golang/mock"
+  version = "1"
+
+ [[override]]
+  name = "github.com/m3db/stackmurmur3"
+  revision = "744c0229c12ed0e4f8cb9d081a2692b3300bf705"
+
+ [[override]]
+  name = "github.com/coreos/bbolt"
+  revision = "32c383e75ce054674c53b5a07e55de85332aee14"
+
+ [[override]]
+  name = "github.com/m3db/bloom"
+  revision = "47fe1193cdb900de7193d1f3d26ea9b2cbf6fb31"
+
+ [[override]]
+  name = "github.com/couchbase/vellum"
+  revision = "51c732079c882f52f8e6af889d99ac2a1611d5e4"
+  source = "github.com/m3db/vellum"
 
  [[constraint]]
   name = "github.com/m3db/m3"
-  version = "=v0.4.2"
+  version = "=v0.4.3"
+
+ [[override]]
+  name = "github.com/apache/thrift"
+  version = "0.9.3-pool-read-binary-2"
+  source = "github.com/m3db/thrift"
 
  [[override]]
    name = "k8s.io/code-generator"
@@ -60,4 +94,5 @@
  [[override]]
    name = "k8s.io/client-go"
    branch = "release-7.0"
+ 
 

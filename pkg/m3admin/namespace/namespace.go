@@ -33,6 +33,7 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
+	ns "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3/src/query/util/logging"
 	"go.uber.org/zap"
@@ -43,7 +44,6 @@ const (
 
 	// TODO(PS) add to spec for crd?
 	// defaults for namespace creation
-	NamespaceURI                                                     = "/api/v1/namespace"
 	_defaultName                                                     = "default"
 	_defaultBootstrapEnabled                                         = true
 	_defaultFlushEnabled                                             = true
@@ -112,7 +112,7 @@ func WithLogger(logger *zap.Logger) Option {
 }
 
 // New constructs a new namespace client
-func New(opts ...Option) (m3admin.Namespace, error) {
+func New(opts ...Option) (Namespace, error) {
 	logging.InitWithCores(nil)
 	ctx := context.Background()
 	logger := logging.WithContext(ctx)
@@ -166,7 +166,7 @@ func defaultNamespaceRequest(namespaceName string) *admin.NamespaceAddRequest {
 
 // Create will create a namespace
 func (n *namespace) Create(namespaceName string) error {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), NamespaceURI)
+	url := fmt.Sprintf("%s/%s", n.formatURL(), ns.AddURL)
 	data, err := json.Marshal(defaultNamespaceRequest(namespaceName))
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func (n *namespace) Create(namespaceName string) error {
 
 // Get will retrieve a namespace
 func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), NamespaceURI)
+	url := fmt.Sprintf("%s/%s", n.formatURL(), ns.AddURL)
 	resp, err := m3admin.DoHttpRequest(n.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 
 // Delete will delete a namespace
 func (n *namespace) Delete(namespace string) error {
-	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), NamespaceURI, namespace)
+	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), ns.AddURL, namespace)
 	_, err := m3admin.DoHttpRequest(n.client, "DELETE", url, nil)
 	if err != nil {
 		return err

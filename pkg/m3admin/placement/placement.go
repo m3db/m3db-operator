@@ -34,6 +34,7 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
+	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3/src/query/util/logging"
 	"go.uber.org/zap"
@@ -95,7 +96,7 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
-func New(opts ...Option) (m3admin.Placement, error) {
+func New(opts ...Option) (Placement, error) {
 	logging.InitWithCores(nil)
 	ctx := context.Background()
 	logger := logging.WithContext(ctx)
@@ -126,7 +127,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s/%s", p.formatDomain(), "init")
+	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.InitURL)
 	_, err = m3admin.DoHttpRequest(p.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
@@ -148,7 +149,7 @@ func (p *placement) Delete() error {
 
 // Get will get current placement
 func (p *placement) Get() (*admin.PlacementGetResponse, error) {
-	url := p.formatDomain()
+	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.GetURL)
 	resp, err := m3admin.DoHttpRequest(p.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func (p *placement) Get() (*admin.PlacementGetResponse, error) {
 
 // Add will add an instance to the current placement
 func (p *placement) Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error) {
-	url := p.formatDomain()
+	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.AddURL)
 	data, err := json.Marshal(instance)
 	if err != nil {
 		return nil, err

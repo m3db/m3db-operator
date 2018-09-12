@@ -27,6 +27,12 @@ import (
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 )
 
+const (
+	DefaultServicePort   = 7201
+	DefaultServiceName   = "m3coordinator"
+	DefaultServiceDomain = "default"
+)
+
 // DoHttpReqeust is a simple helper for HTTP requests
 func DoHttpRequest(
 	client *retryhttp.Client,

@@ -26,7 +26,6 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
@@ -53,8 +52,8 @@ type Controller struct {
 	logger          *zap.Logger
 	k8sclient       *k8sops.K8sops
 	clusters        map[string]Cluster
-	placementClient m3admin.Placement
-	namespaceClient m3admin.Namespace
+	placementClient placement.Placement
+	namespaceClient namespace.Namespace
 }
 
 // New creates new instance of Controller

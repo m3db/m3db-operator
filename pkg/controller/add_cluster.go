@@ -26,6 +26,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	"go.uber.org/zap"
@@ -33,8 +34,6 @@ import (
 
 const (
 	// defaults for placement init request
-	_defaultZoneType = "embedded"
-	_defaultWeight   = 100
 	_defaultM3DBPort = 9000
 )
 
@@ -119,12 +118,12 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 			return err
 		}
 		for hostname, zone := range placementDetails {
-			fqdnHostname := fmt.Sprintf("%s.%s", hostname, "m3dbnode")
+			fqdnHostname := fmt.Sprintf("%s.%s", hostname, plc.DefaultServiceName)
 			instance := &placementpb.Instance{
 				Id:             hostname,
 				IsolationGroup: zone,
-				Zone:           _defaultZoneType,
-				Weight:         _defaultWeight,
+				Zone:           plc.DefaultServiceZone,
+				Weight:         100, // TODO(PS) Remove once [PR](https://github.com/m3db/m3/pull/901) is merged
 				Hostname:       fqdnHostname,
 				Endpoint:       fmt.Sprintf("%s:%d", fqdnHostname, _defaultM3DBPort),
 				Port:           _defaultM3DBPort,
