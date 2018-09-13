@@ -22,7 +22,6 @@ package namespace
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -33,9 +32,9 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
-	ns "github.com/m3db/m3/src/query/api/v1/handler/namespace"
+	ns "github.com/m3db/m3/src/dbnode/storage/namespace"
+	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3/src/query/util/logging"
 	"go.uber.org/zap"
 )
 
@@ -113,11 +112,9 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
-// New constructs a new namespace client
-func New(opts ...Option) (Namespace, error) {
-	logging.InitWithCores(nil)
-	ctx := context.Background()
-	logger := logging.WithContext(ctx)
+// NewClient constructs a new namespace client
+func NewClient(opts ...Option) (Client, error) {
+	logger := zap.NewNop()
 	// TODO(PS) Add logger.Sync() somewhere
 	ns := &namespace{
 		client:        retryhttp.NewClient(),
@@ -168,7 +165,7 @@ func defaultNamespaceRequest(namespaceName string) *admin.NamespaceAddRequest {
 
 // Create will create a namespace
 func (n *namespace) Create(namespaceName string) error {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), ns.AddURL)
+	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.AddURL)
 	data, err := json.Marshal(defaultNamespaceRequest(namespaceName))
 	if err != nil {
 		return err
@@ -181,9 +178,9 @@ func (n *namespace) Create(namespaceName string) error {
 	return nil
 }
 
-// Get will retrieve a namespace
+// List will retrieve all namespaces within the current M3DB
 func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), ns.AddURL)
+	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.AddURL)
 	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -197,18 +194,17 @@ func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	reader := bytes.NewReader(body)
-	n.logger.Info("namespace", zap.String("resp", string(body)))
-	if err := jsonpb.Unmarshal(reader, data); err != nil {
+	if err := jsonpb.Unmarshal(body, data); err != nil {
 		return nil, err
 	}
+	namespaces := []ns.Metadata{}
 	n.logger.Info("namespace retrieved")
 	return data, nil
 }
 
 // Delete will delete a namespace
 func (n *namespace) Delete(namespace string) error {
-	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), ns.AddURL, namespace)
+	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), nsh.AddURL, namespace)
 	_, err := m3admin.DoHTTPRequest(n.client, "DELETE", url, nil)
 	if err != nil {
 		return err

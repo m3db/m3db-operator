@@ -18,21 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package placement
+package k8sops
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// Client provides the interface to interact with the placement API
-type Client interface {
-	// Init will initialize a placement give a valid placement request
-	Init(request *admin.PlacementInitRequest) error
-	// Get will provide a placement given a hostname e.g. a subdomin
-	Get() (*admin.PlacementGetResponse, error)
-	// Delete will delete a placment given a hostname e.g. a subdomain
-	Delete() error
-	// Add will add a placement given a hostname e.g. a subdomain
-	Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error)
+func TestCommon(t *testing.T) {
+	k := newFakeK8sops()
+	ssName := k.StatefulSetName("testCluster", "testIsolationGroup")
+	require.Equal(t, "testCluster-testIsolationGroup-m3", ssName)
 }

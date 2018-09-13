@@ -115,17 +115,6 @@ clean:
 all: clean code-gen lint metalint test-ci-unit
 	@echo make all successfully finished
 
-#.PHONY: help
-#help:
-#	@echo
-#	@echo "\033[92m  Usage:"
-#	@printf "    \033[36m%-15s\033[93m %s" "make" "<target>"
-#	@echo
-#	@echo
-#	@echo "\033[92m  Targets: "
-#	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-15s\033[93m %s\n", $$1, $$2}'
-#	@printf "\033[0m"
-
 .PHONY: dep-install
 dep-install: ## Ensure dep is installed
 	@which dep > /dev/null || ./build/install-dep.sh

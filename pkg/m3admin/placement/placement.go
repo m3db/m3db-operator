@@ -22,7 +22,6 @@ package placement
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +35,6 @@ import (
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3/src/query/util/logging"
 	"go.uber.org/zap"
 )
 
@@ -99,11 +97,9 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
-// New is the constructor the Placement interface
-func New(opts ...Option) (Placement, error) {
-	logging.InitWithCores(nil)
-	ctx := context.Background()
-	logger := logging.WithContext(ctx)
+// NewClient is the constructor the Placement interface
+func NewClient(opts ...Option) (Client, error) {
+	logger := zap.NewNop()
 	// TODO(PS) Add logger.Sync() somewhere
 	pl := &placement{
 		client:        retryhttp.NewClient(),

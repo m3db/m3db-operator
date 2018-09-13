@@ -65,12 +65,12 @@ func New(logger *zap.Logger, kclient *k8sops.K8sops) (*Controller, error) {
 	}
 	// TODO(PS) Move these clients within the cluster object to esnure each
 	// cluster has it's own configured client
-	placementClient, err := placement.New(placement.WithLogger(logger))
+	placementClient, err := placement.NewClient(placement.WithLogger(logger))
 	if err != nil {
 		return nil, err
 	}
 	p.placementClient = placementClient
-	namespaceClient, err := namespace.New(namespace.WithLogger(logger))
+	namespaceClient, err := namespace.NewClient(namespace.WithLogger(logger))
 	if err != nil {
 		return nil, err
 	}

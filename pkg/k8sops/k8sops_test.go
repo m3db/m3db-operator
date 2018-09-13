@@ -18,21 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package placement
+package k8sops
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	"go.uber.org/zap"
+	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-// Client provides the interface to interact with the placement API
-type Client interface {
-	// Init will initialize a placement give a valid placement request
-	Init(request *admin.PlacementInitRequest) error
-	// Get will provide a placement given a hostname e.g. a subdomin
-	Get() (*admin.PlacementGetResponse, error)
-	// Delete will delete a placment given a hostname e.g. a subdomain
-	Delete() error
-	// Add will add a placement given a hostname e.g. a subdomain
-	Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error)
+func newFakeK8sops() *K8sops {
+	logger := zap.NewNop()
+	kubeCli := kubeFake.NewSimpleClientset()
+	kubeExt := kubeExtFake.NewSimpleClientset()
+	crdCli := clientsetFake.NewSimpleClientset()
+	return &K8sops{
+		logger:     logger,
+		Kclient:    kubeCli,
+		MasterHost: "",
+		CrdClient:  crdCli,
+		KubeExt:    kubeExt,
+	}
 }

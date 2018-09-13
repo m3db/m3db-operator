@@ -160,7 +160,7 @@ func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) error {
 	}
 
 	if err = c.namespaceClient.Create(cluster.GetObjectMeta().GetName()); err != nil {
-		c.logger.Error("failed to create namespace after 6 tries", zap.Error(err))
+		c.logger.Error("failed to create namespace", zap.Error(err))
 		return err
 	}
 	return nil

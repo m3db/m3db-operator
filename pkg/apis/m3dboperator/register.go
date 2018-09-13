@@ -31,7 +31,7 @@ const (
 	ResourceKind = "M3DBCluster"
 
 	// ResourcePlural is the plural form of custom resource kind
-	ResourcePlural = "M3DBclusters"
+	ResourcePlural = "M3DBClusters"
 
 	// GroupName is the group that the custom resource belongs to
 	GroupName = "operator.m3db.io"
