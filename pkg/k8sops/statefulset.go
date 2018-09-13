@@ -36,7 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// MultiLabelSelector
+// MultiLabelSelector provides a ListOptions with a LabelSelector
+// given a map of strings
 func (k *K8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
 	var selector string
 	for k, v := range kvs {
@@ -46,14 +47,15 @@ func (k *K8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
 	return metav1.ListOptions{LabelSelector: selector}
 }
 
-// LabelSelector
+// LabelSelector provides a ListOptions with a LabelSelector given a key
+// and value strings
 func (k *K8sops) LabelSelector(key, value string) metav1.ListOptions {
 	selector := fmt.Sprintf("%s=%s", key, value)
 	return metav1.ListOptions{LabelSelector: selector}
 }
 
-// DeleteStatefulSets
-func (k *K8sops) DeleteStatefuleSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
+// DeleteStatefulSets will delete all stateful sets associated with a cluster
+func (k *K8sops) DeleteStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
 	statefulSets, err := k.GetStatefulSets(cluster, listOpts)
 	if err != nil {
 		return err
@@ -98,7 +100,8 @@ func (k *K8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]st
 	return placementDetails, nil
 }
 
-// GetPodsByLabel
+// GetPodsByLabel provides a PodList given ListOptions which contain the
+// correct LabelSelector
 func (k *K8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*v1.PodList, error) {
 	pods, err := k.Kclient.CoreV1().Pods(cluster.GetNamespace()).List(listOpts)
 	if err != nil {
@@ -178,7 +181,8 @@ func (k *K8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *app
 	return statefulSet, err
 }
 
-// CheckStatefulStatus
+// CheckStatefulStatus will poll a given StatefulSet to ensure it reaches a
+// ready state within 60 seconds with polling updates at 500 ms
 func (k *K8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	// Poll newly created stateful set and ensure all PODs are in ready state
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {

@@ -28,13 +28,18 @@ import (
 )
 
 const (
-	DefaultServicePort   = 7201
-	DefaultServiceName   = "m3coordinator"
+	// DefaultServicePort is the typical default of the M3Coordinator service
+	DefaultServicePort = 7201
+
+	// DefaultServiceName is the typical name of the M3Coordinator service
+	DefaultServiceName = "m3coordinator"
+
+	// DefaultServiceDomain is the typical domain of the M3Coordinator service
 	DefaultServiceDomain = "default"
 )
 
-// DoHttpReqeust is a simple helper for HTTP requests
-func DoHttpRequest(
+// DoHTTPRequest is a simple helper for HTTP requests
+func DoHTTPRequest(
 	client *retryhttp.Client,
 	action, url string,
 	data *bytes.Buffer,

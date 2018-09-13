@@ -22,6 +22,7 @@ package namespace
 
 import "github.com/m3db/m3/src/query/generated/proto/admin"
 
+// Namespace provides the interface to interact with the namespace API
 type Namespace interface {
 	// Create will create a namepace with provided namespace name and defaults
 	Create(namespace string) error

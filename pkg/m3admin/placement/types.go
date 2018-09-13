@@ -25,6 +25,7 @@ import (
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 )
 
+// Placement provides the interface to interact with the placement API
 type Placement interface {
 	// Init will initialize a placement give a valid placement request
 	Init(request *admin.PlacementInitRequest) error

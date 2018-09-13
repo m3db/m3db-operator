@@ -69,6 +69,8 @@ type namespace struct {
 	serviceDomain string
 }
 
+// Option provides an interface that can be used for setter options with the
+// constructor
 type Option interface {
 	execute(*namespace) error
 }
@@ -171,7 +173,7 @@ func (n *namespace) Create(namespaceName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHttpRequest(n.client, "POST", url, bytes.NewBuffer(data))
+	_, err = m3admin.DoHTTPRequest(n.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -182,7 +184,7 @@ func (n *namespace) Create(namespaceName string) error {
 // Get will retrieve a namespace
 func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 	url := fmt.Sprintf("%s/%s", n.formatURL(), ns.AddURL)
-	resp, err := m3admin.DoHttpRequest(n.client, "GET", url, nil)
+	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +209,7 @@ func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 // Delete will delete a namespace
 func (n *namespace) Delete(namespace string) error {
 	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), ns.AddURL, namespace)
-	_, err := m3admin.DoHttpRequest(n.client, "DELETE", url, nil)
+	_, err := m3admin.DoHTTPRequest(n.client, "DELETE", url, nil)
 	if err != nil {
 		return err
 	}

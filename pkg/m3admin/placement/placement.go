@@ -40,6 +40,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// ErrPlacementNotFound indicates that the placement is not found
 var ErrPlacementNotFound = errors.New("placement not found")
 
 const (
@@ -54,6 +55,8 @@ type placement struct {
 	logger        *zap.Logger
 }
 
+// Option provides an interface that can be used for setter options with the
+// constructor
 type Option interface {
 	execute(*placement) error
 }
@@ -96,6 +99,7 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
+// New is the constructor the Placement interface
 func New(opts ...Option) (Placement, error) {
 	logging.InitWithCores(nil)
 	ctx := context.Background()
@@ -128,7 +132,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 		return err
 	}
 	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.InitURL)
-	_, err = m3admin.DoHttpRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -139,7 +143,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 // Delete will delete all current placements
 func (p *placement) Delete() error {
 	url := p.formatDomain()
-	_, err := m3admin.DoHttpRequest(p.client, "DELETE", url, nil)
+	_, err := m3admin.DoHTTPRequest(p.client, "DELETE", url, nil)
 	if err != nil {
 		return err
 	}
@@ -150,7 +154,7 @@ func (p *placement) Delete() error {
 // Get will get current placement
 func (p *placement) Get() (*admin.PlacementGetResponse, error) {
 	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.GetURL)
-	resp, err := m3admin.DoHttpRequest(p.client, "GET", url, nil)
+	resp, err := m3admin.DoHTTPRequest(p.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +180,7 @@ func (p *placement) Add(instance placementpb.Instance) (*admin.PlacementGetRespo
 	if err != nil {
 		return nil, err
 	}
-	resp, err := m3admin.DoHttpRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	resp, err := m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
 	}

@@ -22,6 +22,7 @@ package k8sops
 
 import "fmt"
 
+// StatefulSetName provides a formatted string to use for naming StatefulSets
 func (k *K8sops) StatefulSetName(clusterName, isolationGroup string) string {
 	return fmt.Sprintf("%s-%s-m3", clusterName, isolationGroup)
 }

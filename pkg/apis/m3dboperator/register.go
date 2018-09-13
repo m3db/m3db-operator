@@ -27,14 +27,23 @@ import (
 )
 
 const (
-	ResourceKind   = "M3DBCluster"
-	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
+	// ResourceKind is the custom resource kind
+	ResourceKind = "M3DBCluster"
+
+	// ResourcePlural is the plural form of custom resource kind
+	ResourcePlural = "M3DBclusters"
+
+	// GroupName is the group that the custom resource belongs to
+	GroupName = "operator.m3db.io"
+
+	// Version sets the version of the custom resource
+	Version = "v1"
 )
 
 var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
+	// Name is the fully qualified name of the custom resource
+	Name = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
+
+	// SchemeGroupVersion is the schema version of the group
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
 )

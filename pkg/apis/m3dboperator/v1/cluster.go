@@ -45,17 +45,30 @@ type M3DBClusterList struct {
 	Items           []M3DBCluster `json:"items"`
 }
 
+// M3DBStatus contains the current state the M3DB cluster along with a human
+// readable message
 type M3DBStatus struct {
-	State   M3DBState `json:"state,omitempty"`
-	Message string    `json:"message,omitempty"`
+	// State is a enum of green, yellow, and red denoting the health of the
+	// cluster
+	State M3DBState `json:"state,omitempty"`
+
+	// Message is a human readable message indicating why the cluster is in it's
+	// current state
+	Message string `json:"message,omitempty"`
 }
 
+// M3DBState contains the state of the M3DB cluster
 type M3DBState string
 
 const (
-	GreenState  M3DBState = "green"
+	// GreenState indicates a healthy state of the M3DB cluster
+	GreenState M3DBState = "green"
+
+	// YellowState indicates a caution state of the M3DB cluster
 	YellowState M3DBState = "yellow"
-	RedState    M3DBState = "red"
+
+	// RedState indicates a critical state of the M3DB cluster
+	RedState M3DBState = "red"
 )
 
 // ClusterSpec defines the desired state for a M3 cluster to be converge to.
