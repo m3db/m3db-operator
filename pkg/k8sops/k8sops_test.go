@@ -22,6 +22,7 @@ package k8sops
 
 import (
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+
 	"go.uber.org/zap"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	kubeFake "k8s.io/client-go/kubernetes/fake"

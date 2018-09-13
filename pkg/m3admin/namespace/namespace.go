@@ -27,14 +27,14 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-
-	"github.com/gogo/protobuf/jsonpb"
-	retryhttp "github.com/hashicorp/go-retryablehttp"
 	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	ns "github.com/m3db/m3/src/dbnode/storage/namespace"
 	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
+	"github.com/gogo/protobuf/jsonpb"
+	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
 
@@ -198,6 +198,9 @@ func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 		return nil, err
 	}
 	namespaces := []ns.Metadata{}
+	for _, namespace := range data.GetRegistry().GetNamespaces() {
+
+	}
 	n.logger.Info("namespace retrieved")
 	return data, nil
 }

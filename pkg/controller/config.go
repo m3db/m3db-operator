@@ -3,9 +3,10 @@ package controller
 import (
 	"encoding/json"
 
-	"github.com/ghodss/yaml"
 	m3config "github.com/m3db/m3/src/cmd/services/m3dbnode/config"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+
+	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
