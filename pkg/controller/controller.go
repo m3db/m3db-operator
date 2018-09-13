@@ -52,8 +52,8 @@ type Controller struct {
 	logger          *zap.Logger
 	k8sclient       *k8sops.K8sops
 	clusters        map[string]Cluster
-	placementClient placement.Placement
-	namespaceClient namespace.Namespace
+	placementClient placement.Client
+	namespaceClient namespace.Client
 }
 
 // New creates new instance of Controller

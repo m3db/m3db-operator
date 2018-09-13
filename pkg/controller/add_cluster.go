@@ -28,6 +28,7 @@ import (
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3x/ident"
 
 	"go.uber.org/zap"
 )
@@ -150,7 +151,7 @@ func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 	for _, namespace := range namespaces {
-		if cluster.GetObjectMeta().GetName() == namespace {
+		if namespace.ID().Equal(ident.StringID(cluster.GetObjectMeta().GetName())) {
 			c.logger.Info("namespace found")
 			return nil
 		}

@@ -31,7 +31,7 @@ func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
 	if err := c.placementClient.Delete(); err != nil {
 		return err
 	}
-	if err := c.k8sclient.DeleteStatefuleSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
+	if err := c.k8sclient.DeleteStatefulSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
 		return err
 	}
 	if err := c.k8sclient.DeleteService(cluster, "m3dbnode"); err != nil {

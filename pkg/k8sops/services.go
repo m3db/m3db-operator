@@ -46,7 +46,6 @@ func (k *K8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.Servic
 	if errors.IsNotFound(err) {
 		k.logger.Info("service doesn't exist, creating it", zap.String("service", svcCfg.Name))
 		svc := k.GenerateService(svcCfg)
-		k.logger.Info("service", zap.Any("obj", svc))
 		if _, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
 			return err
 		}

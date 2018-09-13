@@ -1,22 +1,36 @@
-
 {
   "Linters": {
-    "badtime": {
-      "Command": "badtime",
+    "unused": {
+      "Command": "unused -tags 'integration big adhoc'",
       "Pattern": "PATH:LINE:COL:MESSAGE"
+    },
+    "gosimple": {
+      "Command": "gosimple -tags 'integration big adhoc'",
+      "Pattern": "PATH:LINE:COL:MESSAGE"
+    },
+    "badtime": {
+      "Command": "badtime -tags 'integration big adhoc'",
+      "Pattern": "PATH:LINE:COL:MESSAGE"
+    },
+    "importorder": {
+      "Command": "importorder -patterns=\"STDLIB github.com/m3db EXTERNAL\"",
+      "Pattern": "PATH:LINE:MESSAGE"
     }
   },
-  "Enable":
-    [ "deadcode"
-    , "varcheck"
-    , "structcheck"
-    , "goconst"
-    , "ineffassign"
-    , "unconvert"
-    , "misspell"
-    , "unparam"
-    , "megacheck"
-    , "badtime" ],
+  "Enable": [
+    "varcheck",
+    "structcheck",
+    "goconst",
+    "ineffassign",
+    "unconvert",
+    "misspell",
+    "golint",
+    "gosimple",
+    "unused",
+    "badtime",
+    "maligned",
+    "importorder"
+  ],
   "Deadline": "3m",
   "EnableGC": true
 }

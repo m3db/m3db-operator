@@ -23,6 +23,7 @@ package namespace
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -32,7 +33,6 @@ import (
 	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3x/ident"
 
 	"github.com/gogo/protobuf/jsonpb"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
@@ -59,6 +59,11 @@ const (
 	_defaultRententionOptionBlockDataExpiryAfterNotAccessPeriodNanos = int64(300000000000)
 	_defaultIndexOptionenabled                                       = true
 	_defaultIndexOptionBlockSizeNanos                                = int64(7200000000000)
+)
+
+var (
+	ErrNamespaceNotFound = errors.New("namespace not found")
+	ErrNoNamespacesFound = errors.New("no namespaces found")
 )
 
 type namespace struct {
@@ -179,9 +184,9 @@ func (n *namespace) Create(namespaceName string) error {
 	return nil
 }
 
-// List will retrieve all namespaces within the current M3DB
+// List will retrieve all namespaces
 func (n *namespace) List() ([]ns.Metadata, error) {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.AddURL)
+	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.GetURL)
 	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -195,8 +200,8 @@ func (n *namespace) List() ([]ns.Metadata, error) {
 		return nil, err
 	}
 	nsMetas := []ns.Metadata{}
-	for nsID, _ := range data.GetRegistry().GetNamespaces() {
-		md, err := ns.NewMetadata(ident.StringID(nsID), nil)
+	for nsID, nsOpts := range data.GetRegistry().GetNamespaces() {
+		md, err := ns.ToMetadata(nsID, nsOpts)
 		if err != nil {
 			return nil, err
 		}
