@@ -32,6 +32,7 @@ import (
 	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3x/ident"
 
 	"github.com/gogo/protobuf/jsonpb"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
@@ -179,7 +180,7 @@ func (n *namespace) Create(namespaceName string) error {
 }
 
 // List will retrieve all namespaces within the current M3DB
-func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
+func (n *namespace) List() ([]ns.Metadata, error) {
 	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.AddURL)
 	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
 	if err != nil {
@@ -190,19 +191,19 @@ func (n *namespace) Get() (*admin.NamespaceGetResponse, error) {
 		ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 	}()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
 		return nil, err
 	}
-	if err := jsonpb.Unmarshal(body, data); err != nil {
-		return nil, err
-	}
-	namespaces := []ns.Metadata{}
-	for _, namespace := range data.GetRegistry().GetNamespaces() {
-
+	nsMetas := []ns.Metadata{}
+	for nsID, _ := range data.GetRegistry().GetNamespaces() {
+		md, err := ns.NewMetadata(ident.StringID(nsID), nil)
+		if err != nil {
+			return nil, err
+		}
+		nsMetas = append(nsMetas, md)
 	}
 	n.logger.Info("namespace retrieved")
-	return data, nil
+	return nsMetas, nil
 }
 
 // Delete will delete a namespace

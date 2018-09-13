@@ -144,19 +144,16 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 // the cluster name or create a new namespace to match the cluster name
 func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) error {
 	//get namespace
-	resp, err := c.namespaceClient.Get()
+	namespaces, err := c.namespaceClient.List()
 	if err != nil {
 		c.logger.Error("failed to get namespace ", zap.Error(err))
 		return err
 	}
-
-	// check if namespace already exist
-	//
-	// TODO(PS) Ensure all namepaces can be validated in a registry
-	namespaces := resp.GetRegistry().GetNamespaces()
-	if _, ok := namespaces[cluster.GetObjectMeta().GetName()]; ok {
-		c.logger.Info("namespace found")
-		return nil
+	for _, namespace := range namespaces {
+		if cluster.GetObjectMeta().GetName() == namespace {
+			c.logger.Info("namespace found")
+			return nil
+		}
 	}
 
 	if err = c.namespaceClient.Create(cluster.GetObjectMeta().GetName()); err != nil {

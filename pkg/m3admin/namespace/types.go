@@ -20,14 +20,14 @@
 
 package namespace
 
-import "github.com/m3db/m3/src/query/generated/proto/admin"
+import ns "github.com/m3db/m3/src/dbnode/storage/namespace"
 
 // Client provides the interface to interact with the namespace API
 type Client interface {
 	// Create will create a namepace with provided namespace name and defaults
 	Create(namespace string) error
 	// List will retrieve all namespaces within the current M3DB
-	List() (*admin.NamespaceGetResponse, error)
+	List() ([]ns.Metadata, error)
 	// Delete will delete a namespace given a name
 	Delete(namespace string) error
 }
