@@ -38,7 +38,7 @@ import (
 
 // MultiLabelSelector provides a ListOptions with a LabelSelector
 // given a map of strings
-func (k *K8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
+func (k *k8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
 	var selector string
 	for k, v := range kvs {
 		selector = fmt.Sprintf("%s %s=%s", selector, k, v)
@@ -49,19 +49,19 @@ func (k *K8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
 
 // LabelSelector provides a ListOptions with a LabelSelector given a key
 // and value strings
-func (k *K8sops) LabelSelector(key, value string) metav1.ListOptions {
+func (k *k8sops) LabelSelector(key, value string) metav1.ListOptions {
 	selector := fmt.Sprintf("%s=%s", key, value)
 	return metav1.ListOptions{LabelSelector: selector}
 }
 
 // DeleteStatefulSets will delete all stateful sets associated with a cluster
-func (k *K8sops) DeleteStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
+func (k *k8sops) DeleteStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
 	statefulSets, err := k.GetStatefulSets(cluster, listOpts)
 	if err != nil {
 		return err
 	}
 	for _, statefulSet := range statefulSets.Items {
-		if err := k.Kclient.
+		if err := k.kclient.
 			AppsV1().
 			StatefulSets(cluster.GetNamespace()).
 			Delete(statefulSet.GetName(), &metav1.DeleteOptions{}); err != nil {
@@ -74,8 +74,8 @@ func (k *K8sops) DeleteStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1
 
 // GetStatefulSets provides all the StatefulSets contained within a
 // cluster
-func (k *K8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
-	statefulSets, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).List(listOpts)
+func (k *k8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
+	statefulSets, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).List(listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (k *K8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.Li
 }
 
 // GetPlacementDetails provides the pod to isolation group mapping
-func (k *K8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]string, error) {
+func (k *k8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]string, error) {
 	placementDetails := make(map[string]string)
 	for _, ig := range cluster.Spec.IsolationGroups {
 		pods, err := k.GetPodsByLabel(cluster, k.LabelSelector("isolationGroup", ig.Name))
@@ -102,8 +102,8 @@ func (k *K8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]st
 
 // GetPodsByLabel provides a PodList given ListOptions which contain the
 // correct LabelSelector
-func (k *K8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*v1.PodList, error) {
-	pods, err := k.Kclient.CoreV1().Pods(cluster.GetNamespace()).List(listOpts)
+func (k *k8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*v1.PodList, error) {
+	pods, err := k.kclient.CoreV1().Pods(cluster.GetNamespace()).List(listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (k *K8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.Lis
 
 // EnsureStatefulSets will create StatefulSets based the Spec configuration
 // if they don't exist already
-func (k *K8sops) EnsureStatefulSets(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
+func (k *k8sops) EnsureStatefulSets(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
 	for _, attrs := range cluster.Spec.IsolationGroups {
 		statefulSetName := k.StatefulSetName(cluster.GetName(), attrs.Name)
 		statefulSet, err := k.GetStatefulSet(cluster, statefulSetName)
@@ -139,8 +139,8 @@ func (k *K8sops) EnsureStatefulSets(cluster *myspec.M3DBCluster, svcCfg myspec.S
 
 // CreateStatefulSet will create a StatefulSet and ensure all Pod replicas are
 // ready before returning
-func (k *K8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Create(statefulSet)
+func (k *k8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Create(statefulSet)
 	if err != nil {
 		k.logger.Error("failed to create statefulset", zap.Error(err), zap.String("statefulset", statefulSet.GetName()))
 	}
@@ -154,8 +154,8 @@ func (k *K8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *app
 }
 
 // GetStatefulSet simply returns a StatefulSet given the current cluster
-func (k *K8sops) GetStatefulSet(cluster *myspec.M3DBCluster, name string) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
+func (k *k8sops) GetStatefulSet(cluster *myspec.M3DBCluster, name string) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +163,8 @@ func (k *K8sops) GetStatefulSet(cluster *myspec.M3DBCluster, name string) (*apps
 }
 
 // UpdateStatefulSet simply updates a statefulset
-func (k *K8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Update(statefulSet)
+func (k *k8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Update(statefulSet)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (k *K8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *app
 		return nil, err
 	}
 	k.logger.Info("updated ss", zap.Any("ss", statefulSet))
-	statefulSet, err = k.Kclient.AppsV1().StatefulSets(cluster.GetNamespace()).UpdateStatus(statefulSet)
+	statefulSet, err = k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).UpdateStatus(statefulSet)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (k *K8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *app
 
 // CheckStatefulStatus will poll a given StatefulSet to ensure it reaches a
 // ready state within 60 seconds with polling updates at 500 ms
-func (k *K8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (k *k8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	// Poll newly created stateful set and ensure all PODs are in ready state
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
 		statefulSet, err := k.GetStatefulSet(cluster, statefulSet.GetName())

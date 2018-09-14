@@ -29,10 +29,10 @@ import (
 type Client interface {
 	// Init will initialize a placement give a valid placement request
 	Init(request *admin.PlacementInitRequest) error
-	// Get will provide a placement given a hostname e.g. a subdomin
-	Get() (*admin.PlacementGetResponse, error)
-	// Delete will delete a placment given a hostname e.g. a subdomain
+	// Get will provide the current placement
+	Get() (placementName string, err error)
+	// Delete will delete the current placment
 	Delete() error
-	// Add will add a placement given a hostname e.g. a subdomain
-	Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error)
+	// Add will add an instance to the placement
+	Add(instance placementpb.Instance) error
 }

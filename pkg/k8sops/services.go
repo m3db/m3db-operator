@@ -26,8 +26,8 @@ import (
 )
 
 // GetService simply gets a service by name
-func (k *K8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
-	service, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
+func (k *k8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
+	service, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -35,18 +35,18 @@ func (k *K8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Servi
 }
 
 // DeleteService simply deletes a service by name
-func (k *K8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
+func (k *k8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
 	k.logger.Info("deleting service", zap.String("service", name))
-	return k.Kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
+	return k.kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
 }
 
 // EnsureService will create a service by name if it doesn't exist
-func (k *K8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
+func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
 	_, err := k.GetService(cluster, svcCfg.Name)
 	if errors.IsNotFound(err) {
 		k.logger.Info("service doesn't exist, creating it", zap.String("service", svcCfg.Name))
 		svc := k.GenerateService(svcCfg)
-		if _, err := k.Kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
+		if _, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
 			return err
 		}
 		k.logger.Info("ensured service is created", zap.String("service", svc.GetName()))

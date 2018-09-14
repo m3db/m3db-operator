@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package controller
 
 import (
 	"fmt"
@@ -26,18 +26,23 @@ import (
 	"testing"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/stretchr/testify/require"
+	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
+
+	"go.uber.org/zap"
 	yaml "gopkg.in/yaml.v2"
+	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-func getFixture(filename string, t *testing.T) myspec.M3DBCluster {
-	spec := myspec.M3DBCluster{}
+func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {
+	spec := &myspec.M3DBCluster{}
 	file, err := ioutil.ReadFile(fmt.Sprintf("./fixtures/%s", filename))
 	if err != nil {
 		t.Logf("Failed to read fixtures file: %v ", err)
 		t.Fail()
 	}
-	err = yaml.Unmarshal(file, &spec)
+	err = yaml.Unmarshal(file, spec)
 	if err != nil {
 		t.Logf("Unmarshal error: %v", err)
 		t.Fail()
@@ -45,9 +50,17 @@ func getFixture(filename string, t *testing.T) myspec.M3DBCluster {
 	return spec
 }
 
-func TestCommon(t *testing.T) {
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
-	ssName := k.StatefulSetName("testCluster", "testIsolationGroup")
-	require.Equal(t, "testCluster-testIsolationGroup-m3", ssName)
+func newFakeK8sops() (k8sops.K8sops, error) {
+	logger := zap.NewNop()
+	kubeCli := kubeFake.NewSimpleClientset()
+	kubeExt := kubeExtFake.NewSimpleClientset()
+	crdCli := clientsetFake.NewSimpleClientset()
+	k, err := k8sops.New(
+		"",
+		k8sops.WithCRDClient(crdCli),
+		k8sops.WithExtClient(kubeExt),
+		k8sops.WithKClient(kubeCli),
+		k8sops.WithLogger(logger),
+	)
+	return k, err
 }

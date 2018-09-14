@@ -103,7 +103,7 @@ mock-gen-no-deps:
 	PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 .PHONY: all-gen
-all-gen: mock-gen
+all-gen: mock-gen code-gen
 
 .PHONY: clean
 clean:

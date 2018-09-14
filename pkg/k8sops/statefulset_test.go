@@ -20,10 +20,29 @@
 
 package k8sops
 
-/*
-func TestCreateKubernetesCustomResourceDefinition(t *testing.T) {
-	k := newFakeK8sops()
-	err := k.CreateKubernetesCustomResourceDefinition()
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestStatefulSet(t *testing.T) {
+	fixture := getFixture("testM3DBCluster.yaml", t)
+	isoGrp := fixture.Spec.IsolationGroups[0]
+	svcCfg := fixture.Spec.ServiceConfigurations[0]
+	k, err := newFakeK8sops()
 	require.Nil(t, err)
+	err = k.EnsureStatefulSets(&fixture, svcCfg)
+	require.Nil(t, err)
+	err = k.EnsureStatefulSets(&fixture, svcCfg)
+	require.Nil(t, err)
+	ssName := k.StatefulSetName(fixture.GetName(), isoGrp.Name)
+	require.NotNil(t, ssName)
+	getSS, err := k.GetStatefulSet(&fixture, ssName)
+	require.Nil(t, err)
+	require.NotNil(t, getSS)
+	_, err = k.GetStatefulSets(&fixture, k.LabelSelector("fake", "fake"))
+	require.NotNil(t, err)
+	err = k.DeleteStatefulSets(&fixture, k.LabelSelector("fake", "fake"))
+	require.NotNil(t, err)
 }
-*/

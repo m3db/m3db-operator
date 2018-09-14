@@ -21,13 +21,14 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3x/ident"
 
 	"go.uber.org/zap"
@@ -36,13 +37,20 @@ import (
 const (
 	// defaults for placement init request
 	_defaultM3DBPort = 9000
+
+	_failedToInitM3DB = "m3 db failed to initialize"
+	_initialzingM3DB  = "m3 db is initializing"
+	_upAndRunningM3DB = "m3 db is up and running"
+
+	_M3DBSvcName          = "m3dbnode"
+	_M3CoordinatorSvcName = "m3coordinator"
 )
 
 func (c *Controller) addM3DBCluster(cluster *myspec.M3DBCluster) error {
 
 	redStatus := myspec.M3DBStatus{
 		State:   myspec.RedState,
-		Message: "m3 db failed to initialize",
+		Message: _failedToInitM3DB,
 	}
 
 	// Refresh cluster map with latest state
@@ -54,35 +62,47 @@ func (c *Controller) addM3DBCluster(cluster *myspec.M3DBCluster) error {
 	cls := c.clusters[cluster.GetName()]
 	status := myspec.M3DBStatus{
 		State:   myspec.YellowState,
-		Message: "m3 db is initializing",
+		Message: _initialzingM3DB,
 	}
 	if err := c.updateM3DBStatus(cls.M3DBCluster, status); err != nil {
 		return err
 	}
-	// create services defined in service configuration
-	for _, svcCfg := range cls.M3DBCluster.Spec.ServiceConfigurations {
-		if err := c.k8sclient.EnsureService(cls.M3DBCluster, svcCfg); err != nil {
-			redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-			if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-				return err
-			}
+	// Create M3DB node service defined in service configuration
+	svcCfg, found := c.getServiceConfig(_M3DBSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
+	if !found {
+		return errors.New(fmt.Sprintf("%s service was not found", _M3DBSvcName))
+	}
+	if err := c.k8sclient.EnsureService(cls.M3DBCluster, svcCfg); err != nil {
+		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
+		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
 			return err
 		}
+		return err
 	}
-
-	// TODO(PS) remove loop to find the correct service
-	for _, svcCfg := range cls.M3DBCluster.Spec.ServiceConfigurations {
-		if svcCfg.Name == "m3dbnode" {
-			// TODO(PS) replace statefulsets with pods instead
-			if err := c.k8sclient.EnsureStatefulSets(cls.M3DBCluster, svcCfg); err != nil {
-				redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-				if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-					return err
-				}
-				return err
-
-			}
+	// Create M3Coodinator service defined in service configuration
+	svcCfg, found = c.getServiceConfig(_M3CoordinatorSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
+	if !found {
+		return errors.New(fmt.Sprintf("%s service was not found", _M3DBSvcName))
+	}
+	if err := c.k8sclient.EnsureService(cls.M3DBCluster, svcCfg); err != nil {
+		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
+		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
+			return err
 		}
+		return err
+	}
+	svcCfg, found = c.getServiceConfig(_M3DBSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
+	if !found {
+		return errors.New(fmt.Sprintf("%s service was not found", _M3DBSvcName))
+	}
+	// TODO(PS) replace statefulsets with pods instead
+	if err := c.k8sclient.EnsureStatefulSets(cls.M3DBCluster, svcCfg); err != nil {
+		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
+		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
+			return err
+		}
+		return err
+
 	}
 	if err := c.EnsureNamespace(cls.M3DBCluster); err != nil {
 		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
@@ -100,16 +120,25 @@ func (c *Controller) addM3DBCluster(cluster *myspec.M3DBCluster) error {
 	}
 	status = myspec.M3DBStatus{
 		State:   myspec.GreenState,
-		Message: "m3 db is up and running",
+		Message: _upAndRunningM3DB,
 	}
 	return c.updateM3DBStatus(cls.M3DBCluster, status)
 }
 
+func (c *Controller) getServiceConfig(serviceName string, svcCfgs []myspec.ServiceConfiguration) (myspec.ServiceConfiguration, bool) {
+	for _, svcCfg := range svcCfgs {
+		if svcCfg.Name == serviceName {
+			return svcCfg, true
+		}
+	}
+	return myspec.ServiceConfiguration{}, false
+}
+
 // EnsurePlacement ensures that a placement exists otherwise create one
 func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
-	//get placement
+	// Get placement
 	_, err := c.placementClient.Get()
-	if err == placement.ErrPlacementNotFound {
+	if err == m3admin.ErrNotFound {
 		placementInitRequest := &admin.PlacementInitRequest{
 			NumShards:         cluster.Spec.NumberOfShards,
 			ReplicationFactor: cluster.Spec.ReplicationFactor,
@@ -132,6 +161,7 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 			placementInitRequest.Instances = append(placementInitRequest.Instances, instance)
 		}
 		if err := c.placementClient.Init(placementInitRequest); err != nil {
+			c.logger.Error("failed to apply placement", zap.Error(err))
 			return err
 		}
 	} else if err != nil {
@@ -144,19 +174,18 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 // EnsureNamespace will retrieve current namespaces to ensure one matches
 // the cluster name or create a new namespace to match the cluster name
 func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) error {
-	//get namespace
+	// Get namespace
 	namespaces, err := c.namespaceClient.List()
 	if err != nil {
 		c.logger.Error("failed to get namespace ", zap.Error(err))
 		return err
 	}
-	for _, namespace := range namespaces {
-		if namespace.ID().Equal(ident.StringID(cluster.GetObjectMeta().GetName())) {
-			c.logger.Info("namespace found")
+	for _, md := range namespaces {
+		if md.ID().Equal(ident.StringID(cluster.GetName())) {
+			c.logger.Info("namespace found", zap.String("ns", md.ID().String()))
 			return nil
 		}
 	}
-
 	if err = c.namespaceClient.Create(cluster.GetObjectMeta().GetName()); err != nil {
 		c.logger.Error("failed to create namespace", zap.Error(err))
 		return err

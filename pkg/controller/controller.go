@@ -23,15 +23,16 @@ package controller
 import (
 	"errors"
 	"sync"
+	"time"
 
+	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	"go.uber.org/zap"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 // reconcilerLock ensures that reconciliation and event reconciling does
@@ -50,20 +51,23 @@ type Cluster struct {
 // Controller object
 type Controller struct {
 	logger          *zap.Logger
-	k8sclient       *k8sops.K8sops
+	k8sclient       k8sops.K8sops
 	clusters        map[string]Cluster
 	placementClient placement.Client
 	namespaceClient namespace.Client
+	doneCh          chan struct{}
+	wg              sync.WaitGroup
 }
 
 // New creates new instance of Controller
-func New(logger *zap.Logger, kclient *k8sops.K8sops) (*Controller, error) {
+func New(logger *zap.Logger, kclient k8sops.K8sops) (*Controller, error) {
 	p := &Controller{
 		logger:    logger,
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
+		doneCh:    make(chan struct{}),
 	}
-	// TODO(PS) Move these clients within the cluster object to esnure each
+	// TODO(PS) Move these clients within the cluster object to ensure each
 	// cluster has it's own configured client
 	placementClient, err := placement.NewClient(placement.WithLogger(logger))
 	if err != nil {
@@ -78,9 +82,14 @@ func New(logger *zap.Logger, kclient *k8sops.K8sops) (*Controller, error) {
 	return p, nil
 }
 
+// Stop will stop the controller
+func (c *Controller) Stop() {
+	close(c.doneCh)
+}
+
 // Init ensures all the required resources are created
 func (c *Controller) Init() error {
-	if err := c.k8sclient.CreateKubernetesCustomResourceDefinition(); err != nil {
+	if err := c.k8sclient.CreateCRD(m3dboperator.Name); err != nil {
 		return err
 	}
 	if err := c.refreshClusters(); err != nil {
@@ -92,12 +101,11 @@ func (c *Controller) Init() error {
 }
 
 // Start the controller
-func (c *Controller) Start(done chan struct{}, wg *sync.WaitGroup) error {
-
+func (c *Controller) Start(wg *sync.WaitGroup) error {
 	// Watch for events that add, modify, or delete M3DBCluster definitions andlog
 	// process them asynchronously.
 	c.logger.Info("watching for m3db events")
-	events, watchErrs := c.k8sclient.MonitorM3DBEvents(done)
+	events, watchErrs := c.monitorM3DBEvents(c.doneCh)
 	go func() {
 		for {
 			select {
@@ -107,7 +115,7 @@ func (c *Controller) Start(done chan struct{}, wg *sync.WaitGroup) error {
 				}
 			case err := <-watchErrs:
 				c.logger.Error("watch errors occured", zap.Error(err))
-			case <-done:
+			case <-c.doneCh:
 				wg.Done()
 				c.logger.Info("stopped m3db event watcher.")
 				return
@@ -117,18 +125,56 @@ func (c *Controller) Start(done chan struct{}, wg *sync.WaitGroup) error {
 	return nil
 }
 
+// monitorM3DBEvents watches for new or removed clusters
+func (c *Controller) monitorM3DBEvents(stopchan chan struct{}) (<-chan *myspec.M3DBCluster, <-chan error) {
+	events := make(chan *myspec.M3DBCluster)
+	errc := make(chan error, 1)
+	source := c.k8sclient.NewListWatcher()
+
+	createAddHandler := func(obj interface{}) {
+		event := obj.(*myspec.M3DBCluster)
+		event.Type = "ADDED"
+		events <- event
+	}
+
+	createDeleteHandler := func(obj interface{}) {
+		event := obj.(*myspec.M3DBCluster)
+		event.Type = "DELETED"
+		events <- event
+	}
+
+	updateHandler := func(old interface{}, obj interface{}) {
+		event := obj.(*myspec.M3DBCluster)
+		event.Type = "MODIFIED"
+		events <- event
+	}
+
+	_, controller := cache.NewInformer(
+		source,
+		&myspec.M3DBCluster{},
+		time.Minute*60,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    createAddHandler,
+			UpdateFunc: updateHandler,
+			DeleteFunc: createDeleteHandler,
+		})
+
+	go controller.Run(stopchan)
+
+	return events, errc
+}
 func (c *Controller) refreshClusters() error {
 
 	//Reset
 	c.clusters = make(map[string]Cluster)
 
-	// Get existing clusters
-	currentClusters, err := c.k8sclient.CrdClient.OperatorV1().M3DBClusters(v1.NamespaceAll).List(metav1.ListOptions{})
+	// Get active clusters
+	currentClusters, err := c.k8sclient.ListM3DBCluster()
 	if err != nil {
-		c.logger.Error("could not get list of clusters", zap.Error(err))
 		return err
 	}
 
+	// Copy objects into Cluster object
 	for _, cluster := range currentClusters.Items {
 		c.logger.Info("found cluster", zap.String("name", cluster.ObjectMeta.Name))
 		currCluster := cluster.DeepCopy()
@@ -139,15 +185,6 @@ func (c *Controller) refreshClusters() error {
 }
 
 func (c *Controller) validateClusterSpec(cluster *myspec.M3DBCluster) error {
-	// TODO(PS) LoadM3Configuration when dep conflicts are resolved. The
-	// configuration will allow us to validate the port numbers specified in the
-	// m3 configuration align with the ones within the M3DBCluster spec.
-	/*
-		m3Config, err := c.LoadM3Configuration(cluster)
-		if err != nil {
-			return err
-		}
-	*/
 
 	// ensure zones are present in spec
 	if len(cluster.Spec.IsolationGroups) == 0 {
@@ -178,10 +215,5 @@ func (c *Controller) reconcileM3DBClusterEvent(cluster *myspec.M3DBCluster) erro
 	case cluster.Type == "DELETED":
 		return c.deleteM3DBCluster(cluster)
 	}
-	return nil
-}
-
-func (c *Controller) deployNewImage(cluster *myspec.M3DBCluster) error {
-	//_, _ = c.k8sclient.Kclient.AppsV1().Statefulsets(cluster.GetNamespace()).Update()
 	return nil
 }

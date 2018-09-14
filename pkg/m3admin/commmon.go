@@ -22,6 +22,8 @@ package m3admin
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"net/http"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
@@ -36,6 +38,11 @@ const (
 
 	// DefaultServiceDomain is the typical domain of the M3Coordinator service
 	DefaultServiceDomain = "default"
+)
+
+var (
+	ErrNotOk    = errors.New("status not ok")
+	ErrNotFound = errors.New("status not found")
 )
 
 // DoHTTPRequest is a simple helper for HTTP requests
@@ -61,6 +68,13 @@ func DoHTTPRequest(
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
+	}
+	fmt.Println(fmt.Sprintf("status: %+v", response.Status))
+	if response.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, ErrNotOk
 	}
 	return response, nil
 }

@@ -34,10 +34,10 @@ func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
 	if err := c.k8sclient.DeleteStatefulSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
 		return err
 	}
-	if err := c.k8sclient.DeleteService(cluster, "m3dbnode"); err != nil {
+	if err := c.k8sclient.DeleteService(cluster, _M3DBSvcName); err != nil {
 		return err
 	}
-	if err := c.k8sclient.DeleteService(cluster, "m3coordinator"); err != nil {
+	if err := c.k8sclient.DeleteService(cluster, _M3CoordinatorSvcName); err != nil {
 		return err
 	}
 

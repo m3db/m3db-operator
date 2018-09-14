@@ -35,7 +35,7 @@ import (
 )
 
 // GenerateCRD generates the crd object needed for the M3DBCluster
-func (k *K8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
+func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 	return &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: m3dboperator.Name,
@@ -71,7 +71,7 @@ var (
 )
 
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
-func (k *K8sops) GenerateStatefulSet(
+func (k *k8sops) GenerateStatefulSet(
 	cluster *myspec.M3DBCluster,
 	clusterSpec myspec.ClusterSpec,
 	svcCfg myspec.ServiceConfiguration,
@@ -234,7 +234,7 @@ func (k *K8sops) GenerateStatefulSet(
 }
 
 // GenerateMaps will produce the proper datastructure for v1.Labels
-func (k *K8sops) GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) map[string]string {
+func (k *k8sops) GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) map[string]string {
 	hash := map[string]string{}
 	switch kind {
 	case "labels":
@@ -251,7 +251,7 @@ func (k *K8sops) GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) m
 
 // GenerateService will produce resource configured according to the spec's
 // serviceConfiguration fields
-func (k *K8sops) GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service {
+func (k *k8sops) GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service {
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   svcCfg.Name,
@@ -270,7 +270,7 @@ func (k *K8sops) GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service
 
 // GenerateServicePorts will produce the correct ServicePort or ContainerPort
 // resources
-func (k *K8sops) GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
+func (k *k8sops) GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
 	svcPorts := []v1.ServicePort{}
 	for _, v := range ports {
 		proto := v1.ProtocolTCP
@@ -289,7 +289,7 @@ func (k *K8sops) GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
 
 // GenerateContainerPorts will produce ServicePorts given a
 // ServiceConfiguration
-func (k *K8sops) GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort {
+func (k *k8sops) GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort {
 	cntPorts := []v1.ContainerPort{}
 	for _, v := range ports {
 		proto := v1.ProtocolTCP

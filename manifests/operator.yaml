@@ -65,7 +65,7 @@ spec:
     spec:
       containers:
         - name: m3db-operator
-          image: quay.io/nerd00/m3db-operator:latest
+          image: quay.io/m3db/m3db-operator:latest
           ports:
           - containerPort: 60000
             name: metrics

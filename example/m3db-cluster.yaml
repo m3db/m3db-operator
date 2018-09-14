@@ -212,7 +212,7 @@ metadata:
   name: m3db-cluster
 spec:
   image: quay.io/m3/m3dbnode:latest
-  replicationFactor: 2
+  replicationFactor: 1
   numberOfShards: 8
   isolationGroups:
     - name: us-west1-a 
@@ -254,6 +254,7 @@ spec:
           name: coordinator
         - number: 7203
           name: metrics
+      clusterIP: true
   resources:
     requests:
       memory: 1Gi

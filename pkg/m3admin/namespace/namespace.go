@@ -121,7 +121,6 @@ func WithLogger(logger *zap.Logger) Option {
 // NewClient constructs a new namespace client
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
-	// TODO(PS) Add logger.Sync() somewhere
 	ns := &namespace{
 		client:        retryhttp.NewClient(),
 		logger:        logger,
@@ -171,7 +170,7 @@ func defaultNamespaceRequest(namespaceName string) *admin.NamespaceAddRequest {
 
 // Create will create a namespace
 func (n *namespace) Create(namespaceName string) error {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.AddURL)
+	url := fmt.Sprintf("%s%s", n.formatURL(), nsh.AddURL)
 	data, err := json.Marshal(defaultNamespaceRequest(namespaceName))
 	if err != nil {
 		return err
@@ -186,7 +185,7 @@ func (n *namespace) Create(namespaceName string) error {
 
 // List will retrieve all namespaces
 func (n *namespace) List() ([]ns.Metadata, error) {
-	url := fmt.Sprintf("%s/%s", n.formatURL(), nsh.GetURL)
+	url := fmt.Sprintf("%s%s", n.formatURL(), nsh.GetURL)
 	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -213,7 +212,7 @@ func (n *namespace) List() ([]ns.Metadata, error) {
 
 // Delete will delete a namespace
 func (n *namespace) Delete(namespace string) error {
-	url := fmt.Sprintf("%s/%s/%s", n.formatURL(), nsh.AddURL, namespace)
+	url := fmt.Sprintf("%s%s/%s", n.formatURL(), nsh.AddURL, namespace)
 	_, err := m3admin.DoHTTPRequest(n.client, "DELETE", url, nil)
 	if err != nil {
 		return err

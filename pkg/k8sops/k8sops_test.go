@@ -28,16 +28,17 @@ import (
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-func newFakeK8sops() *K8sops {
+func newFakeK8sops() (K8sops, error) {
 	logger := zap.NewNop()
 	kubeCli := kubeFake.NewSimpleClientset()
 	kubeExt := kubeExtFake.NewSimpleClientset()
 	crdCli := clientsetFake.NewSimpleClientset()
-	return &K8sops{
-		logger:     logger,
-		Kclient:    kubeCli,
-		MasterHost: "",
-		CrdClient:  crdCli,
-		KubeExt:    kubeExt,
-	}
+	k, err := New(
+		"",
+		WithCRDClient(crdCli),
+		WithExtClient(kubeExt),
+		WithKClient(kubeCli),
+		WithLogger(logger),
+	)
+	return k, err
 }

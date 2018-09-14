@@ -23,10 +23,8 @@ package placement
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
@@ -37,9 +35,6 @@ import (
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
-
-// ErrPlacementNotFound indicates that the placement is not found
-var ErrPlacementNotFound = errors.New("placement not found")
 
 const (
 	_defaultPlacementURI = "/api/v1/placement"
@@ -100,7 +95,6 @@ func WithLogger(logger *zap.Logger) Option {
 // NewClient is the constructor the Placement interface
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
-	// TODO(PS) Add logger.Sync() somewhere
 	pl := &placement{
 		client:        retryhttp.NewClient(),
 		logger:        logger,
@@ -123,11 +117,11 @@ func (p *placement) formatDomain() string {
 
 // Init will create the placement
 func (p *placement) Init(req *admin.PlacementInitRequest) error {
+	url := fmt.Sprintf("%s%s", p.formatDomain(), plc.InitURL)
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.InitURL)
 	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
@@ -138,7 +132,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 
 // Delete will delete all current placements
 func (p *placement) Delete() error {
-	url := p.formatDomain()
+	url := fmt.Sprintf("%s%s", p.formatDomain(), plc.GetURL)
 	_, err := m3admin.DoHTTPRequest(p.client, "DELETE", url, nil)
 	if err != nil {
 		return err
@@ -148,14 +142,11 @@ func (p *placement) Delete() error {
 }
 
 // Get will get current placement
-func (p *placement) Get() (*admin.PlacementGetResponse, error) {
-	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.GetURL)
+func (p *placement) Get() (string, error) {
+	url := fmt.Sprintf("%s%s", p.formatDomain(), plc.GetURL)
 	resp, err := m3admin.DoHTTPRequest(p.client, "GET", url, nil)
 	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrPlacementNotFound
+		return "", err
 	}
 	data := &admin.PlacementGetResponse{}
 	defer func() {
@@ -163,31 +154,23 @@ func (p *placement) Get() (*admin.PlacementGetResponse, error) {
 		resp.Body.Close()
 	}()
 	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
-		return nil, err
+		return "", err
 	}
 	p.logger.Info("placement retreived")
-	return data, nil
+	return data.GetPlacement().String(), nil
 }
 
 // Add will add an instance to the current placement
-func (p *placement) Add(instance placementpb.Instance) (*admin.PlacementGetResponse, error) {
-	url := fmt.Sprintf("%s/%s", p.formatDomain(), plc.AddURL)
+func (p *placement) Add(instance placementpb.Instance) error {
+	url := fmt.Sprintf("%s%s", p.formatDomain(), plc.AddURL)
 	data, err := json.Marshal(instance)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	resp, err := m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	dataOut := &admin.PlacementGetResponse{}
-	defer func() {
-		ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-	}()
-	if err := jsonpb.Unmarshal(resp.Body, dataOut); err != nil {
-		return nil, err
-	}
-	p.logger.Info("successfully applied placement")
-	return dataOut, nil
+	p.logger.Info("successfully add instance to placement")
+	return nil
 }

@@ -21,34 +21,18 @@
 package k8sops
 
 import (
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
 	"github.com/stretchr/testify/require"
-	yaml "gopkg.in/yaml.v2"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
-
-func getFixture(filename string, t *testing.T) myspec.ClusterSpec {
-	spec := myspec.ClusterSpec{}
-	file, err := ioutil.ReadFile(fmt.Sprintf("./fixtures/%s", filename))
-	if err != nil {
-		t.Logf("Failed to read fixtures file: %v ", err)
-		t.Fail()
-	}
-	err = yaml.Unmarshal(file, &spec)
-	if err != nil {
-		t.Logf("Unmarshal error: %v", err)
-		t.Fail()
-	}
-	return spec
-}
 
 func TestGenerateCRD(t *testing.T) {
 	crd := &apiextensionsv1beta1.CustomResourceDefinition{
@@ -66,15 +50,17 @@ func TestGenerateCRD(t *testing.T) {
 		},
 	}
 
-	k := newFakeK8sops()
+	k, err := newFakeK8sops()
+	require.Nil(t, err)
 	newCRD := k.GenerateCRD()
 	require.Equal(t, crd, newCRD)
 }
 
 func TestGenerateService(t *testing.T) {
-	fixture := getFixture("testCluster.yaml", t)
-	svcCfg := fixture.ServiceConfigurations[0]
-	k := newFakeK8sops()
+	fixture := getFixture("testM3DBCluster.yaml", t)
+	svcCfg := fixture.Spec.ServiceConfigurations[0]
+	k, err := newFakeK8sops()
+	require.Nil(t, err)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   svcCfg.Name,
@@ -88,4 +74,170 @@ func TestGenerateService(t *testing.T) {
 	}
 	newSvc := k.GenerateService(svcCfg)
 	require.Equal(t, svc, newSvc)
+}
+
+func TestGenerateStatefulSet(t *testing.T) {
+	fixture := getFixture("testM3DBCluster.yaml", t)
+	clusterSpec := fixture.Spec
+	svcCfg := fixture.Spec.ServiceConfigurations[0]
+	isolationGroup := fixture.Spec.IsolationGroups[0].Name
+	instanceAmount := &fixture.Spec.IsolationGroups[0].NumInstances
+	clusterName := fixture.GetName()
+
+	k, err := newFakeK8sops()
+	require.Nil(t, err)
+	ssName := k.StatefulSetName(clusterName, isolationGroup)
+	ports := k.GenerateContainerPorts(svcCfg.Ports)
+
+	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
+	require.Nil(t, err)
+	require.NotNil(t, limitCPU)
+
+	limitMemory, err := resource.ParseQuantity(clusterSpec.Resources.Limits.Memory)
+	require.Nil(t, err)
+	require.NotNil(t, limitMemory)
+
+	requestCPU, err := resource.ParseQuantity(clusterSpec.Resources.Requests.CPU)
+	require.Nil(t, err)
+	require.NotNil(t, requestCPU)
+
+	requestMemory, err := resource.ParseQuantity(clusterSpec.Resources.Requests.Memory)
+	require.Nil(t, err)
+	require.NotNil(t, requestMemory)
+
+	probe := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePath,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+
+	ss := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ssName,
+			Labels: map[string]string{
+				"cluster":        clusterName,
+				"app":            "m3dbnode",
+				"isolationGroup": isolationGroup,
+				"statefulSet":    ssName,
+			},
+		},
+		Spec: appsv1.StatefulSetSpec{
+			ServiceName:         "m3dbnode",
+			PodManagementPolicy: "Parallel",
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"cluster":        clusterName,
+					"app":            "m3dbnode",
+					"isolationGroup": isolationGroup,
+					"statefulSet":    ssName,
+				},
+			},
+			Replicas: instanceAmount,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"cluster":        clusterName,
+						"app":            "m3dbnode",
+						"isolationGroup": isolationGroup,
+						"statefulSet":    ssName,
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						v1.Container{
+							Name: ssName,
+							SecurityContext: &v1.SecurityContext{
+								Privileged: &[]bool{true}[0],
+								Capabilities: &v1.Capabilities{
+									Add: []v1.Capability{
+										"IPC_LOCK",
+									},
+								},
+							},
+							ReadinessProbe: probe,
+							Command: []string{
+								"m3dbnode",
+							},
+							Args: []string{
+								"-f",
+								_configurationFileLocation,
+							},
+							Image:           clusterSpec.Image,
+							ImagePullPolicy: "Always",
+							Env: []v1.EnvVar{
+								v1.EnvVar{
+									Name: "NAMESPACE",
+									ValueFrom: &v1.EnvVarSource{
+										FieldRef: &v1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
+							Ports: ports,
+							VolumeMounts: []v1.VolumeMount{
+								v1.VolumeMount{
+									Name:      "storage",
+									MountPath: _dataDirectory,
+								},
+								v1.VolumeMount{
+									Name:      _configurationName,
+									MountPath: _configurationDirectory,
+								},
+								v1.VolumeMount{
+									Name:      "cache",
+									MountPath: "/var/lib/m3kv/",
+								},
+							},
+							Resources: v1.ResourceRequirements{
+								Limits: v1.ResourceList{
+									"cpu":    limitCPU,
+									"memory": limitMemory,
+								},
+								Requests: v1.ResourceList{
+									"cpu":    requestCPU,
+									"memory": requestMemory,
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						v1.Volume{
+							Name: "storage",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						v1.Volume{
+							Name: "cache",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						v1.Volume{
+							Name: _configurationName,
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: _configurationName,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	newSS, err := k.GenerateStatefulSet(&fixture, clusterSpec, svcCfg, isolationGroup, instanceAmount)
+	require.Nil(t, err)
+	require.NotNil(t, newSS)
+	require.Equal(t, ss, newSS)
 }
