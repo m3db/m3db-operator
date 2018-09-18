@@ -47,6 +47,7 @@ func (k *K8sops) EnsureM3DBNodeSvc(cluster *myspec.M3DBCluster) error {
 	return nil
 }
 
+// BuildM3DBNodeSvcPorts will provide a slice of ServicePorts
 func (k *K8sops) BuildM3DBNodeSvcPorts() []v1.ServicePort {
 	return []v1.ServicePort{
 		v1.ServicePort{

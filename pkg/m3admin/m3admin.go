@@ -123,7 +123,7 @@ func (m *m3admin) NamespaceCreate(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
-	if err := m.doHttpRequest(request); err != nil {
+	if err := m.doHTTPRequest(request); err != nil {
 		return err
 	}
 	logrus.WithField("namespace", namespaceCreateRequest.GetName()).Info("successfully created namespace")
@@ -139,7 +139,7 @@ func (m *m3admin) NamespaceDelete(cluster *myspec.M3DBCluster, namespace string)
 	if err != nil {
 		return err
 	}
-	if err := m.doHttpRequest(request); err != nil {
+	if err := m.doHTTPRequest(request); err != nil {
 		return err
 	}
 	logrus.Info("successfully deleted namespace")
@@ -176,7 +176,7 @@ func (m *m3admin) PlacementInit(cluster *myspec.M3DBCluster, instances map[strin
 		return err
 	}
 	request.Header.Add("Content-Type", "application/json")
-	if err := m.doHttpRequest(request); err != nil {
+	if err := m.doHTTPRequest(request); err != nil {
 		return err
 	}
 	logrus.Info("successfully applied placement")
@@ -191,15 +191,15 @@ func (m *m3admin) PlacementDelete(cluster *myspec.M3DBCluster) error {
 	if err != nil {
 		return err
 	}
-	if err := m.doHttpRequest(request); err != nil {
+	if err := m.doHTTPRequest(request); err != nil {
 		return err
 	}
 	logrus.Info("successfully deleted placement")
 	return nil
 }
 
-// doHttpReqeust is a simple helper for HTTP requests
-func (m *m3admin) doHttpRequest(request *http.Request) error {
+// doHTTPRequest is a simple helper for HTTP requests
+func (m *m3admin) doHTTPRequest(request *http.Request) error {
 	response, err := m.httpClient.Do(request)
 	if err != nil {
 		return err

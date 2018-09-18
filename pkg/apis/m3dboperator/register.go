@@ -27,14 +27,34 @@ import (
 )
 
 const (
-	ResourceKind   = "M3DBCluster"
+	// ResourceKind is the custom resource kind
+	ResourceKind = "M3DBCluster"
+
+	// ResourcePlural and GroupName comprise the fully qualified DNS name
+	// for the cluster. Naming must follow the convention stated below
+	//
+	// a DNS-1123 subdomain must consist of lower case alphanumeric characters,
+	// '-' or '.', and must start and end with an alphanumeric character
+	// (e.g. 'example.com', regex used for validation is
+	// '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
+
+	// ResourcePlural is the plural form of custom resource kind
 	ResourcePlural = "m3dbclusters"
-	GroupName      = "operator.m3db.io"
-	ShortName      = "m3dbcluster"
-	Version        = "v1"
+
+	// ShortName is the singular name
+	ShortName = "m3dbcluster"
+
+	// GroupName is the group that the custom resource belongs to
+	GroupName = "operator.m3db.io"
+
+	// Version sets the version of the custom resource
+	Version = "v1"
 )
 
 var (
-	Name               = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
+	// Name is the fully qualified name of the custom resource
+	Name = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
+
+	// SchemeGroupVersion is the schema version of the group
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
 )

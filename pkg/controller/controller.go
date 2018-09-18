@@ -41,6 +41,7 @@ var (
 	reconcilerLock = &sync.Mutex{}
 )
 
+// Cluster is a map of active M3DB clusters
 type Cluster struct {
 	M3DBCluster *myspec.M3DBCluster
 }

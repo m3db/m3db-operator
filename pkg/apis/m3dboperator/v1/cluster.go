@@ -33,7 +33,7 @@ type M3DBCluster struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Type              string      `json:"type"`
 	Spec              ClusterSpec `json:"spec"`
-	Status            CRDStatus   `json:"status,omitempty"`
+	Status            M3DBStatus  `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -45,12 +45,19 @@ type M3DBClusterList struct {
 	Items           []M3DBCluster `json:"items"`
 }
 
-type CRDStatus struct {
-	State   CRDState `json:"state,omitempty"`
-	Message string   `json:"message,omitempty"`
+// M3DBStatus contains the current state the M3DB cluster along with a human
+// readable message
+type M3DBStatus struct {
+	// State is a enum of green, yellow, and red denoting the health of the
+	// cluster
+	State M3DBState `json:"state,omitempty"`
+	// Message is a human readable message indicating why the cluster is in it's
+	// current state
+	Message string `json:"message,omitempty"`
 }
 
-type CRDState string
+// M3DBState contains the state of the M3DB cluster
+type M3DBState string
 
 // ClusterSpec defines cluster options
 type ClusterSpec struct {

@@ -49,6 +49,7 @@ var (
 	_configurationFileLocation = fmt.Sprintf("%s%s", _configurationDirectory, _configurationFileName)
 )
 
+// StatefulsetName provides the name of the statefulset
 func (k *K8sops) StatefulsetName(clusterName, zone string, replicaFactor int32) string {
 	return fmt.Sprintf("%s-%s-%d", clusterName, zone, replicaFactor)
 }
