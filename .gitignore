@@ -14,3 +14,8 @@ vendor/
 
 # Ignore build artifacts
 _output/**/*
+
+# ci artifacts
+.ci/
+test.log
+profile.cov

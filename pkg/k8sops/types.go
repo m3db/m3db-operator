@@ -127,4 +127,7 @@ type K8sops interface {
 	// CheckStatefulStatus will poll a given StatefulSet to ensure it reaches a
 	// ready state within configurable amount of time
 	CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error)
+
+	// GetConfigMap retrieves a config by name
+	GetConfigMap(cluster *myspec.M3DBCluster, name string) (*v1.ConfigMap, error)
 }

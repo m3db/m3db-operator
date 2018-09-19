@@ -34,14 +34,6 @@
   version = "v0.4.16"
 
 [[projects]]
-  digest = "1:3fcbf733a8d810a21265a7f2fe08a3353db2407da052b233f8b204b5afc03d9b"
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  pruneopts = ""
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
-
-[[projects]]
   digest = "1:21a774cd1c70bc7b328522ad415933eb1f329ad72773f4d0112210fc0dbccc55"
   name = "github.com/apache/thrift"
   packages = ["lib/go/thrift"]
@@ -814,6 +806,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:3fcbf733a8d810a21265a7f2fe08a3353db2407da052b233f8b204b5afc03d9b"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = ""
+  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
+  version = "v1.0.6"
+
+[[projects]]
   digest = "1:022a4e2a8c327eb46a99088a51c0dda5d5be86928ace2afd72145dc1d746a323"
   name = "github.com/soheilhy/cmux"
   packages = ["."]
@@ -857,12 +857,12 @@
   version = "1.0.2"
 
 [[projects]]
-  branch = "customizability"
-  digest = "1:efd7936eb8a32c4a77e60d12b363a45ca579280cbeaed42d97c4e0c9b7f85e08"
+  branch = "master"
+  digest = "1:09a040821931764c271471639b42e2610b0aae3607840056e5dd61c2b8acdf3f"
   name = "github.com/tmc/grpc-websocket-proxy"
   packages = ["wsproxy"]
   pruneopts = ""
-  revision = "feccd87d2b7f973f1b03d85a4ee460824982ee2b"
+  revision = "830351dc03c6f07d625727d5f993a463babb20e1"
 
 [[projects]]
   digest = "1:74f86c458e82e1c4efbab95233e0cf51b7cc02dc03193be9f62cd81224e10401"
@@ -1428,7 +1428,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/Sirupsen/logrus",
     "github.com/apache/thrift/lib/go/thrift",
     "github.com/coreos/bbolt",
     "github.com/ghodss/yaml",
@@ -1440,11 +1439,13 @@
     "github.com/m3db/bloom",
     "github.com/m3db/m3/src/cmd/services/m3dbnode/config",
     "github.com/m3db/m3/src/dbnode/generated/proto/namespace",
+    "github.com/m3db/m3/src/dbnode/storage/namespace",
     "github.com/m3db/m3/src/query/api/v1/handler/namespace",
     "github.com/m3db/m3/src/query/api/v1/handler/placement",
     "github.com/m3db/m3/src/query/generated/proto/admin",
     "github.com/m3db/m3/src/query/util/logging",
     "github.com/m3db/m3cluster/generated/proto/placementpb",
+    "github.com/m3db/m3x/ident",
     "github.com/m3db/stackmurmur3",
     "github.com/m3db/vellum/regexp",
     "github.com/m3db/vellum/utf8",
