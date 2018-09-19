@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,124 +21,79 @@
 package k8sops
 
 import (
-	"time"
-
-	"github.com/Sirupsen/logrus"
-	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	genclient "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 
-	"k8s.io/api/core/v1"
+	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
 	initContainerClusterVersionMin = []int{1, 8}
 )
 
-// K8sops defines the kube object
-type K8sops struct {
-	Config     *rest.Config
-	CrdClient  genclient.Interface
-	Kclient    kubernetes.Interface
-	KubeExt    apiextensionsclient.Interface
-	MasterHost string
+// Option provides an interface that can be used for setter options with the
+// constructor
+type Option interface {
+	execute(*k8sops) error
+}
+
+type optionFn func(k *k8sops) error
+
+func (fn optionFn) execute(k *k8sops) error {
+	return fn(k)
+}
+
+// WithLogger is a setter to override the default logger
+func WithLogger(logger *zap.Logger) Option {
+	return optionFn(func(k *k8sops) error {
+		k.logger = logger
+		return nil
+	})
+}
+
+// WithCRDClient is a setter to override the default CRD client
+func WithCRDClient(crdClient genclient.Interface) Option {
+	return optionFn(func(k *k8sops) error {
+		k.crdClient = crdClient
+		return nil
+	})
+}
+
+// WithKClient is a setter to override the default Kubernetes client
+func WithKClient(kclient kubernetes.Interface) Option {
+	return optionFn(func(k *k8sops) error {
+		k.kclient = kclient
+		return nil
+	})
+}
+
+// WithExtClient is a setter to override the default Extensions Client
+func WithExtClient(extClient apiextensionsclient.Interface) Option {
+	return optionFn(func(k *k8sops) error {
+		k.kubeExt = extClient
+		return nil
+	})
+}
+
+// k8sops defines the kube object
+type k8sops struct {
+	crdClient  genclient.Interface
+	kclient    kubernetes.Interface
+	kubeExt    apiextensionsclient.Interface
+	masterHost string
+	logger     *zap.Logger
 }
 
 // New creates a new instance of k8sops
-func New(kubeCfgFile, masterHost string) (*K8sops, error) {
-	crdClient, kubeClient, kubeExt, err := newKubeClient(kubeCfgFile)
-	if err != nil {
-		logrus.Fatalf("could not init Kubernetes client: %s", err)
+func New(masterHost string, opts ...Option) (K8sops, error) {
+	k8 := &k8sops{
+		masterHost: masterHost,
 	}
-	return &K8sops{
-		Kclient:    kubeClient,
-		MasterHost: masterHost,
-		CrdClient:  crdClient,
-		KubeExt:    kubeExt,
-	}, nil
-}
-
-func buildConfig(kubeCfgFile string) (*rest.Config, error) {
-	if kubeCfgFile != "" {
-		logrus.Infof("using OutOfCluster k8s config with kubeConfigFile: %s", kubeCfgFile)
-		config, err := clientcmd.BuildConfigFromFlags("", kubeCfgFile)
-		if err != nil {
-			panic(err.Error())
+	for _, o := range opts {
+		if err := o.execute(k8); err != nil {
+			return nil, err
 		}
-
-		return config, nil
 	}
-
-	logrus.Info("using InCluster k8s config")
-	return rest.InClusterConfig()
-}
-
-func newKubeClient(kubeCfgFile string) (genclient.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
-	config, err := buildConfig(kubeCfgFile)
-	if err != nil {
-		panic(err)
-	}
-
-	clientSet, err := clientset.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-
-	kubeClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-
-	kubeExtCli, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-
-	return clientSet, kubeClient, kubeExtCli, nil
-}
-
-// MonitorM3DBEvents watches for new or removed clusters
-func (k *K8sops) MonitorM3DBEvents(stopchan chan struct{}) (<-chan *myspec.M3DBCluster, <-chan error) {
-	events := make(chan *myspec.M3DBCluster)
-	errc := make(chan error, 1)
-
-	source := cache.NewListWatchFromClient(k.CrdClient.OperatorV1().RESTClient(), m3dboperator.ResourcePlural, v1.NamespaceAll, fields.Everything())
-	createAddHandler := func(obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "ADDED"
-		events <- event
-	}
-
-	createDeleteHandler := func(obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "DELETED"
-		events <- event
-	}
-
-	updateHandler := func(old interface{}, obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "MODIFIED"
-		events <- event
-	}
-
-	_, controller := cache.NewInformer(
-		source,
-		&myspec.M3DBCluster{},
-		time.Minute*60,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    createAddHandler,
-			UpdateFunc: updateHandler,
-			DeleteFunc: createDeleteHandler,
-		})
-
-	go controller.Run(stopchan)
-
-	return events, errc
+	return k8, nil
 }

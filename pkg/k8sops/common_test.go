@@ -18,40 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
+package k8sops
 
 import (
 	"fmt"
+	"io/ioutil"
+	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/stretchr/testify/require"
+	yaml "gopkg.in/yaml.v2"
 )
 
-const (
-	// ResourceKind is the custom resource kind
-	ResourceKind = "M3DBCluster"
+func getFixture(filename string, t *testing.T) myspec.M3DBCluster {
+	spec := myspec.M3DBCluster{}
+	file, err := ioutil.ReadFile(fmt.Sprintf("./fixtures/%s", filename))
+	if err != nil {
+		t.Logf("Failed to read fixtures file: %v ", err)
+		t.Fail()
+	}
+	err = yaml.Unmarshal(file, &spec)
+	if err != nil {
+		t.Logf("Unmarshal error: %v", err)
+		t.Fail()
+	}
+	return spec
+}
 
-	// ResourcePlural and GroupName comprise the fully qualified DNS name
-	// for the cluster. Naming must follow the convention stated below
-	//
-	// a DNS-1123 subdomain must consist of lower case alphanumeric characters,
-	// '-' or '.', and must start and end with an alphanumeric character
-	// (e.g. 'example.com', regex used for validation is
-	// '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-
-	// ResourcePlural is the plural form of custom resource kind
-	ResourcePlural = "m3dbclusters"
-
-	// GroupName is the group that the custom resource belongs to
-	GroupName = "operator.m3db.io"
-
-	// Version sets the version of the custom resource
-	Version = "v1"
-)
-
-var (
-	// Name is the fully qualified name of the custom resource
-	Name = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-
-	// SchemeGroupVersion is the schema version of the group
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+func TestCommon(t *testing.T) {
+	k, err := newFakeK8sops()
+	require.Nil(t, err)
+	ssName := k.StatefulSetName("testCluster", "testIsolationGroup")
+	require.Equal(t, "testCluster-testIsolationGroup-m3", ssName)
+}

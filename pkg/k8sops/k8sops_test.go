@@ -18,40 +18,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3dboperator
+package k8sops
 
 import (
-	"fmt"
+	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"go.uber.org/zap"
+	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-const (
-	// ResourceKind is the custom resource kind
-	ResourceKind = "M3DBCluster"
-
-	// ResourcePlural and GroupName comprise the fully qualified DNS name
-	// for the cluster. Naming must follow the convention stated below
-	//
-	// a DNS-1123 subdomain must consist of lower case alphanumeric characters,
-	// '-' or '.', and must start and end with an alphanumeric character
-	// (e.g. 'example.com', regex used for validation is
-	// '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-
-	// ResourcePlural is the plural form of custom resource kind
-	ResourcePlural = "m3dbclusters"
-
-	// GroupName is the group that the custom resource belongs to
-	GroupName = "operator.m3db.io"
-
-	// Version sets the version of the custom resource
-	Version = "v1"
-)
-
-var (
-	// Name is the fully qualified name of the custom resource
-	Name = fmt.Sprintf("%s.%s", ResourcePlural, GroupName)
-
-	// SchemeGroupVersion is the schema version of the group
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
-)
+func newFakeK8sops() (K8sops, error) {
+	logger := zap.NewNop()
+	kubeCli := kubeFake.NewSimpleClientset()
+	kubeExt := kubeExtFake.NewSimpleClientset()
+	crdCli := clientsetFake.NewSimpleClientset()
+	k, err := New(
+		"",
+		WithCRDClient(crdCli),
+		WithExtClient(kubeExt),
+		WithKClient(kubeCli),
+		WithLogger(logger),
+	)
+	return k, err
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,4 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3admin
+package k8sops
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestService(t *testing.T) {
+	fixture := getFixture("testM3DBCluster.yaml", t)
+	svcCfg := fixture.Spec.ServiceConfigurations[0]
+	k, err := newFakeK8sops()
+	require.Nil(t, err)
+	svc, err := k.GetService(&fixture, "sucker")
+	require.Nil(t, svc)
+	require.NotNil(t, err)
+	err = k.EnsureService(&fixture, svcCfg)
+	require.Nil(t, err)
+	svc, err = k.GetService(&fixture, "fake")
+	require.NotNil(t, svc)
+	require.Nil(t, err)
+	err = k.EnsureService(&fixture, svcCfg)
+	require.Nil(t, err)
+	err = k.DeleteService(&fixture, "fake")
+	require.Nil(t, err)
+	err = k.DeleteService(&fixture, "sucker")
+	require.NotNil(t, err)
+}
