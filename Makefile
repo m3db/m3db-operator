@@ -13,7 +13,7 @@ include $(SELF_DIR)/.ci/common.mk
 
 SHELL=/bin/bash -o pipefail
 
-process_coverfile    := scripts/process-cover.sh
+process_coverfile    := .ci/codecov.sh
 html_report          := coverage.html
 test                 := .ci/test-cover.sh
 convert-test-data    := .ci/convert-test-data.sh
