@@ -42,14 +42,6 @@ var (
 	ErrNotFound = errors.New("status not found")
 )
 
-var (
-	// ErrNotOk indicates that HTTP status was not Ok
-	ErrNotOk = errors.New("status not ok")
-
-	// ErrNotFound indicates that HTTP status was not found
-	ErrNotFound = errors.New("status not found")
-)
-
 // DoHTTPRequest is a simple helper for HTTP requests
 func DoHTTPRequest(
 	client *retryhttp.Client,
