@@ -13,6 +13,7 @@ include $(SELF_DIR)/.ci/common.mk
 
 SHELL=/bin/bash -o pipefail
 
+process_coverfile    := .ci/codecov.sh
 html_report          := coverage.html
 test                 := .ci/test-cover.sh
 convert-test-data    := .ci/convert-test-data.sh
@@ -71,10 +72,9 @@ testhtml: test-internal
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
 
-.PHONY: test-ci-unit
-test-ci-unit: test-internal
-	@which goveralls > /dev/null || go get -u -f github.com/mattn/goveralls
-	goveralls -coverprofile=$(coverfile) -service=travis-ci || echo -e "\x1b[31mCoveralls failed\x1b[m"
+.PHONY: test-ci-unit                                                              
+test-ci-unit: test-base                                                           
+	$(codecov_push) $(coverfile)
 
 .PHONY: install-mockgen
 install-mockgen: install-vendor-dep
@@ -136,3 +136,6 @@ build-bin: _output ## Build m3db-operator binary
 .PHONY: build-docker 
 build-docker: build-bin## Build m3db-operator docker image with go binary
 	@./build/build-docker.sh
+
+_output:
+	mkdir -p $$(pwd)/$(OUTPUT_DIR)
