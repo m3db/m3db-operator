@@ -66,6 +66,9 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 				Plural: m3dboperator.ResourcePlural,
 				Kind:   m3dboperator.ResourceKind,
 			},
+			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
+				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
+			},
 		},
 	}
 }

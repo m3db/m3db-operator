@@ -47,6 +47,9 @@ func TestGenerateCRD(t *testing.T) {
 				Plural: m3dboperator.ResourcePlural,
 				Kind:   m3dboperator.ResourceKind,
 			},
+			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
+				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
+			},
 		},
 	}
 

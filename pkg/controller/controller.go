@@ -194,7 +194,7 @@ func (c *Controller) validateClusterSpec(cluster *myspec.M3DBCluster) error {
 		c.logger.Error("isolationGroups missing from spec", zap.Error(ErrIsolationGroupsMissing))
 		return ErrIsolationGroupsMissing
 	}
-	if cluster.Spec.ReplicationFactor > int32(len(cluster.Spec.IsolationGroups)) {
+	if cluster.Spec.ReplicationFactor >= 1 {
 		c.logger.Error("replication factor is greater than zones (failure domains)", zap.Error(ErrInvalidReplicationFactor))
 		return ErrInvalidReplicationFactor
 	}
