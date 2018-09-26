@@ -20,9 +20,19 @@
 
 package k8sops
 
-import "fmt"
+import (
+	"fmt"
+
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+)
 
 // StatefulSetName provides a formatted string to use for naming StatefulSets
-func (k *k8sops) StatefulSetName(clusterName, isolationGroup string) string {
-	return fmt.Sprintf("%s-%s-m3", clusterName, isolationGroup)
+func StatefulSetName(clusterName string, stsID int) string {
+	return fmt.Sprintf("%s-rep%d", clusterName, stsID)
+}
+
+// TODO(schallert): should figure out a better way to abstract this other than
+// exposing all of CoreV1()
+func (k *k8sops) Events(namespace string) typedcorev1.EventInterface {
+	return k.kclient.CoreV1().Events(namespace)
 }

@@ -9,11 +9,11 @@
 *.out
 test.log
 
-# Disregard vendor packages 
+# Disregard vendor packages
 vendor/
 
 # Ignore build artifacts
-_output/**/*
+out/**/*
 
 # ci artifacts
 .ci/

@@ -21,45 +21,144 @@
 package controller
 
 import (
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"fmt"
+	"time"
 
-	"go.uber.org/zap"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
+
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
-func (c *Controller) updateM3DBCluster(cluster *myspec.M3DBCluster) error {
+const (
+	_isolationGroupKey = "isolationGroup"
+	_zoneEmbedded      = "embedded"
+)
 
-	oldClusters := make(map[string]Cluster)
-	for clusterName, cluster := range c.clusters {
-		oldClusters[clusterName] = Cluster{M3DBCluster: cluster.M3DBCluster.DeepCopy()}
+// Ensure a given namespace exists and update its last updated time. Returns a
+// bool which is true if the workqueue should re-enqueue the update (we do this
+// if we modify any Kube API objects), and any error encountered.
+func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (bool, error) {
+	created, err := c.EnsureNamespace(cluster)
+	if err != nil {
+		err = fmt.Errorf("error creating namespace: %v", err)
+		c.logger.Error(err.Error())
+		c.recorder.Event(cluster, corev1.EventTypeWarning, "NamespaceCreateError", err.Error())
+		return false, err
 	}
 
-	if err := c.refreshClusters(); err != nil {
-		c.logger.Error("failed to refresh cluster, can not compare modified state", zap.Error(err))
+	if !created && cluster.Status.HasInitializedNamespace() {
+		// if we didn't have to create one and the status reflects it's created, do
+		// nothing
+		return false, nil
+	}
+
+	// TODO(schallert): we should use resource version + generation to not
+	// update this if not necessary
+	cluster.Status.Conditions = append(cluster.Status.Conditions, myspec.ClusterCondition{
+		Type:           myspec.ClusterConditionNamespaceInitialized,
+		Status:         corev1.ConditionTrue,
+		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
+		// TODO(schallert): probably a better reason and we should strongly type
+		// them
+		Reason:  "NamespaceCreated",
+		Message: "Created namespace",
+	})
+
+	_, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+	if err != nil {
+		// TODO(schallert): event here as well?
+		err := fmt.Errorf("error updating cluster namespace status: %v", err)
+		c.logger.Error(err.Error())
+		runtime.HandleError(err)
+		return false, err
+	}
+
+	// We updated an API object so tell the queue to re-enqueue.
+	return true, nil
+}
+
+func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (bool, error) {
+	_, err := c.placementClient.Get()
+	if err == nil {
+		if !cluster.Status.HasInitializedPlacement() {
+			// Placement exists but status doesn't reflect that, change it. Return
+			// true so event loop re-enqueues.
+			return true, c.setStatusPlacementCreated(cluster)
+		}
+
+		// Nothing to do, placement already exists and status reflects that
+		return false, nil
+	}
+
+	if err != m3admin.ErrNotFound {
+		err := fmt.Errorf("error from m3admin placement get: %v", err)
+		c.logger.Error(err.Error())
+		runtime.HandleError(err)
+		return false, err
+	}
+
+	// Error is just that placement isn't there, let's create it.
+
+	newPlacement := &admin.PlacementInitRequest{
+		NumShards:         cluster.Spec.NumberOfShards,
+		ReplicationFactor: cluster.Spec.ReplicationFactor,
+	}
+
+	// TODO(schallert): label helpers.
+	targetLabels := labels.Set(map[string]string{
+		"cluster": cluster.Name,
+		"app":     "m3dbnode",
+	})
+
+	pods, err := c.podLister.Pods(cluster.Namespace).List(labels.SelectorFromSet(targetLabels))
+	for _, pod := range pods {
+		// TODO(schallert): un-hardcode service name
+		hostname := fmt.Sprintf("%s.m3dbnode", pod.Name)
+		instance := &placementpb.Instance{
+			Id:             pod.Name,
+			IsolationGroup: pod.ObjectMeta.Labels[_isolationGroupKey],
+			Zone:           _zoneEmbedded,
+			Weight:         100,
+			Hostname:       hostname,
+			Endpoint:       fmt.Sprintf("%s:%d", hostname, 9000),
+			Port:           9000,
+		}
+		newPlacement.Instances = append(newPlacement.Instances, instance)
+		c.logger.Sugar().Info(instance)
+	}
+
+	if err := c.placementClient.Init(newPlacement); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) error {
+	cluster.Status.Conditions = append(cluster.Status.Conditions, myspec.ClusterCondition{
+		Type:           myspec.ClusterConditionPlacementInitialized,
+		Status:         corev1.ConditionTrue,
+		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
+		Reason:         "PlacementCreated",
+		Message:        "Created placement",
+	})
+
+	// TODO(schallert): move to UpdateStatus once 1.10 status subresource is out
+	// of alpha.
+	_, err := c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+	if err != nil {
+		err := fmt.Errorf("error updating cluster placement init status: %v", err)
+		c.logger.Error(err.Error())
+		runtime.HandleError(err)
+		// TODO(schallert): event?
 		return err
 	}
 
-	oldCluster := oldClusters[cluster.GetName()]
-	currentCluster := c.clusters[cluster.GetName()]
-
-	for i, ig := range currentCluster.M3DBCluster.Spec.IsolationGroups {
-		oldIG := oldCluster.M3DBCluster.Spec.IsolationGroups[i]
-		if oldIG.Name == ig.Name {
-			if oldIG.NumInstances != ig.NumInstances {
-				ssName := c.k8sclient.StatefulSetName(cluster.GetName(), ig.Name)
-				ss, err := c.k8sclient.GetStatefulSet(cluster, ssName)
-				if err != nil {
-					return err
-				}
-				ssCopy := ss.DeepCopy()
-				incrementAmount := oldIG.NumInstances - ig.NumInstances
-				*ssCopy.Spec.Replicas += incrementAmount
-				ss, err = c.k8sclient.UpdateStatefulSet(cluster, ssCopy)
-				if err != nil {
-					return err
-				}
-				c.logger.Info("instance amount changed", zap.Any("ss", ss))
-			}
-		}
-	}
 	return nil
 }

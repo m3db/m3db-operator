@@ -31,9 +31,16 @@ import (
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
+)
+
+const (
+	// FailureDomainZoneKey is the standard Kubernetes node label for a zone.
+	FailureDomainZoneKey = "failure-domain.beta.kubernetes.io/zone"
 )
 
 // MultiLabelSelector provides a ListOptions with a LabelSelector
@@ -110,33 +117,6 @@ func (k *k8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.Lis
 	return pods, nil
 }
 
-// EnsureStatefulSets will create StatefulSets based the Spec configuration
-// if they don't exist already
-func (k *k8sops) EnsureStatefulSets(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
-	for _, attrs := range cluster.Spec.IsolationGroups {
-		statefulSetName := k.StatefulSetName(cluster.GetName(), attrs.Name)
-		statefulSet, err := k.GetStatefulSet(cluster, statefulSetName)
-		if errors.IsNotFound(err) {
-			k.logger.Info("building statefulset configuration", zap.String("isolationGroup", attrs.Name))
-			statefulSet, err = k.GenerateStatefulSet(cluster, cluster.Spec, svcCfg, attrs.Name, &attrs.NumInstances)
-			if err != nil {
-				k.logger.Error("failed to build statefulset", zap.Error(err))
-				return err
-			}
-			statefulSet, err = k.CreateStatefulSet(cluster, statefulSet)
-			if err != nil {
-				return err
-			}
-
-		} else if errors.IsAlreadyExists(err) {
-			return nil
-		} else if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // CreateStatefulSet will create a StatefulSet and ensure all Pod replicas are
 // ready before returning
 func (k *k8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
@@ -205,4 +185,171 @@ func (k *k8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *a
 		return nil, err
 	}
 	return statefulSet, nil
+}
+
+// NewBaseProbe returns a probe configured for default ports.
+func NewBaseProbe() *v1.Probe {
+	return &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePath,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+}
+
+// NewBaseStatefulSet returns a base configured stateful set.
+func NewBaseStatefulSet(ssName, image, clusterName, isolationGroup string, instanceCount int32) *appsv1.StatefulSet {
+	ic := instanceCount
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ssName,
+			Labels: map[string]string{
+				"cluster":        clusterName,
+				"app":            "m3dbnode",
+				"isolationGroup": isolationGroup,
+				"statefulSet":    ssName,
+			},
+		},
+		Spec: appsv1.StatefulSetSpec{
+			ServiceName:         "m3dbnode",
+			PodManagementPolicy: "Parallel",
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"cluster":        clusterName,
+					"app":            "m3dbnode",
+					"isolationGroup": isolationGroup,
+					"statefulSet":    ssName,
+				},
+			},
+			Replicas: &ic,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"cluster":        clusterName,
+						"app":            "m3dbnode",
+						"isolationGroup": isolationGroup,
+						"statefulSet":    ssName,
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						v1.Container{
+							Name: ssName,
+							SecurityContext: &v1.SecurityContext{
+								Privileged: &[]bool{true}[0],
+								Capabilities: &v1.Capabilities{
+									Add: []v1.Capability{
+										"IPC_LOCK",
+									},
+								},
+							},
+							ReadinessProbe: nil,
+							Command: []string{
+								"m3dbnode",
+							},
+							Args: []string{
+								"-f",
+								_configurationFileLocation,
+							},
+							Image:           image,
+							ImagePullPolicy: "Always",
+							Env: []v1.EnvVar{
+								v1.EnvVar{
+									Name: "NAMESPACE",
+									ValueFrom: &v1.EnvVarSource{
+										FieldRef: &v1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
+							Ports: nil,
+							VolumeMounts: []v1.VolumeMount{
+								v1.VolumeMount{
+									Name:      "storage",
+									MountPath: _dataDirectory,
+								},
+								v1.VolumeMount{
+									Name:      _configurationName,
+									MountPath: _configurationDirectory,
+								},
+								v1.VolumeMount{
+									Name:      "cache",
+									MountPath: "/var/lib/m3kv/",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						v1.Volume{
+							Name: "storage",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						v1.Volume{
+							Name: "cache",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						v1.Volume{
+							Name: _configurationName,
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: _configurationName,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// GenerateNodeAffinity generates a node affinity requiring a strict match for
+// given key and value.
+func GenerateNodeAffinity(key, value string) *v1.NodeAffinity {
+	return &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: []v1.NodeSelectorRequirement{
+						{
+							Key:      key,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{value},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// GenerateZoneAffinity returns a node affinity policy requiring a pod be in a
+// given zone.
+func GenerateZoneAffinity(zone string) *v1.Affinity {
+	return &v1.Affinity{
+		NodeAffinity: GenerateNodeAffinity(FailureDomainZoneKey, zone),
+	}
+}
+
+// GenerateOwnerRef generates an owner reference to a given m3db cluster.
+func GenerateOwnerRef(cluster *myspec.M3DBCluster) *metav1.OwnerReference {
+	return metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+		Group:   myspec.SchemeGroupVersion.Group,
+		Version: myspec.SchemeGroupVersion.Version,
+		// TODO(schallert): use a const here
+		Kind: "m3dbcluster",
+	})
 }

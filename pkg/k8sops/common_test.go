@@ -27,8 +27,6 @@ import (
 )
 
 func TestCommon(t *testing.T) {
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
-	ssName := k.StatefulSetName("testCluster", "testIsolationGroup")
-	require.Equal(t, "testCluster-testIsolationGroup-m3", ssName)
+	ssName := StatefulSetName("testCluster", 1)
+	require.Equal(t, "testCluster-rep1", ssName)
 }

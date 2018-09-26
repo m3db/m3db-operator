@@ -22,17 +22,44 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
+	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
+	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
+
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	"go.uber.org/zap"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
+)
+
+const (
+	_controllerName = "m3db-controller"
+	_workQueueName  = "M3DBClusters"
 )
 
 var (
@@ -59,35 +86,134 @@ type Controller struct {
 	placementClient placement.Client
 	namespaceClient namespace.Client
 	doneCh          chan struct{}
+
+	kubeClient kubernetes.Interface
+	crdClient  clientset.Interface
+
+	clusterLister      clusterlisters.M3DBClusterLister
+	clustersSynced     cache.InformerSynced
+	statefulSetLister  appslisters.StatefulSetLister
+	statefulSetsSynced cache.InformerSynced
+	podLister          corelisters.PodLister
+	podsSynced         cache.InformerSynced
+
+	workQueue workqueue.RateLimitingInterface
+	recorder  record.EventRecorder
 }
 
 // New creates new instance of Controller
-func New(logger *zap.Logger, kclient k8sops.K8sops) (*Controller, error) {
+func New(opts ...Option) (*Controller, error) {
+	options := &options{}
+
+	for _, o := range opts {
+		o.execute(options)
+	}
+
+	if err := options.validate(); err != nil {
+		return nil, err
+	}
+
+	kubeInformerFactory := options.kubeInformerFactory
+	m3dbClusterInformerFactory := options.m3dbClusterInformerFactory
+	kclient := options.kclient
+	kubeClient := options.kubeClient
+	crdClient := options.crdClient
+
+	logger := options.logger
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	var err error
+	plClient := options.placementClient
+	nsClient := options.namespaceClient
+	if plClient == nil {
+		// TODO(PS) Move these clients within the cluster object to ensure each
+		// cluster has it's own configured client
+		plClient, err = placement.NewClient(placement.WithLogger(logger))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if nsClient == nil {
+		nsClient, err = namespace.NewClient(namespace.WithLogger(logger))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	statefulSetInformer := kubeInformerFactory.Apps().V1().StatefulSets()
+	// TODO(schallert): we may not need the pod informer here, but we want a
+	// lister and not sure if getting lister from informer requires waiting for
+	// pod informer cache.
+	podInformer := kubeInformerFactory.Core().V1().Pods()
+	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1().M3DBClusters()
+
+	samplescheme.AddToScheme(scheme.Scheme)
+
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(logger.Sugar().Infof)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kclient.Events("")})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: _controllerName})
+
+	workQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), _workQueueName)
+
 	p := &Controller{
 		lock:      &sync.Mutex{},
 		logger:    logger,
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
 		doneCh:    make(chan struct{}),
-	}
-	// TODO(PS) Move these clients within the cluster object to ensure each
-	// cluster has it's own configured client
-	placementClient, err := placement.NewClient(placement.WithLogger(logger))
-	if err != nil {
-		return nil, err
-	}
-	p.placementClient = placementClient
-	namespaceClient, err := namespace.NewClient(namespace.WithLogger(logger))
-	if err != nil {
-		return nil, err
-	}
-	p.namespaceClient = namespaceClient
-	return p, nil
-}
 
-// Stop will stop the controller
-func (c *Controller) Stop() {
-	close(c.doneCh)
+		kubeClient: kubeClient,
+		crdClient:  crdClient,
+
+		clusterLister:      m3dbClusterInformer.Lister(),
+		clustersSynced:     m3dbClusterInformer.Informer().HasSynced,
+		statefulSetLister:  statefulSetInformer.Lister(),
+		statefulSetsSynced: statefulSetInformer.Informer().HasSynced,
+		podLister:          podInformer.Lister(),
+		podsSynced:         podInformer.Informer().HasSynced,
+
+		placementClient: plClient,
+		namespaceClient: nsClient,
+
+		workQueue: workQueue,
+		recorder:  recorder,
+	}
+
+	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: p.enqueueCluster,
+		UpdateFunc: func(old, new interface{}) {
+			p.enqueueCluster(new)
+		},
+		DeleteFunc: func(obj interface{}) {
+			// TODO(schallert): what do we want to do on delete? clean up the etcd
+			// data? we don't need to do anything w/ the sts + pods, we set owner refs
+			// so kubernetes will GC them for us
+			logger.Info("deleted cluster")
+		},
+	})
+
+	statefulSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: p.handleStatefulSetUpdate,
+		UpdateFunc: func(old, new interface{}) {
+			oldSts := old.(*appsv1.StatefulSet)
+			newSts := new.(*appsv1.StatefulSet)
+
+			// TODO(schallert): version vs. observed generation?
+			if newSts.ResourceVersion == oldSts.ResourceVersion {
+				// don't have to reprocess on periodic resync
+				return
+			}
+
+			p.handleStatefulSetUpdate(new)
+		},
+		DeleteFunc: p.handleStatefulSetUpdate,
+	})
+
+	return p, nil
 }
 
 // Init ensures all the required resources are created
@@ -95,96 +221,254 @@ func (c *Controller) Init() error {
 	if err := c.k8sclient.CreateCRD(m3dboperator.Name); err != nil {
 		return err
 	}
-	if err := c.refreshClusters(); err != nil {
-		c.logger.Error("failed to refresh clusters", zap.Error(err))
-		return err
-	}
 	c.logger.Info("found existing", zap.Int("clusters", len(c.clusters)))
 	return nil
 }
 
-// Start the controller
-func (c *Controller) Start(wg *sync.WaitGroup) error {
-	// Watch for events that add, modify, or delete M3DBCluster definitions andlog
-	// process them asynchronously.
-	c.logger.Info("watching for m3db events")
-	events, watchErrs := c.monitorM3DBEvents(c.doneCh)
-	go func() {
-		for {
-			select {
-			case event := <-events:
-				if err := c.reconcileM3DBClusterEvent(event); err != nil {
-					c.logger.Error("failed to reconcile", zap.Error(err))
-				}
-			case err := <-watchErrs:
-				c.logger.Error("watch errors occured", zap.Error(err))
-			case <-c.doneCh:
-				wg.Done()
-				c.logger.Info("stopped m3db event watcher.")
-				return
-			}
-		}
-	}()
+// Run drives the controller event loop.
+func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+	defer c.workQueue.ShutDown()
+
+	c.logger.Info("starting Operator controller")
+
+	c.logger.Info("waiting for informer caches to sync")
+	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced); !ok {
+		return errors.New("caches failed to sync")
+	}
+
+	c.logger.Info("starting workers")
+	for i := 0; i < nWorkers; i++ {
+		go wait.Until(c.runLoop, time.Second, stopCh)
+	}
+
+	c.logger.Info("workers started")
+	<-stopCh
+	c.logger.Info("shutting down workers")
+
 	return nil
 }
 
-// monitorM3DBEvents watches for new or removed clusters
-func (c *Controller) monitorM3DBEvents(stopchan chan struct{}) (<-chan *myspec.M3DBCluster, <-chan error) {
-	events := make(chan *myspec.M3DBCluster)
-	errc := make(chan error, 1)
-	source := c.k8sclient.NewListWatcher()
-
-	createAddHandler := func(obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "ADDED"
-		events <- event
+func (c *Controller) enqueueCluster(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
+		return
 	}
-
-	createDeleteHandler := func(obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "DELETED"
-		events <- event
-	}
-
-	updateHandler := func(old interface{}, obj interface{}) {
-		event := obj.(*myspec.M3DBCluster)
-		event.Type = "MODIFIED"
-		events <- event
-	}
-
-	_, controller := cache.NewInformer(
-		source,
-		&myspec.M3DBCluster{},
-		time.Minute*60,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    createAddHandler,
-			UpdateFunc: updateHandler,
-			DeleteFunc: createDeleteHandler,
-		})
-
-	go controller.Run(stopchan)
-
-	return events, errc
+	c.workQueue.AddRateLimited(key)
 }
-func (c *Controller) refreshClusters() error {
 
-	//Reset
-	c.clusters = make(map[string]Cluster)
+func (c *Controller) runLoop() {
+	for c.processItem() {
+	}
+}
 
-	// Get active clusters
-	currentClusters, err := c.k8sclient.ListM3DBCluster()
+func (c *Controller) processItem() bool {
+	obj, shutdown := c.workQueue.Get()
+
+	if shutdown {
+		return false
+	}
+
+	err := func(obj interface{}) error {
+		defer c.workQueue.Done(obj)
+
+		var key string
+		var ok bool
+		if key, ok = obj.(string); !ok {
+			c.workQueue.Forget(obj)
+			runtime.HandleError(fmt.Errorf("expected string from queue, got %#v", obj))
+			return nil
+		}
+
+		if err := c.handleClusterUpdate(key); err != nil {
+			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
+		}
+
+		c.workQueue.Forget(obj)
+		c.logger.Info("successfully synced item", zap.String("key", key))
+
+		return nil
+	}(obj)
+
+	if err != nil {
+		runtime.HandleError(err)
+	}
+
+	return true
+}
+
+func (c *Controller) handleClusterUpdate(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
+
+	cluster, err := c.clusterLister.M3DBClusters(namespace).Get(name)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			// give up processing if this cluster doesn't exist
+			runtime.HandleError(fmt.Errorf("clusters '%s' no longer exists", key))
+			return nil
+		}
+
+		return err
+	}
+
+	// MUST create a deep copy of the cluster or risk corruping cache! Technically
+	// only need if we modify, but we frequently do that so let's deep copy to
+	// start and remove unnecessary calls later to optimize if we want.
+	cluster = cluster.DeepCopy()
+
+	// this deepcopy is probably unnecessary
+	isoGroups := cluster.DeepCopy().Spec.IsolationGroups
+
+	if len(isoGroups) == 0 {
+		// nothing to do, no groups to create in
+		return nil
+	}
+
+	zones := make([]string, len(isoGroups))
+	for i := range zones {
+		zones[i] = isoGroups[i].Name
+	}
+
+	childrenSets, err := c.getChildStatefulSets(cluster)
 	if err != nil {
 		return err
 	}
 
-	// Copy objects into Cluster object
-	for _, cluster := range currentClusters.Items {
-		c.logger.Info("found cluster", zap.String("name", cluster.ObjectMeta.Name))
-		currCluster := cluster.DeepCopy()
-		c.clusters[currCluster.ObjectMeta.Name] = Cluster{M3DBCluster: currCluster}
+	for _, sts := range childrenSets {
+		// if any of the statefulsets aren't ready, wait until they are as we'll get
+		// another event (ready == bootstrapped)
+		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
+			// TODO(schallert): figure out what to do if replicas is not set
+			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
+			return nil
+		}
 	}
 
+	// At this point all existing statefulsets are bootstrapped.
+
+	if len(childrenSets) != len(zones) {
+		nextID := len(childrenSets)
+		// create a statefulset
+
+		name := fmt.Sprintf("%s-%d", cluster.Name, nextID)
+		sts, err := k8sops.GenerateStatefulSet(cluster, zones[nextID], isoGroups[nextID].NumInstances)
+		if err != nil {
+			return err
+		}
+
+		sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
+		if err != nil {
+			c.logger.Error(err.Error())
+			return err
+		}
+
+		// c.recorder.Event(cluster, corev1.EventTypeNormal, "CreatedSts", "create a statefulset")
+		c.logger.Info("created statefulset", zap.String("name", name))
+		return nil
+	}
+
+	// TODO(schallert): propagate whether services were created back up to client
+	if err := c.ensureServices(cluster); err != nil {
+		return err
+	}
+
+	if !cluster.Status.HasInitializedNamespace() {
+		updated, err := c.validateNamespaceWithStatus(cluster)
+		if err != nil {
+			return err
+		}
+
+		// TODO(schallert): Decide for sure what our conventions for re-enqueueing
+		// will be.
+		if updated {
+			return errors.New("re-enqueing cluster due to API update")
+		}
+	}
+
+	if !cluster.Status.HasInitializedPlacement() {
+		updated, err := c.validatePlacementWithStatus(cluster)
+		if err != nil {
+			return err
+		}
+
+		if updated {
+			return errors.New("re-enqueing cluster due to API update")
+		}
+	}
+
+	c.logger.Info("nothing to do",
+		zap.Int("childrensets", len(childrenSets)),
+		zap.Int("zones", len(zones)),
+		zap.Int64("generation", cluster.ObjectMeta.Generation),
+		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
+
 	return nil
+}
+
+// This func is currently read-only, but if we end up modifying statefulsets
+// we'll have to deepcopy.
+func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
+	// TODO(schallert): mark sts w/ a label selector so we can query more
+	// efficiently (already have label helpers in k8sops)
+	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(labels.Everything())
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("error listing statefulsets: %v", err))
+		return nil, err
+	}
+
+	childrenSets := make([]*appsv1.StatefulSet, 0)
+	for _, sts := range statefulSets {
+		if metav1.IsControlledBy(sts, cluster) {
+			childrenSets = append(childrenSets, sts.DeepCopy())
+		}
+	}
+
+	return childrenSets, nil
+}
+
+func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
+	var object metav1.Object
+	var ok bool
+	if object, ok = obj.(metav1.Object); !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			return
+		}
+
+		object, ok = tombstone.Obj.(metav1.Object)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding tombstone, invalid type"))
+			return
+		}
+
+		c.logger.Info("recovered object from tombstone", zap.String("name", object.GetName()))
+	}
+
+	c.logger.Info("processing statefulset", zap.String("name", object.GetName()))
+
+	owner := metav1.GetControllerOf(object)
+	// TODO(schallert): const
+	if owner == nil || owner.Kind != "m3dbcluster" {
+		// we don't own this object, ignore
+		return
+	}
+
+	cluster, err := c.clusterLister.M3DBClusters(object.GetNamespace()).Get(owner.Name)
+	if err != nil {
+		c.logger.Info("ignoring orphaned object", zap.String("m3dbcluster", owner.Name), zap.String("statefulset", object.GetName()))
+		return
+	}
+
+	// enqueue the cluster for processing
+	c.enqueueCluster(cluster)
+	return
 }
 
 func (c *Controller) validateClusterSpec(cluster *myspec.M3DBCluster) error {
@@ -193,26 +477,6 @@ func (c *Controller) validateClusterSpec(cluster *myspec.M3DBCluster) error {
 	if len(cluster.Spec.IsolationGroups) == 0 {
 		c.logger.Error("isolationGroups missing from spec", zap.Error(ErrIsolationGroupsMissing))
 		return ErrIsolationGroupsMissing
-	}
-	return nil
-}
-
-func (c *Controller) reconcileM3DBClusterEvent(cluster *myspec.M3DBCluster) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	// TODO(PS) Replace with validation within spec or use validation package
-	// https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/core/validation/validation.go
-	if err := c.validateClusterSpec(cluster); err != nil {
-		return err
-	}
-	c.logger.Info("received M3DB cluster event", zap.String("event", cluster.Type))
-	switch {
-	case cluster.Type == "ADDED":
-		return c.addM3DBCluster(cluster)
-	case cluster.Type == "MODIFIED":
-		return c.updateM3DBCluster(cluster)
-	case cluster.Type == "DELETED":
-		return c.deleteM3DBCluster(cluster)
 	}
 	return nil
 }
