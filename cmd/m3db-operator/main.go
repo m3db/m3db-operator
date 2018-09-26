@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,19 +21,25 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
 	"sync"
 	"syscall"
 
+	"github.com/m3db/m3/src/query/util/logging"
+	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -46,54 +52,53 @@ var (
 func init() {
 	flag.StringVar(&kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
 	flag.StringVar(&masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
-	flag.StringVar(&logrusLevel, "log-level", "info", "Log level for logrus")
 	flag.Parse()
 }
 
-func printVersion() {
-	logrus.Infof("Go Version: %s", runtime.Version())
-	logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
-	logrus.Infof("Operator Version: %s", appVersion)
-}
-
 func main() {
-	// Identify the build
-	printVersion()
 
-	// Setup logger
-	logLevel, err := logrus.ParseLevel(logrusLevel)
+	logging.InitWithCores(nil)
+	ctx := context.Background()
+	logger := logging.WithContext(ctx)
+	defer logger.Sync()
+
+	logger.Info("Go", zap.Any("VERSION", runtime.Version()))
+	logger.Info("Go", zap.Any("OS", runtime.GOOS), zap.Any("ARCH", runtime.GOARCH))
+	logger.Info("Operator", zap.String("version", appVersion))
+
+	// Create k8s clients
+	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, kubeCfgFile)
 	if err != nil {
-		fmt.Println("failed to setup log level correctly")
-		os.Exit(1)
+		logger.Fatal("failed to create k8s clients", zap.Error(err))
 	}
-	logrus.SetLevel(logLevel)
 
-	// Create k8s client
-	k8sclient, err := k8sops.New(kubeCfgFile, masterHost)
+	// Create k8sops client
+	k8sclient, err := k8sops.New(
+		masterHost,
+		k8sops.WithLogger(logger),
+		k8sops.WithCRDClient(crdClient),
+		k8sops.WithKClient(kubeClient),
+		k8sops.WithExtClient(kubeExt))
 	if err != nil {
-		logrus.WithError(err).Error("failed to create k8sclient")
-		os.Exit(1)
+		logger.Fatal("failed to create k8sclient", zap.Error(err))
 	}
 
 	// Create controller
-	controller, err := controller.New(k8sclient)
+	controller, err := controller.New(logger, k8sclient)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create controller")
-		os.Exit(1)
+		logger.Fatal("failed to create controller", zap.Error(err))
 	}
 
 	// Init the controller
 	if err := controller.Init(); err != nil {
-		logrus.WithError(err).Error("failed to init controller")
-		os.Exit(1)
+		logger.Fatal("failed to init controller", zap.Error(err))
 	}
 
 	// Setup main go routines and start controller
-	doneChan := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(1)
-	if err := controller.Start(doneChan, &wg); err != nil {
-		logrus.WithError(err).Error("failed to start controler")
+	if err := controller.Start(&wg); err != nil {
+		logger.Fatal("failed to start controler", zap.Error(err))
 	}
 
 	// Trap the INT and TERM signals
@@ -102,10 +107,47 @@ func main() {
 	for {
 		select {
 		case <-signalChan:
-			logrus.Warning("shutdown signal received")
-			close(doneChan)
+			logger.Warn("shutdown signal received")
+			controller.Stop()
 			wg.Wait()
 			os.Exit(0)
 		}
 	}
+}
+
+func buildConfig(logger *zap.Logger, kubeCfgFile string) (*rest.Config, error) {
+	if kubeCfgFile != "" {
+		logger.Info("using OutOfCluster k8s config", zap.String("kubeFile", kubeCfgFile))
+		config, err := clientcmd.BuildConfigFromFlags("", kubeCfgFile)
+		if err != nil {
+			return nil, err
+		}
+		return config, nil
+	}
+	logger.Info("using InCluster k8s config")
+	return rest.InClusterConfig()
+}
+
+func newKubeClient(logger *zap.Logger, kubeCfgFile string) (clientset.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
+	config, err := buildConfig(logger, kubeCfgFile)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	clientSet, err := clientset.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	kubeExtCli, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return clientSet, kubeClient, kubeExtCli, nil
 }
