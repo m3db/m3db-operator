@@ -61,6 +61,7 @@ metadata:
   name: m3db-operator
   namespace: operator
 spec:
+  serviceName: m3db-operator
   replicas: 1
   selector:
     matchLabels:

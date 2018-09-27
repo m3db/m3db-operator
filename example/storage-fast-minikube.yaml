@@ -13,11 +13,11 @@ provisioner: k8s.io/minikube-hostpath
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: fast
+  name: minikube-pv
 spec:
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 60Gi
+    storage: 10Gi
   hostPath:
-    path: /tmp/
+    path: "/tmp/"
