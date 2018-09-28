@@ -59,6 +59,7 @@ var (
 	_kubeCfgFile     string
 	_masterHost      string
 	_coordinatorAddr string
+	_operatorName    = "m3db_operator"
 	_merticsPath     = "/metrics"
 	_metricsPort     = ":8080"
 )
@@ -71,6 +72,7 @@ func init() {
 }
 
 func main() {
+
 	// Setup Logging
 	logging.InitWithCores(nil)
 	ctx := context.Background()
@@ -91,7 +93,7 @@ func main() {
 	}
 	r := promreporter.NewReporter(promreporter.Options{})
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
-		Prefix:         os.Getenv("OPERATOR_NAME"),
+		Prefix:         _operatorName,
 		Tags:           tags,
 		CachedReporter: r,
 		Separator:      promreporter.DefaultSeparator,
@@ -105,8 +107,6 @@ func main() {
 	}()
 
 	// Create k8s clients
-	kubeCfgFile := os.Getenv("KUBE_CFG_FILE")
-	masterURL := os.Getenv("MASTER_URL")
 	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, _masterURL, _kubeCfgFile)
 	if err != nil {
 		logger.Fatal("failed to create k8s clients", zap.Error(err))

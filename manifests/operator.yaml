@@ -81,12 +81,6 @@ spec:
           - m3db-operator
           imagePullPolicy: Always
           env:
-            - name: OPERATOR_NAME
-              value: "m3db_operator"
             - name: ENVIRONMENT
               value: "production" 
-            - name: KUBE_CFG_FILE
-              value: ""
-            - name: MASTER_URL
-              value: ""
       serviceAccount: m3db-operator
