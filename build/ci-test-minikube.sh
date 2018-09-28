@@ -13,6 +13,12 @@ kubectl apply -f example/etcd-minikube.yaml
 ISREADY="etcd-2:Initialized=True;Ready=True;PodScheduled=True"
 until kubectl get pods -lapp=etcd -o jsonpath="$JSONPATH" 2>&1 | grep -q "$ISREADY"; do sleep 1; done 
 
+# Ensure the test branch is used 
+BRANCH=$(echo "${TRAVIS_BRANCH}" | sed 's/\//_/')
+echo "${BRANCH}"
+cat manifests/operator.yaml | sed -i "s/latest/${BRANCH}/" manifests/operator.yaml
+cat manifests/operator.yaml
+
 # Create M3DB Operator StatefulSet and wait until it's ready
 kubectl apply -f manifests/operator.yaml
 ISREADY="m3db-operator-0:Initialized=True;Ready=True;PodScheduled=True"
@@ -21,4 +27,4 @@ until kubectl -n operator get pods -lname=m3db-operator -o jsonpath="$JSONPATH" 
 # Create M3DB cluster and wait until it's ready
 kubectl apply -f example/m3db-cluster-minikube.yaml
 ISREADY="m3db-cluster-us-west1-a-m3-0:Initialized=True;Ready=True;PodScheduled=True;m3db-cluster-us-west1-b-m3-0:Initialized=True;Ready=True;PodScheduled=True;"
-until kubectl get pods -lapp=m3dbnode -o jsonpath="$JSONPATH" 2>&1 | grep -q "$ISREADY"; do  sleep 15; kubectl get all; kubectl describe events; done 
+until kubectl get pods -lapp=m3dbnode -o jsonpath="$JSONPATH" 2>&1 | grep -q "$ISREADY"; do sleep 1; done 
