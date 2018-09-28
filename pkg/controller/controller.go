@@ -36,6 +36,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -81,6 +82,7 @@ type Cluster struct {
 type Controller struct {
 	lock            *sync.Mutex
 	logger          *zap.Logger
+	scope           tally.Scope
 	k8sclient       k8sops.K8sops
 	clusters        map[string]Cluster
 	placementClient placement.Client
@@ -162,6 +164,7 @@ func New(opts ...Option) (*Controller, error) {
 	p := &Controller{
 		lock:      &sync.Mutex{},
 		logger:    logger,
+		scope:     scope,
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
 		doneCh:    make(chan struct{}),

@@ -23,6 +23,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -37,6 +38,8 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	"github.com/uber-go/tally"
+	promreporter "github.com/uber-go/tally/prometheus"
 	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
@@ -66,7 +69,7 @@ func init() {
 }
 
 func main() {
-
+	// Setup Logging
 	logging.InitWithCores(nil)
 	ctx := context.Background()
 	logger := logging.WithContext(ctx)
@@ -76,7 +79,31 @@ func main() {
 	logger.Info("Go", zap.Any("OS", runtime.GOOS), zap.Any("ARCH", runtime.GOARCH))
 	logger.Info("Operator", zap.String("version", appVersion))
 
+	// Setup telemetry
+	env := os.Getenv("ENVIRONMENT")
+	if env == "" {
+		env = "development"
+	}
+	tags := map[string]string{
+		"environment": env,
+	}
+	r := promreporter.NewReporter(promreporter.Options{})
+	scope, closer := tally.NewRootScope(tally.ScopeOptions{
+		Prefix:         "m3db_operator",
+		Tags:           tags,
+		CachedReporter: r,
+		Separator:      promreporter.DefaultSeparator,
+	}, 1*time.Second)
+	defer closer.Close()
+
+	// Serve the metrics
+	go func() {
+		http.Handle("/metrics", r.HTTPHandler())
+		http.ListenAndServe(":8080", nil)
+	}()
+
 	// Create k8s clients
+	kubeCfgFile := os.Getenv("KUBE_CFG_FILE")
 	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, kubeCfgFile)
 	if err != nil {
 		logger.Fatal("failed to create k8s clients", zap.Error(err))
@@ -84,7 +111,6 @@ func main() {
 
 	// Create k8sops client
 	k8sclient, err := k8sops.New(
-		masterHost,
 		k8sops.WithLogger(logger),
 		k8sops.WithCRDClient(crdClient),
 		k8sops.WithKClient(kubeClient),

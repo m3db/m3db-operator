@@ -83,4 +83,8 @@ spec:
           env:
             - name: OPERATOR_NAME
               value: "m3db-operator"
+            - name: ENVIRONMENT
+              value: "production" 
+            - name: KUBE_CFG_FILE
+              value: ""
       serviceAccount: m3db-operator
