@@ -73,9 +73,6 @@ spec:
           name: client
         - containerPort: 2380
           name: peer
-        volumeMounts:
-        - name: etcd-data
-          mountPath: /var/lib/etcd
         env:
         - name: MY_IP
           valueFrom:
@@ -85,14 +82,3 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-  volumeClaimTemplates:
-    - metadata:
-        name: etcd-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 2Gi
-          limits:
-            storage: 2Gi

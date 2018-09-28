@@ -129,13 +129,13 @@ code-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@./hack/update-generated.sh
 
 .PHONY: build-bin
-build-bin: _output ## Build m3db-operator binary
+build-bin: _output code-gen ## Build m3db-operator binary
 	which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
 	echo "building $(PROJECT_NAME)..."
 	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
 
 .PHONY: build-docker 
-build-docker: build-bin## Build m3db-operator docker image with go binary
+build-docker: ## Build m3db-operator docker image with go binary
 	@./build/build-docker.sh
 
 _output:

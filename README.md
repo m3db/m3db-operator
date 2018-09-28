@@ -1,9 +1,8 @@
-# m3db-operator 
+# m3db-operator [![e2e](https://travis-ci.org/m3db/m3db-operator.svg?branch=master)](https://travis-ci.org/m3db/m3db-operator)  [![Build Status](https://semaphoreci.com/api/v1/m3db/m3db-operator/branches/master/badge.svg)](https://semaphoreci.com/m3db/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
 
 ## Project Status: pre-Alpha
 
 ### Kubernetes cluster prerequisites 
-
 
 ### GKE 
 When running on GKE, the user applying the manifests will need the ability to 
