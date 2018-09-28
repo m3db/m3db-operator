@@ -55,16 +55,18 @@ const (
 )
 
 var (
-	appVersion      = "0.0.1"
-	kubeCfgFile     string
-	masterHost      string
-	coordinatorAddr string
+	_appVersion      = "0.0.1"
+	_kubeCfgFile     string
+	_masterHost      string
+	_coordinatorAddr string
+	_merticsPath     = "/metrics"
+	_metricsPort     = ":8080"
 )
 
 func init() {
-	flag.StringVar(&kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
-	flag.StringVar(&masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
-	flag.StringVar(&coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
+	flag.StringVar(&_kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
+	flag.StringVar(&_masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
+	flag.StringVar(&_coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
 	flag.Parse()
 }
 
@@ -77,7 +79,7 @@ func main() {
 
 	logger.Info("Go", zap.Any("VERSION", runtime.Version()))
 	logger.Info("Go", zap.Any("OS", runtime.GOOS), zap.Any("ARCH", runtime.GOARCH))
-	logger.Info("Operator", zap.String("version", appVersion))
+	logger.Info("Operator", zap.String("version", _appVersion))
 
 	// Setup telemetry
 	env := os.Getenv("ENVIRONMENT")
@@ -89,7 +91,7 @@ func main() {
 	}
 	r := promreporter.NewReporter(promreporter.Options{})
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
-		Prefix:         "m3db_operator",
+		Prefix:         os.Getenv("OPERATOR_NAME"),
 		Tags:           tags,
 		CachedReporter: r,
 		Separator:      promreporter.DefaultSeparator,
@@ -98,13 +100,14 @@ func main() {
 
 	// Serve the metrics
 	go func() {
-		http.Handle("/metrics", r.HTTPHandler())
-		http.ListenAndServe(":8080", nil)
+		http.Handle(_metricsPath, r.HTTPHandler())
+		http.ListenAndServe(_metricsPort, nil)
 	}()
 
 	// Create k8s clients
 	kubeCfgFile := os.Getenv("KUBE_CFG_FILE")
-	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, kubeCfgFile)
+	masterURL := os.Getenv("MASTER_URL")
+	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, _masterURL, _kubeCfgFile)
 	if err != nil {
 		logger.Fatal("failed to create k8s clients", zap.Error(err))
 	}
@@ -139,7 +142,7 @@ func main() {
 	}
 
 	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
-	if coordinatorAddr != "" {
+	if _coordinatorAddr != "" {
 		pc, err := placement.NewClient(placement.WithLogger(logger), placement.WithURL(coordinatorAddr))
 		if err != nil {
 			logger.Fatal(err.Error())
@@ -186,10 +189,10 @@ func main() {
 	}
 }
 
-func buildConfig(logger *zap.Logger, kubeCfgFile string) (*rest.Config, error) {
+func buildConfig(logger *zap.Logger, masterURL, kubeCfgFile string) (*rest.Config, error) {
 	if kubeCfgFile != "" {
 		logger.Info("using OutOfCluster k8s config", zap.String("kubeFile", kubeCfgFile))
-		config, err := clientcmd.BuildConfigFromFlags("", kubeCfgFile)
+		config, err := clientcmd.BuildConfigFromFlags(masterURL, kubeCfgFile)
 		if err != nil {
 			return nil, err
 		}
@@ -199,8 +202,8 @@ func buildConfig(logger *zap.Logger, kubeCfgFile string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func newKubeClient(logger *zap.Logger, kubeCfgFile string) (clientset.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
-	config, err := buildConfig(logger, kubeCfgFile)
+func newKubeClient(logger *zap.Logger, masterURL, kubeCfgFile string) (clientset.Interface, kubernetes.Interface, apiextensionsclient.Interface, error) {
+	config, err := buildConfig(logger, masterURL, kubeCfgFile)
 	if err != nil {
 		return nil, nil, nil, err
 	}
