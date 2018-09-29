@@ -61,50 +61,14 @@ func TestGenerateCRD(t *testing.T) {
 	require.Equal(t, crd, newCRD)
 }
 
-func TestGenerateService(t *testing.T) {
-	fixture := getFixture("testM3DBCluster.yaml", t)
-	svcCfg := fixture.Spec.ServiceConfigurations[0]
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   svcCfg.Name,
-			Labels: GenerateMaps("labels", svcCfg),
-		},
-		Spec: v1.ServiceSpec{
-			Selector:  GenerateMaps("selectors", svcCfg),
-			Ports:     GenerateServicePorts(svcCfg.Ports),
-			ClusterIP: "None",
-		},
-	}
-	newSvc := GenerateService(svcCfg)
-	require.Equal(t, svc, newSvc)
-}
-
 func TestGenerateStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	clusterSpec := fixture.Spec
-	svcCfg := fixture.Spec.ServiceConfigurations[0]
 	isolationGroup := fixture.Spec.IsolationGroups[0].Name
 	instanceAmount := &fixture.Spec.IsolationGroups[0].NumInstances
 	clusterName := fixture.GetName()
 
 	ssName := StatefulSetName(clusterName, 0)
-	ports := GenerateContainerPorts(svcCfg.Ports)
-
-	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
-	require.Nil(t, err)
-	require.NotNil(t, limitCPU)
-
-	limitMemory, err := resource.ParseQuantity(clusterSpec.Resources.Limits.Memory)
-	require.Nil(t, err)
-	require.NotNil(t, limitMemory)
-
-	requestCPU, err := resource.ParseQuantity(clusterSpec.Resources.Requests.CPU)
-	require.Nil(t, err)
-	require.NotNil(t, requestCPU)
-
-	requestMemory, err := resource.ParseQuantity(clusterSpec.Resources.Requests.Memory)
-	require.Nil(t, err)
-	require.NotNil(t, requestMemory)
 
 	probe := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
@@ -119,15 +83,18 @@ func TestGenerateStatefulSet(t *testing.T) {
 		},
 	}
 
+	labels := map[string]string{
+		"cluster":         clusterName,
+		"app":             "m3db",
+		"component":       "m3dbnode",
+		"stateful-set":    ssName,
+		"isolation-group": "us-fake1-a",
+	}
+
 	ss := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ssName,
-			Labels: map[string]string{
-				"cluster":        clusterName,
-				"app":            "m3dbnode",
-				"isolationGroup": isolationGroup,
-				"statefulSet":    ssName,
-			},
+			Name:   ssName,
+			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(&fixture, schema.GroupVersionKind{
 					Group:   myspec.SchemeGroupVersion.Group,
@@ -137,25 +104,15 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode",
+			ServiceName:         "m3dbnode-m3db-cluster",
 			PodManagementPolicy: "Parallel",
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster":        clusterName,
-					"app":            "m3dbnode",
-					"isolationGroup": isolationGroup,
-					"statefulSet":    ssName,
-				},
+				MatchLabels: labels,
 			},
 			Replicas: instanceAmount,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster":        clusterName,
-						"app":            "m3dbnode",
-						"isolationGroup": isolationGroup,
-						"statefulSet":    ssName,
-					},
+					Labels: labels,
 				},
 				Spec: v1.PodSpec{
 					Affinity: &v1.Affinity{
@@ -206,7 +163,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 									},
 								},
 							},
-							Ports: ports,
+							Ports: generateContainerPorts(),
 							VolumeMounts: []v1.VolumeMount{
 								v1.VolumeMount{
 									Name:      "storage",
@@ -223,12 +180,12 @@ func TestGenerateStatefulSet(t *testing.T) {
 							},
 							Resources: v1.ResourceRequirements{
 								Limits: v1.ResourceList{
-									"cpu":    limitCPU,
-									"memory": limitMemory,
+									"cpu":    resource.MustParse("2"),
+									"memory": resource.MustParse("2Gi"),
 								},
 								Requests: v1.ResourceList{
-									"cpu":    requestCPU,
-									"memory": requestMemory,
+									"cpu":    resource.MustParse("1"),
+									"memory": resource.MustParse("1Gi"),
 								},
 							},
 						},
@@ -261,9 +218,13 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 	}
+
 	newSS, err := GenerateStatefulSet(&fixture, isolationGroup, *instanceAmount)
 	require.Nil(t, err)
 	require.NotNil(t, newSS)
 
 	require.Equal(t, ss, newSS)
+}
+
+func TestGenerateM3DBService(t *testing.T) {
 }

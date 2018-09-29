@@ -26,9 +26,24 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
+const (
+	headlessServicePrefix    = "m3dbnode-"
+	coordinatorServicePrefix = "m3coordinator-"
+)
+
 // StatefulSetName provides a formatted string to use for naming StatefulSets
 func StatefulSetName(clusterName string, stsID int) string {
 	return fmt.Sprintf("%s-rep%d", clusterName, stsID)
+}
+
+// HeadlessServiceName returns a name for the cluster's headless service.
+func HeadlessServiceName(clusterName string) string {
+	return headlessServicePrefix + clusterName
+}
+
+// CoordinatorServiceName returns a name for a cluster's coordinator service.
+func CoordinatorServiceName(clusterName string) string {
+	return coordinatorServicePrefix + clusterName
 }
 
 // TODO(schallert): should figure out a better way to abstract this other than

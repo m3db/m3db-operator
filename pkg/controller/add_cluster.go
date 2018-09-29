@@ -21,8 +21,9 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
@@ -46,15 +47,6 @@ const (
 	_M3DBSvcName          = "m3dbnode"
 	_M3CoordinatorSvcName = "m3coordinator"
 )
-
-func (c *Controller) getServiceConfig(serviceName string, svcCfgs []myspec.ServiceConfiguration) (myspec.ServiceConfiguration, bool) {
-	for _, svcCfg := range svcCfgs {
-		if svcCfg.Name == serviceName {
-			return svcCfg, true
-		}
-	}
-	return myspec.ServiceConfiguration{}, false
-}
 
 // EnsurePlacement ensures that a placement exists otherwise create one
 func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
@@ -119,34 +111,33 @@ func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) (bool, error) 
 func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 	// TODO(schallert): support updating service spec, not sure if this only
 	// handles creation.
-	m3dbSvc, found := c.getServiceConfig(_M3DBSvcName, cluster.Spec.ServiceConfigurations)
-	if !found {
-		err := errors.New("m3db service not found in spec")
-		c.logger.Error(err.Error())
-		c.recorder.Event(cluster, corev1.EventTypeWarning, "NoServiceConfig", "could not create m3db service, missing service config in spec")
-		return err
+
+	services := []*corev1.Service{}
+	if len(cluster.Spec.Services) != 0 {
+		services = cluster.Spec.Services
+	} else {
+		m3dbSvc, err := k8sops.GenerateM3DBService(cluster.Name)
+		if err != nil {
+			return err
+		}
+		coordSvc, err := k8sops.GenerateCoordinatorService(cluster.Name)
+		if err != nil {
+			return err
+		}
+		services = append(services,
+			m3dbSvc,
+			coordSvc,
+		)
 	}
 
-	if err := c.k8sclient.EnsureService(cluster, m3dbSvc); err != nil {
-		err = fmt.Errorf("error creating m3db service: %v", err)
-		c.logger.Error(err.Error())
-		c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
-		return err
-	}
-
-	coordSvc, found := c.getServiceConfig(_M3CoordinatorSvcName, cluster.Spec.ServiceConfigurations)
-	if !found {
-		err := errors.New("coordinator service not found in spec")
-		c.logger.Error(err.Error())
-		c.recorder.Event(cluster, corev1.EventTypeWarning, "NoServiceConfig", "could not create m3coordinator service, missing service config in spec")
-		return err
-	}
-
-	if err := c.k8sclient.EnsureService(cluster, coordSvc); err != nil {
-		err = fmt.Errorf("error creating m3coordinator service: %v", err)
-		c.logger.Error(err.Error())
-		c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
-		return err
+	for _, svc := range services {
+		err := c.k8sclient.EnsureService(cluster, svc)
+		if err != nil {
+			err := fmt.Errorf("error creating service '%s': %v", svc.Name, err)
+			c.logger.Error(err.Error())
+			c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
+			return err
+		}
 	}
 
 	return nil

@@ -61,7 +61,7 @@ type K8sops interface {
 	DeleteService(cluster *myspec.M3DBCluster, name string) error
 
 	// EnsureService will create a service by name if it doesn't exist
-	EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error
+	EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error
 
 	// MultiLabelSelector provides a ListOptions with a LabelSelector
 	// given a map of strings

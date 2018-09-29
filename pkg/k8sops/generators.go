@@ -21,6 +21,7 @@
 package k8sops
 
 import (
+	"errors"
 	"fmt"
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
@@ -29,7 +30,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -46,11 +46,42 @@ const (
 	_configurationDirectory = "/etc/m3db/"
 	_configurationName      = "m3-configuration"
 	_configurationFileName  = "m3.yml"
+
+	_labelApp            = "app"
+	_labelAppValue       = "m3db"
+	_labelCluster        = "cluster"
+	_labelIsolationGroup = "isolation-group"
+	_labelStatefulSet    = "stateful-set"
+	_labelComponent      = "component"
+	_componentM3DBNode   = "m3dbnode"
 )
 
 var (
 	_configurationFileLocation = fmt.Sprintf("%s%s", _configurationDirectory, _configurationFileName)
+
+	errEmptyClusterName = errors.New("cluster name cannot be empty")
 )
+
+type m3dbPort struct {
+	name     string
+	port     int32
+	protocol v1.Protocol
+}
+
+var baseM3DBPorts = [...]m3dbPort{
+	{"client", 9000, v1.ProtocolTCP},
+	{"cluster", 9001, v1.ProtocolTCP},
+	{"http-node", 9002, v1.ProtocolTCP},
+	{"http-cluster", 9003, v1.ProtocolTCP},
+	{"debug", 9004, v1.ProtocolTCP},
+	{"coordinator", 7201, v1.ProtocolTCP},
+	{"coord-metrics", 7203, v1.ProtocolTCP},
+}
+
+var baseCoordinatorPorts = [...]m3dbPort{
+	{"coordinator", 7201, v1.ProtocolTCP},
+	{"coord-metrics", 7203, v1.ProtocolTCP},
+}
 
 // GenerateCRD generates the crd object needed for the M3DBCluster
 func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
@@ -73,12 +104,21 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 	}
 }
 
+func generateBaseLabels(clusterName string) map[string]string {
+	return map[string]string{
+		_labelApp:     _labelAppValue,
+		_labelCluster: clusterName,
+	}
+}
+
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
 func GenerateStatefulSet(
 	cluster *myspec.M3DBCluster,
 	isolationGroup string,
 	instanceAmount int32,
 ) (*appsv1.StatefulSet, error) {
+
+	// TODO(schallert): always sort zones alphabetically.
 
 	stsID := -1
 	for i, g := range cluster.Spec.IsolationGroups {
@@ -95,31 +135,7 @@ func GenerateStatefulSet(
 	clusterName := cluster.GetName()
 	ssName := StatefulSetName(clusterName, stsID)
 
-	containerPorts := []v1.ContainerPort(nil)
-
-	// TODO(schallert): fix this
-	if len(cluster.Spec.ServiceConfigurations) > 0 {
-		containerPorts = GenerateContainerPorts(cluster.Spec.ServiceConfigurations[0].Ports)
-	}
-
 	clusterSpec := cluster.Spec
-	// Parse CPU / Memory
-	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
-	if err != nil {
-		return nil, err
-	}
-	limitMemory, err := resource.ParseQuantity(clusterSpec.Resources.Limits.Memory)
-	if err != nil {
-		return nil, err
-	}
-	requestCPU, err := resource.ParseQuantity(clusterSpec.Resources.Requests.CPU)
-	if err != nil {
-		return nil, err
-	}
-	requestMemory, err := resource.ParseQuantity(clusterSpec.Resources.Requests.Memory)
-	if err != nil {
-		return nil, err
-	}
 
 	probe := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
@@ -134,11 +150,10 @@ func GenerateStatefulSet(
 		},
 	}
 
-	resources := GenerateResourceRequirements(limitCPU, limitMemory, requestCPU, requestMemory)
-	statefulSet := NewBaseStatefulSet(ssName, clusterSpec.Image, clusterName, isolationGroup, instanceAmount)
+	statefulSet := NewBaseStatefulSet(ssName, isolationGroup, cluster, instanceAmount)
 	statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe = probe
-	statefulSet.Spec.Template.Spec.Containers[0].Resources = resources
-	statefulSet.Spec.Template.Spec.Containers[0].Ports = containerPorts
+	statefulSet.Spec.Template.Spec.Containers[0].Resources = clusterSpec.ContainerResources
+	statefulSet.Spec.Template.Spec.Containers[0].Ports = generateContainerPorts()
 	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroup)
 
 	// Set owner ref so sts will be GC'd when the cluster is deleted
@@ -148,88 +163,83 @@ func GenerateStatefulSet(
 	return statefulSet, nil
 }
 
-// GenerateMaps will produce the proper datastructure for v1.Labels
-func GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) map[string]string {
-	hash := map[string]string{}
-	switch kind {
-	case "labels":
-		for _, v := range svcCfg.Labels {
-			hash[v.Name] = v.Value
-		}
-	case "selectors":
-		for _, v := range svcCfg.Selectors {
-			hash[v.Name] = v.Value
-		}
+// GenerateM3DBService will generate the headless service required for an M3DB StatefulSet.
+func GenerateM3DBService(clusterName string) (*v1.Service, error) {
+	if clusterName == "" {
+		return nil, errEmptyClusterName
 	}
-	return hash
-}
 
-// GenerateService will produce resource configured according to the spec's
-// serviceConfiguration fields.
-func GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service {
-	svc := &v1.Service{
+	labels := generateBaseLabels(clusterName)
+	// Move these to consts if we reference them more than once.
+	labels[_labelComponent] = _componentM3DBNode
+	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   svcCfg.Name,
-			Labels: GenerateMaps("labels", svcCfg),
+			Name:   HeadlessServiceName(clusterName),
+			Labels: labels,
 		},
 		Spec: v1.ServiceSpec{
-			Selector: GenerateMaps("selectors", svcCfg),
-			Ports:    GenerateServicePorts(svcCfg.Ports),
+			Selector:  labels,
+			Ports:     generateM3DBServicePorts(),
+			ClusterIP: v1.ClusterIPNone,
+			Type:      v1.ServiceTypeClusterIP,
 		},
-	}
-	if !svcCfg.ClusterIP {
-		svc.Spec.ClusterIP = "None"
-	}
-	return svc
+	}, nil
 }
 
-// GenerateServicePorts will produce the correct ServicePort or ContainerPort
-// resources.
-func GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
+// GenerateCoordinatorService creates a coordinator service given a cluster
+// name.
+func GenerateCoordinatorService(clusterName string) (*v1.Service, error) {
+	if clusterName == "" {
+		return nil, errEmptyClusterName
+	}
+	selectorLabels := generateBaseLabels(clusterName)
+	serviceLabels := generateBaseLabels(clusterName)
+	serviceLabels[_labelComponent] = "m3coordinator"
+
+	return &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   CoordinatorServiceName(clusterName),
+			Labels: serviceLabels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: selectorLabels,
+			Ports:    generateCoordinatorServicePorts(),
+			Type:     v1.ServiceTypeClusterIP,
+		},
+	}, nil
+}
+
+func buildServicePorts(ports []m3dbPort) []v1.ServicePort {
 	svcPorts := []v1.ServicePort{}
-	for _, v := range ports {
-		proto := v1.ProtocolTCP
-		if v.Protocol == "udp" {
-			proto = v1.ProtocolUDP
-		}
+	for _, p := range ports {
 		newPortMapping := v1.ServicePort{
-			Name:     v.Name,
-			Port:     v.Number,
-			Protocol: proto,
+			Name:     p.name,
+			Port:     p.port,
+			Protocol: p.protocol,
 		}
 		svcPorts = append(svcPorts, newPortMapping)
 	}
 	return svcPorts
 }
 
-// GenerateContainerPorts will produce ServicePorts given a ServiceConfiguration.
-func GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort {
+func generateM3DBServicePorts() []v1.ServicePort {
+	return buildServicePorts(baseM3DBPorts[:])
+}
+
+func generateCoordinatorServicePorts() []v1.ServicePort {
+	return buildServicePorts(baseCoordinatorPorts[:])
+}
+
+// generateContainerPorts will produce default container ports.
+func generateContainerPorts() []v1.ContainerPort {
 	cntPorts := []v1.ContainerPort{}
-	for _, v := range ports {
-		proto := v1.ProtocolTCP
-		if v.Protocol == "udp" {
-			proto = v1.ProtocolUDP
-		}
+	for _, v := range baseM3DBPorts {
 		newPortMapping := v1.ContainerPort{
-			Name:          v.Name,
-			ContainerPort: v.Number,
-			Protocol:      proto,
+			Name:          v.name,
+			ContainerPort: v.port,
+			Protocol:      v.protocol,
 		}
 		cntPorts = append(cntPorts, newPortMapping)
 	}
 	return cntPorts
-}
-
-// GenerateResourceRequirements creates a base resource requirement.
-func GenerateResourceRequirements(limitCPU, limitMemory, requestCPU, requestMemory resource.Quantity) v1.ResourceRequirements {
-	return v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			"cpu":    limitCPU,
-			"memory": limitMemory,
-		},
-		Requests: v1.ResourceList{
-			"cpu":    requestCPU,
-			"memory": requestMemory,
-		},
-	}
 }

@@ -204,38 +204,35 @@ func NewBaseProbe() *v1.Probe {
 }
 
 // NewBaseStatefulSet returns a base configured stateful set.
-func NewBaseStatefulSet(ssName, image, clusterName, isolationGroup string, instanceCount int32) *appsv1.StatefulSet {
+func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBCluster, instanceCount int32) *appsv1.StatefulSet {
 	ic := instanceCount
+
+	clusterName := cluster.Name
+	image := cluster.Spec.Image
+
+	labels := generateBaseLabels(clusterName)
+	labels[_labelIsolationGroup] = isolationGroup
+	labels[_labelStatefulSet] = ssName
+	labels[_labelComponent] = _componentM3DBNode
+	for k, v := range cluster.Spec.Labels {
+		labels[k] = v
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ssName,
-			Labels: map[string]string{
-				"cluster":        clusterName,
-				"app":            "m3dbnode",
-				"isolationGroup": isolationGroup,
-				"statefulSet":    ssName,
-			},
+			Name:   ssName,
+			Labels: labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode",
+			ServiceName:         HeadlessServiceName(clusterName),
 			PodManagementPolicy: "Parallel",
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster":        clusterName,
-					"app":            "m3dbnode",
-					"isolationGroup": isolationGroup,
-					"statefulSet":    ssName,
-				},
+				MatchLabels: labels,
 			},
 			Replicas: &ic,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster":        clusterName,
-						"app":            "m3dbnode",
-						"isolationGroup": isolationGroup,
-						"statefulSet":    ssName,
-					},
+					Labels: labels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
