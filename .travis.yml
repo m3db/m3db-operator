@@ -13,3 +13,6 @@ before_script:
 
 script:
  - ./build/ci-test-minikube.sh
+
+services:
+  - docker
