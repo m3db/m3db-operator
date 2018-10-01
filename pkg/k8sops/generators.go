@@ -43,9 +43,7 @@ const (
 	// https://github.com/m3db/m3/issues/996
 	_probePort       = 7201
 	_probePathHealth = "/health"
-	_probePathReady  = "/bootstrapped"
 
-	_baseImage              = "quay.io/m3/m3dbnode:latest"
 	_dataDirectory          = "/var/lib/m3db/"
 	_configurationDirectory = "/etc/m3db/"
 	_configurationName      = "m3-configuration"
