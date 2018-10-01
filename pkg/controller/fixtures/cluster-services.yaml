@@ -1,0 +1,28 @@
+---
+apiVersion: operator.m3db.io/v1
+kind: M3DBCluster
+metadata:
+  name: cluster-services
+  namespace: fake
+spec:
+  image: fake.fake/fake/m3dbnode:latest
+  replicationFactor: 2
+  numberOfShards: 8
+  isolationGroups:
+    - name: us-fake1-a
+      numInstances: 1
+  services:
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: custom-svc
+    spec:
+      selector:
+        foo: bar
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: '1'
+    limits:
+      memory: 2Gi
+      cpu: '2'

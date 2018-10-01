@@ -51,13 +51,14 @@ const (
 	_configurationName      = "m3-configuration"
 	_configurationFileName  = "m3.yml"
 
-	_labelApp            = "app"
-	_labelAppValue       = "m3db"
-	_labelCluster        = "cluster"
-	_labelIsolationGroup = "isolation-group"
-	_labelStatefulSet    = "stateful-set"
-	_labelComponent      = "component"
-	_componentM3DBNode   = "m3dbnode"
+	_labelApp             = "app"
+	_labelAppValue        = "m3db"
+	_labelCluster         = "cluster"
+	_labelIsolationGroup  = "isolation-group"
+	_labelStatefulSet     = "stateful-set"
+	_labelComponent       = "component"
+	_componentM3DBNode    = "m3dbnode"
+	_componentCoordinator = "coordinator"
 )
 
 var (
@@ -189,7 +190,6 @@ func GenerateM3DBService(clusterName string) (*v1.Service, error) {
 	}
 
 	labels := generateBaseLabels(clusterName)
-	// Move these to consts if we reference them more than once.
 	labels[_labelComponent] = _componentM3DBNode
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -212,8 +212,10 @@ func GenerateCoordinatorService(clusterName string) (*v1.Service, error) {
 		return nil, errEmptyClusterName
 	}
 	selectorLabels := generateBaseLabels(clusterName)
+	selectorLabels[_labelComponent] = _componentM3DBNode
+
 	serviceLabels := generateBaseLabels(clusterName)
-	serviceLabels[_labelComponent] = "m3coordinator"
+	serviceLabels[_labelComponent] = _componentCoordinator
 
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{

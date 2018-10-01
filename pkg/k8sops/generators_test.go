@@ -26,6 +26,7 @@ import (
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -241,4 +242,72 @@ func TestGenerateStatefulSet(t *testing.T) {
 }
 
 func TestGenerateM3DBService(t *testing.T) {
+	name := ""
+	svc, err := GenerateM3DBService(name)
+	assert.Error(t, err)
+	assert.Nil(t, svc)
+
+	name = "cluster-a"
+	svc, err = GenerateM3DBService(name)
+	assert.NoError(t, err)
+	assert.NotNil(t, svc)
+
+	baseLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentM3DBNode,
+	}
+
+	expSvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "m3dbnode-cluster-a",
+			Labels: baseLabels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector:  baseLabels,
+			Ports:     generateM3DBServicePorts(),
+			ClusterIP: v1.ClusterIPNone,
+			Type:      v1.ServiceTypeClusterIP,
+		},
+	}
+
+	assert.Equal(t, expSvc, svc)
+}
+
+func TestGenerateCoordinatorService(t *testing.T) {
+	name := ""
+	svc, err := GenerateCoordinatorService(name)
+	assert.Error(t, err)
+	assert.Nil(t, svc)
+
+	name = "cluster-a"
+	svc, err = GenerateCoordinatorService(name)
+	assert.NoError(t, err)
+	assert.NotNil(t, svc)
+
+	selectLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentM3DBNode,
+	}
+
+	svcLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentCoordinator,
+	}
+
+	expSvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "m3coordinator-cluster-a",
+			Labels: svcLabels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: selectLabels,
+			Ports:    generateCoordinatorServicePorts(),
+			Type:     v1.ServiceTypeClusterIP,
+		},
+	}
+
+	assert.Equal(t, expSvc, svc)
 }

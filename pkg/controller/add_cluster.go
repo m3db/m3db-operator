@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/m3db/m3db-operator/pkg/k8sops"
@@ -109,6 +110,10 @@ func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) (bool, error) 
 }
 
 func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
+	if cluster == nil {
+		return errors.New("cluster cannot be nil")
+	}
+
 	// TODO(schallert): support updating service spec, not sure if this only
 	// handles creation.
 

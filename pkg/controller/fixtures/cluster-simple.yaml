@@ -2,26 +2,15 @@
 apiVersion: operator.m3db.io/v1
 kind: M3DBCluster
 metadata:
-  name: m3db-cluster
+  name: cluster-simple
   namespace: fake
 spec:
   image: fake.fake/fake/m3dbnode:latest
   replicationFactor: 2
   numberOfShards: 8
   isolationGroups:
-    - name: us-fake1-a 
+    - name: us-fake1-a
       numInstances: 1
-  serviceConfigurations:
-    - name: fake
-      labels:
-        - name: fake
-          value: fake
-      selectors:
-        - name: fake
-          value: fake
-      ports:
-        - number: 1
-          name: fake
   resources:
     requests:
       memory: 1Gi

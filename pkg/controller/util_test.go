@@ -22,7 +22,7 @@ package controller
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
@@ -30,19 +30,19 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 
 	"go.uber.org/zap"
-	yaml "gopkg.in/yaml.v2"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
 func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {
 	spec := &myspec.M3DBCluster{}
-	file, err := ioutil.ReadFile(fmt.Sprintf("./fixtures/%s", filename))
+	file, err := os.Open(fmt.Sprintf("./fixtures/%s", filename))
 	if err != nil {
 		t.Logf("Failed to read fixtures file: %v ", err)
 		t.Fail()
 	}
-	err = yaml.Unmarshal(file, spec)
+	err = yaml.NewYAMLOrJSONDecoder(file, 2048).Decode(spec)
 	if err != nil {
 		t.Logf("Unmarshal error: %v", err)
 		t.Fail()
