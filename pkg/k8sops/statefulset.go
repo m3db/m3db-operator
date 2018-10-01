@@ -196,7 +196,7 @@ func NewBaseProbe() *v1.Probe {
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(_probePort),
-				Path:   _probePath,
+				Path:   _probePathHealth,
 				Scheme: v1.URISchemeHTTP,
 			},
 		},

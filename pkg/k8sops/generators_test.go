@@ -70,14 +70,27 @@ func TestGenerateStatefulSet(t *testing.T) {
 
 	ssName := StatefulSetName(clusterName, 0)
 
-	probe := &v1.Probe{
+	health := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(_probePort),
-				Path:   _probePath,
+				Path:   _probePathHealth,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+
+	readiness := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePathHealth,
 				Scheme: v1.URISchemeHTTP,
 			},
 		},
@@ -143,7 +156,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 									},
 								},
 							},
-							ReadinessProbe: probe,
+							LivenessProbe:  health,
+							ReadinessProbe: readiness,
 							Command: []string{
 								"m3dbnode",
 							},

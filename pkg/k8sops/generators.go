@@ -38,8 +38,12 @@ const (
 	_probeTimeoutSeconds      = 30
 	_probeInitialDelaySeconds = 10
 	_probeFailureThreshold    = 15
-	_probePort                = 7201
-	_probePath                = "/health"
+
+	// TODO(schallert): switch to dbnode's endpoint instead of coordinator after
+	// https://github.com/m3db/m3/issues/996
+	_probePort       = 7201
+	_probePathHealth = "/health"
+	_probePathReady  = "/bootstrapped"
 
 	_baseImage              = "quay.io/m3/m3dbnode:latest"
 	_dataDirectory          = "/var/lib/m3db/"
@@ -137,21 +141,36 @@ func GenerateStatefulSet(
 
 	clusterSpec := cluster.Spec
 
-	probe := &v1.Probe{
+	probeHealth := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(_probePort),
-				Path:   _probePath,
+				Path:   _probePathHealth,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+
+	// TODO(schallert): same change after https://github.com/m3db/m3/issues/996
+	probeReady := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePathHealth,
 				Scheme: v1.URISchemeHTTP,
 			},
 		},
 	}
 
 	statefulSet := NewBaseStatefulSet(ssName, isolationGroup, cluster, instanceAmount)
-	statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe = probe
+	statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe = probeHealth
+	statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe = probeReady
 	statefulSet.Spec.Template.Spec.Containers[0].Resources = clusterSpec.ContainerResources
 	statefulSet.Spec.Template.Spec.Containers[0].Ports = generateContainerPorts()
 	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroup)
