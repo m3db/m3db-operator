@@ -50,6 +50,7 @@ const (
 	_configurationDirectory = "/etc/m3db/"
 	_configurationName      = "m3-configuration"
 	_configurationFileName  = "m3.yml"
+	_healthFileName         = "/bin/m3dbnode_bootstrapped.sh"
 
 	_labelApp             = "app"
 	_labelAppValue        = "m3db"
@@ -142,6 +143,9 @@ func GenerateStatefulSet(
 
 	clusterSpec := cluster.Spec
 
+	// TODO(schallert): we're currently using the health of the coordinator for
+	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
+	// to the dbnode's health endpoint once fixed.
 	probeHealth := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
@@ -155,16 +159,13 @@ func GenerateStatefulSet(
 		},
 	}
 
-	// TODO(schallert): same change after https://github.com/m3db/m3/issues/996
 	probeReady := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(_probePort),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
+			Exec: &v1.ExecAction{
+				Command: []string{_healthFileName},
 			},
 		},
 	}

@@ -89,10 +89,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(_probePort),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
+			Exec: &v1.ExecAction{
+				Command: []string{_healthFileName},
 			},
 		},
 	}
