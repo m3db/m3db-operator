@@ -37,12 +37,6 @@ func (k *k8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Servi
 	return service, nil
 }
 
-// DeleteService simply deletes a service by name
-func (k *k8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
-	k.logger.Info("deleting service", zap.String("service", name))
-	return k.kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
-}
-
 // EnsureService will create a service by name if it doesn't exist
 func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error {
 	_, err := k.GetService(cluster, svc.Name)

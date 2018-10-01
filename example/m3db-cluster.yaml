@@ -225,8 +225,8 @@ spec:
       numInstances: 3
   resources:
     requests:
-      memory: 4Gi
-      cpu: '1'
+      memory: 1Gi
+      cpu: '500m'
     limits:
       memory: 12Gi
       cpu: '4'

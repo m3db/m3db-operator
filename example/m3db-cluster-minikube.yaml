@@ -214,51 +214,15 @@ metadata:
   name: m3db-cluster
 spec:
   image: quay.io/m3/m3dbnode:latest
-  replicationFactor: 1
-  numberOfShards: 8
+  replicationFactor: 3
+  numberOfShards: 256
   isolationGroups:
     - name: minikube
-      numInstances: 1
-  serviceConfigurations:
-    - name: m3dbnode
-      labels:
-        - name: app
-          value: m3dbnode
-      selectors:
-        - name: app
-          value: m3dbnode
-      ports:
-        - number: 9000
-          name: client
-        - number: 9001
-          name: cluster
-        - number: 9002
-          name: http-node
-        - number: 9003
-          name: http-cluster
-        - number: 9004
-          name: debug
-        - number: 7201
-          name: coordinator
-        - number: 7203
-          name: metrics
-    - name: m3coordinator
-      labels:
-        - name: app
-          value: m3coordinator
-      selectors:
-        - name: app
-          value: m3dbnode # allow m3coordinator to communicate with the db
-      ports:
-        - number: 7201
-          name: coordinator
-        - number: 7203
-          name: metrics
-      clusterIP: true
+      numInstances: 3 
   resources:
     requests:
       memory: 1Gi
-      cpu: "250m"
+      cpu: '500m'
     limits:
-      cpu: "250m"
-      memory: 2Gi
+      memory: 12Gi
+      cpu: '4'

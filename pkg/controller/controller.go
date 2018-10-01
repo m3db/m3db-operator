@@ -23,7 +23,6 @@ package controller
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
@@ -80,7 +79,6 @@ type Cluster struct {
 
 // Controller object
 type Controller struct {
-	lock            *sync.Mutex
 	logger          *zap.Logger
 	scope           tally.Scope
 	k8sclient       k8sops.K8sops
@@ -163,7 +161,6 @@ func New(opts ...Option) (*Controller, error) {
 	workQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), _workQueueName)
 
 	p := &Controller{
-		lock:      &sync.Mutex{},
 		logger:    logger,
 		scope:     scope,
 		k8sclient: kclient,
@@ -259,6 +256,12 @@ func (c *Controller) enqueueCluster(obj interface{}) {
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		runtime.HandleError(err)
 		return
+	}
+	cluster := obj.(*myspec.M3DBCluster)
+	if _, found := c.clusters[cluster.GetName()]; !found {
+		c.clusters[cluster.GetName()] = Cluster{
+			M3DBCluster: cluster,
+		}
 	}
 	c.workQueue.AddRateLimited(key)
 	c.scope.Counter("enqueued_event").Inc(int64(1))
@@ -407,6 +410,15 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		if updated {
 			return errors.New("re-enqueing cluster due to API update")
 		}
+	}
+
+	if err := c.handleDeployment(cluster); err != nil {
+		return err
+	}
+
+	// Ensure new cluster state is set
+	c.clusters[cluster.GetName()] = Cluster{
+		M3DBCluster: cluster.DeepCopy(),
 	}
 
 	c.logger.Info("nothing to do",

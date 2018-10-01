@@ -21,8 +21,10 @@
 package k8sops
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
@@ -50,4 +52,17 @@ func CoordinatorServiceName(clusterName string) string {
 // exposing all of CoreV1()
 func (k *k8sops) Events(namespace string) typedcorev1.EventInterface {
 	return k.kclient.CoreV1().Events(namespace)
+}
+
+// CreatePatch creates a two way merged patch
+func CreatePatch(o, n, datastruct interface{}) ([]byte, error) {
+	oldData, err := json.Marshal(o)
+	if err != nil {
+		return nil, err
+	}
+	newData, err := json.Marshal(n)
+	if err != nil {
+		return nil, err
+	}
+	return strategicpatch.CreateTwoWayMergePatch(oldData, newData, datastruct)
 }

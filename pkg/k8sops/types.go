@@ -57,9 +57,6 @@ type K8sops interface {
 	// GetService simply gets a service by name
 	GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
 
-	// DeleteService simply deletes a service by name
-	DeleteService(cluster *myspec.M3DBCluster, name string) error
-
 	// EnsureService will create a service by name if it doesn't exist
 	EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error
 
