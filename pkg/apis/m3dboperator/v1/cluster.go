@@ -152,10 +152,9 @@ type ClusterSpec struct {
 	// to deploy persistent volumes for data nodes
 	IsolationGroups []IsolationGroup `json:"isolationGroups" yaml:"isolationGroups"`
 
-	// Services allows the user to specify their owner services that the operator
-	// will creates. If non-empty, NO default services will be created and the
-	// user is responsible for service creation.
-	// +optional
+	// Services allows the user to specify their own services that the operator
+	// will create. If non-empty, only the dbnode headless service will be created
+	// and users must specify other services they wish to create. +optional
 	Services []*corev1.Service `json:"services" yaml:"services"`
 
 	// Resources defines memory / cpu constraints for each container in the

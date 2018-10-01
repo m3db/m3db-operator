@@ -116,19 +116,21 @@ func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 	if len(cluster.Spec.Services) != 0 {
 		services = cluster.Spec.Services
 	} else {
-		m3dbSvc, err := k8sops.GenerateM3DBService(cluster.Name)
-		if err != nil {
-			return err
-		}
 		coordSvc, err := k8sops.GenerateCoordinatorService(cluster.Name)
 		if err != nil {
 			return err
 		}
 		services = append(services,
-			m3dbSvc,
 			coordSvc,
 		)
 	}
+
+	m3dbSvc, err := k8sops.GenerateM3DBService(cluster.Name)
+	if err != nil {
+		return err
+	}
+
+	services = append(services, m3dbSvc)
 
 	for _, svc := range services {
 		err := c.k8sclient.EnsureService(cluster, svc)
