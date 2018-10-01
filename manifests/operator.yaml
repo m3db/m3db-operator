@@ -81,6 +81,6 @@ spec:
           - m3db-operator
           imagePullPolicy: Always
           env:
-            - name: OPERATOR_NAME
-              value: "m3db-operator"
+            - name: ENVIRONMENT
+              value: "production" 
       serviceAccount: m3db-operator

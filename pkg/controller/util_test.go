@@ -56,7 +56,6 @@ func newFakeK8sops() (k8sops.K8sops, error) {
 	kubeExt := kubeExtFake.NewSimpleClientset()
 	crdCli := clientsetFake.NewSimpleClientset()
 	k, err := k8sops.New(
-		"",
 		k8sops.WithCRDClient(crdCli),
 		k8sops.WithExtClient(kubeExt),
 		k8sops.WithKClient(kubeCli),

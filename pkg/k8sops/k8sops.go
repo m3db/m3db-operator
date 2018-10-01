@@ -78,22 +78,20 @@ func WithExtClient(extClient apiextensionsclient.Interface) Option {
 
 // k8sops defines the kube object
 type k8sops struct {
-	crdClient  genclient.Interface
-	kclient    kubernetes.Interface
-	kubeExt    apiextensionsclient.Interface
-	masterHost string
-	logger     *zap.Logger
+	crdClient genclient.Interface
+	kclient   kubernetes.Interface
+	kubeExt   apiextensionsclient.Interface
+	logger    *zap.Logger
 }
 
 // New creates a new instance of k8sops
-func New(masterHost string, opts ...Option) (K8sops, error) {
-	k8 := &k8sops{
-		masterHost: masterHost,
-	}
+func New(opts ...Option) (K8sops, error) {
+	k8 := &k8sops{}
 	for _, o := range opts {
 		if err := o.execute(k8); err != nil {
 			return nil, err
 		}
 	}
+
 	return k8, nil
 }

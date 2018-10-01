@@ -36,6 +36,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -81,6 +82,7 @@ type Cluster struct {
 type Controller struct {
 	lock            *sync.Mutex
 	logger          *zap.Logger
+	scope           tally.Scope
 	k8sclient       k8sops.K8sops
 	clusters        map[string]Cluster
 	placementClient placement.Client
@@ -118,6 +120,7 @@ func New(opts ...Option) (*Controller, error) {
 	kclient := options.kclient
 	kubeClient := options.kubeClient
 	crdClient := options.crdClient
+	scope := options.scope
 
 	logger := options.logger
 	if logger == nil {
@@ -162,6 +165,7 @@ func New(opts ...Option) (*Controller, error) {
 	p := &Controller{
 		lock:      &sync.Mutex{},
 		logger:    logger,
+		scope:     scope,
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
 		doneCh:    make(chan struct{}),
@@ -257,6 +261,7 @@ func (c *Controller) enqueueCluster(obj interface{}) {
 		return
 	}
 	c.workQueue.AddRateLimited(key)
+	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
 func (c *Controller) runLoop() {
@@ -266,7 +271,7 @@ func (c *Controller) runLoop() {
 
 func (c *Controller) processItem() bool {
 	obj, shutdown := c.workQueue.Get()
-
+	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
 		return false
 	}
@@ -469,14 +474,4 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
 	return
-}
-
-func (c *Controller) validateClusterSpec(cluster *myspec.M3DBCluster) error {
-
-	// ensure zones are present in spec
-	if len(cluster.Spec.IsolationGroups) == 0 {
-		c.logger.Error("isolationGroups missing from spec", zap.Error(ErrIsolationGroupsMissing))
-		return ErrIsolationGroupsMissing
-	}
-	return nil
 }
