@@ -1,0 +1,4 @@
+/pkg/client/clientset/**   linguist-generated=true
+/pkg/client/listers/**     linguist-generated=true
+/pkg/client/informers/**   linguist-generated=true
+*zz_generated*.go         linguist-generated=true
