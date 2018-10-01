@@ -120,6 +120,7 @@ func New(opts ...Option) (*Controller, error) {
 	kclient := options.kclient
 	kubeClient := options.kubeClient
 	crdClient := options.crdClient
+	scope := options.scope
 
 	logger := options.logger
 	if logger == nil {

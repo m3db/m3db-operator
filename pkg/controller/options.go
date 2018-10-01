@@ -6,13 +6,15 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
-	"go.uber.org/zap"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
 )
 
 // Option provides configuration of a controller.
@@ -22,6 +24,7 @@ type Option interface {
 
 type options struct {
 	logger                     *zap.Logger
+	scope                      tally.Scope
 	kclient                    k8sops.K8sops
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
@@ -35,6 +38,13 @@ type optionFn func(o *options)
 
 func (fn optionFn) execute(o *options) {
 	fn(o)
+}
+
+// WithScope sets the telemetry scope
+func WithScope(s tally.Scope) Option {
+	return optionFn(func(o *options) {
+		o.scope = s
+	})
 }
 
 // WithLogger sets a logger.

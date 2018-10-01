@@ -57,16 +57,16 @@ const (
 var (
 	_appVersion      = "0.0.1"
 	_kubeCfgFile     string
-	_masterHost      string
+	_masterURL       string
 	_coordinatorAddr string
 	_operatorName    = "m3db_operator"
-	_merticsPath     = "/metrics"
+	_metricsPath     = "/metrics"
 	_metricsPort     = ":8080"
 )
 
 func init() {
 	flag.StringVar(&_kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
-	flag.StringVar(&_masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
+	flag.StringVar(&_masterURL, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
 	flag.StringVar(&_coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
 	flag.Parse()
 }
@@ -139,15 +139,16 @@ func main() {
 		controller.WithKClient(k8sclient),
 		controller.WithCRDClient(crdClient),
 		controller.WithKubeClient(kubeClient),
+		controller.WithScope(scope),
 	}
 
 	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
 	if _coordinatorAddr != "" {
-		pc, err := placement.NewClient(placement.WithLogger(logger), placement.WithURL(coordinatorAddr))
+		pc, err := placement.NewClient(placement.WithLogger(logger), placement.WithURL(_coordinatorAddr))
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
-		nc, err := namespace.NewClient(namespace.WithLogger(logger), namespace.WithURL(coordinatorAddr))
+		nc, err := namespace.NewClient(namespace.WithLogger(logger), namespace.WithURL(_coordinatorAddr))
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
