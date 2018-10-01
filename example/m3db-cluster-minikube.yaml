@@ -217,10 +217,8 @@ spec:
   replicationFactor: 1
   numberOfShards: 8
   isolationGroups:
-    - name: us-west1-a 
+    - name: minikube
       numInstances: 1
-    - name: us-west1-b
-      numInstances: 1 
   serviceConfigurations:
     - name: m3dbnode
       labels:
