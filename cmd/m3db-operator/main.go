@@ -26,32 +26,42 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"sync"
 	"syscall"
+	"time"
 
 	"github.com/m3db/m3/src/query/util/logging"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
+	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
+	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const (
+	// Informers will resync on this interval
+	_informerSyncDuration = 30 * time.Second
+)
+
 var (
-	appVersion  = "0.0.1"
-	kubeCfgFile string
-	masterHost  string
-	logrusLevel string
+	appVersion      = "0.0.1"
+	kubeCfgFile     string
+	masterHost      string
+	coordinatorAddr string
 )
 
 func init() {
 	flag.StringVar(&kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
 	flag.StringVar(&masterHost, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
+	flag.StringVar(&coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
 	flag.Parse()
 }
 
@@ -83,35 +93,70 @@ func main() {
 		logger.Fatal("failed to create k8sclient", zap.Error(err))
 	}
 
+	stopCh := make(chan struct{})
+
+	// TODO(schallert): move these to k8sops client once we're confident we want
+	// them
+	//
+	// TODO(schallert): not sure if we need podinformers as well or if
+	// abstractions of statefulsets will do
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
+	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
+
+	opts := []controller.Option{
+		controller.WithKubeInformerFactory(kubeInformerFactory),
+		controller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
+		controller.WithLogger(logger),
+		controller.WithKClient(k8sclient),
+		controller.WithCRDClient(crdClient),
+		controller.WithKubeClient(kubeClient),
+	}
+
+	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
+	if coordinatorAddr != "" {
+		pc, err := placement.NewClient(placement.WithLogger(logger), placement.WithURL(coordinatorAddr))
+		if err != nil {
+			logger.Fatal(err.Error())
+		}
+		nc, err := namespace.NewClient(namespace.WithLogger(logger), namespace.WithURL(coordinatorAddr))
+		if err != nil {
+			logger.Fatal(err.Error())
+		}
+
+		opts = append(opts,
+			controller.WithPlacementClient(pc),
+			controller.WithNamespaceClient(nc),
+		)
+	}
+
 	// Create controller
-	controller, err := controller.New(logger, k8sclient)
+	controller, err := controller.New(opts...)
 	if err != nil {
 		logger.Fatal("failed to create controller", zap.Error(err))
 	}
+
+	go kubeInformerFactory.Start(stopCh)
+	go m3dbClusterInformerFactory.Start(stopCh)
 
 	// Init the controller
 	if err := controller.Init(); err != nil {
 		logger.Fatal("failed to init controller", zap.Error(err))
 	}
 
-	// Setup main go routines and start controller
-	var wg sync.WaitGroup
-	wg.Add(1)
-	if err := controller.Start(&wg); err != nil {
-		logger.Fatal("failed to start controler", zap.Error(err))
-	}
-
 	// Trap the INT and TERM signals
-	signalChan := make(chan os.Signal, 1)
+	signalChan := make(chan os.Signal, 2)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	for {
-		select {
-		case <-signalChan:
-			logger.Warn("shutdown signal received")
-			controller.Stop()
-			wg.Wait()
-			os.Exit(0)
-		}
+	go func() {
+		<-signalChan
+		logger.Warn("received shutdown signal, sending to workers")
+		close(stopCh)
+		<-signalChan
+		logger.Warn("received second signal, exiting immediately")
+		os.Exit(1)
+	}()
+
+	if err := controller.Run(2, stopCh); err != nil {
+		logger.Fatal("error running controller", zap.Error(err))
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,6 +32,7 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -62,20 +64,18 @@ func TestGenerateCRD(t *testing.T) {
 func TestGenerateService(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	svcCfg := fixture.Spec.ServiceConfigurations[0]
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   svcCfg.Name,
-			Labels: k.GenerateMaps("labels", svcCfg),
+			Labels: GenerateMaps("labels", svcCfg),
 		},
 		Spec: v1.ServiceSpec{
-			Selector:  k.GenerateMaps("selectors", svcCfg),
-			Ports:     k.GenerateServicePorts(svcCfg.Ports),
+			Selector:  GenerateMaps("selectors", svcCfg),
+			Ports:     GenerateServicePorts(svcCfg.Ports),
 			ClusterIP: "None",
 		},
 	}
-	newSvc := k.GenerateService(svcCfg)
+	newSvc := GenerateService(svcCfg)
 	require.Equal(t, svc, newSvc)
 }
 
@@ -87,10 +87,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 	instanceAmount := &fixture.Spec.IsolationGroups[0].NumInstances
 	clusterName := fixture.GetName()
 
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
-	ssName := k.StatefulSetName(clusterName, isolationGroup)
-	ports := k.GenerateContainerPorts(svcCfg.Ports)
+	ssName := StatefulSetName(clusterName, 0)
+	ports := GenerateContainerPorts(svcCfg.Ports)
 
 	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
 	require.Nil(t, err)
@@ -130,6 +128,13 @@ func TestGenerateStatefulSet(t *testing.T) {
 				"isolationGroup": isolationGroup,
 				"statefulSet":    ssName,
 			},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(&fixture, schema.GroupVersionKind{
+					Group:   myspec.SchemeGroupVersion.Group,
+					Version: myspec.SchemeGroupVersion.Version,
+					Kind:    "m3dbcluster",
+				}),
+			},
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName:         "m3dbnode",
@@ -153,6 +158,23 @@ func TestGenerateStatefulSet(t *testing.T) {
 					},
 				},
 				Spec: v1.PodSpec{
+					Affinity: &v1.Affinity{
+						NodeAffinity: &v1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+								NodeSelectorTerms: []v1.NodeSelectorTerm{
+									{
+										MatchExpressions: []v1.NodeSelectorRequirement{
+											{
+												Key:      FailureDomainZoneKey,
+												Operator: v1.NodeSelectorOpIn,
+												Values:   []string{isolationGroup},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 					Containers: []v1.Container{
 						v1.Container{
 							Name: ssName,
@@ -239,8 +261,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 	}
-	newSS, err := k.GenerateStatefulSet(&fixture, clusterSpec, svcCfg, isolationGroup, instanceAmount)
+	newSS, err := GenerateStatefulSet(&fixture, isolationGroup, *instanceAmount)
 	require.Nil(t, err)
 	require.NotNil(t, newSS)
+
 	require.Equal(t, ss, newSS)
 }

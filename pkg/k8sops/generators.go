@@ -74,17 +74,35 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 }
 
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
-func (k *k8sops) GenerateStatefulSet(
+func GenerateStatefulSet(
 	cluster *myspec.M3DBCluster,
-	clusterSpec myspec.ClusterSpec,
-	svcCfg myspec.ServiceConfiguration,
 	isolationGroup string,
-	instanceAmount *int32,
+	instanceAmount int32,
 ) (*appsv1.StatefulSet, error) {
-	clusterName := cluster.GetName()
-	ssName := k.StatefulSetName(clusterName, isolationGroup)
-	ports := k.GenerateContainerPorts(svcCfg.Ports)
 
+	stsID := -1
+	for i, g := range cluster.Spec.IsolationGroups {
+		if g.Name == isolationGroup {
+			stsID = i
+			break
+		}
+	}
+
+	if stsID == -1 {
+		return nil, fmt.Errorf("could not find isogroup '%s' in spec", isolationGroup)
+	}
+
+	clusterName := cluster.GetName()
+	ssName := StatefulSetName(clusterName, stsID)
+
+	containerPorts := []v1.ContainerPort(nil)
+
+	// TODO(schallert): fix this
+	if len(cluster.Spec.ServiceConfigurations) > 0 {
+		containerPorts = GenerateContainerPorts(cluster.Spec.ServiceConfigurations[0].Ports)
+	}
+
+	clusterSpec := cluster.Spec
 	// Parse CPU / Memory
 	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
 	if err != nil {
@@ -115,129 +133,23 @@ func (k *k8sops) GenerateStatefulSet(
 			},
 		},
 	}
-	statefulset := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ssName,
-			Labels: map[string]string{
-				"cluster":        clusterName,
-				"app":            "m3dbnode",
-				"isolationGroup": isolationGroup,
-				"statefulSet":    ssName,
-			},
-		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode",
-			PodManagementPolicy: "Parallel",
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster":        clusterName,
-					"app":            "m3dbnode",
-					"isolationGroup": isolationGroup,
-					"statefulSet":    ssName,
-				},
-			},
-			Replicas: instanceAmount,
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster":        clusterName,
-						"app":            "m3dbnode",
-						"isolationGroup": isolationGroup,
-						"statefulSet":    ssName,
-					},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						v1.Container{
-							Name: ssName,
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &[]bool{true}[0],
-								Capabilities: &v1.Capabilities{
-									Add: []v1.Capability{
-										"IPC_LOCK",
-									},
-								},
-							},
-							ReadinessProbe: probe,
-							Command: []string{
-								"m3dbnode",
-							},
-							Args: []string{
-								"-f",
-								_configurationFileLocation,
-							},
-							Image:           clusterSpec.Image,
-							ImagePullPolicy: "Always",
-							Env: []v1.EnvVar{
-								v1.EnvVar{
-									Name: "NAMESPACE",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
-											FieldPath: "metadata.namespace",
-										},
-									},
-								},
-							},
-							Ports: ports,
-							VolumeMounts: []v1.VolumeMount{
-								v1.VolumeMount{
-									Name:      "storage",
-									MountPath: _dataDirectory,
-								},
-								v1.VolumeMount{
-									Name:      _configurationName,
-									MountPath: _configurationDirectory,
-								},
-								v1.VolumeMount{
-									Name:      "cache",
-									MountPath: "/var/lib/m3kv/",
-								},
-							},
-							Resources: v1.ResourceRequirements{
-								Limits: v1.ResourceList{
-									"cpu":    limitCPU,
-									"memory": limitMemory,
-								},
-								Requests: v1.ResourceList{
-									"cpu":    requestCPU,
-									"memory": requestMemory,
-								},
-							},
-						},
-					},
-					Volumes: []v1.Volume{
-						v1.Volume{
-							Name: "storage",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: "cache",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: _configurationName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: _configurationName,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	return statefulset, nil
+
+	resources := GenerateResourceRequirements(limitCPU, limitMemory, requestCPU, requestMemory)
+	statefulSet := NewBaseStatefulSet(ssName, clusterSpec.Image, clusterName, isolationGroup, instanceAmount)
+	statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe = probe
+	statefulSet.Spec.Template.Spec.Containers[0].Resources = resources
+	statefulSet.Spec.Template.Spec.Containers[0].Ports = containerPorts
+	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroup)
+
+	// Set owner ref so sts will be GC'd when the cluster is deleted
+	clusterRef := GenerateOwnerRef(cluster)
+	statefulSet.OwnerReferences = []metav1.OwnerReference{*clusterRef}
+
+	return statefulSet, nil
 }
 
 // GenerateMaps will produce the proper datastructure for v1.Labels
-func (k *k8sops) GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) map[string]string {
+func GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) map[string]string {
 	hash := map[string]string{}
 	switch kind {
 	case "labels":
@@ -253,16 +165,16 @@ func (k *k8sops) GenerateMaps(kind string, svcCfg myspec.ServiceConfiguration) m
 }
 
 // GenerateService will produce resource configured according to the spec's
-// serviceConfiguration fields
-func (k *k8sops) GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service {
+// serviceConfiguration fields.
+func GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service {
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   svcCfg.Name,
-			Labels: k.GenerateMaps("labels", svcCfg),
+			Labels: GenerateMaps("labels", svcCfg),
 		},
 		Spec: v1.ServiceSpec{
-			Selector: k.GenerateMaps("selectors", svcCfg),
-			Ports:    k.GenerateServicePorts(svcCfg.Ports),
+			Selector: GenerateMaps("selectors", svcCfg),
+			Ports:    GenerateServicePorts(svcCfg.Ports),
 		},
 	}
 	if !svcCfg.ClusterIP {
@@ -272,8 +184,8 @@ func (k *k8sops) GenerateService(svcCfg myspec.ServiceConfiguration) *v1.Service
 }
 
 // GenerateServicePorts will produce the correct ServicePort or ContainerPort
-// resources
-func (k *k8sops) GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
+// resources.
+func GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
 	svcPorts := []v1.ServicePort{}
 	for _, v := range ports {
 		proto := v1.ProtocolTCP
@@ -290,9 +202,8 @@ func (k *k8sops) GenerateServicePorts(ports []myspec.Port) []v1.ServicePort {
 	return svcPorts
 }
 
-// GenerateContainerPorts will produce ServicePorts given a
-// ServiceConfiguration
-func (k *k8sops) GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort {
+// GenerateContainerPorts will produce ServicePorts given a ServiceConfiguration.
+func GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort {
 	cntPorts := []v1.ContainerPort{}
 	for _, v := range ports {
 		proto := v1.ProtocolTCP
@@ -307,4 +218,18 @@ func (k *k8sops) GenerateContainerPorts(ports []myspec.Port) []v1.ContainerPort 
 		cntPorts = append(cntPorts, newPortMapping)
 	}
 	return cntPorts
+}
+
+// GenerateResourceRequirements creates a base resource requirement.
+func GenerateResourceRequirements(limitCPU, limitMemory, requestCPU, requestMemory resource.Quantity) v1.ResourceRequirements {
+	return v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			"cpu":    limitCPU,
+			"memory": limitMemory,
+		},
+		Requests: v1.ResourceList{
+			"cpu":    requestCPU,
+			"memory": requestMemory,
+		},
+	}
 }

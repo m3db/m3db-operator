@@ -22,6 +22,21 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1 "k8s.io/api/core/v1"
+)
+
+// ClusterConditionType represents the various type of cluster conditions.
+type ClusterConditionType string
+
+const (
+	// ClusterConditionNamespaceInitialized indicates the cluster has initialized
+	// its namespace.
+	ClusterConditionNamespaceInitialized ClusterConditionType = "NamespaceInitialized"
+
+	// ClusterConditionPlacementInitialized indicates an initial placement has
+	// been created for the cluster.
+	ClusterConditionPlacementInitialized ClusterConditionType = "PlacementInitialized"
 )
 
 // +genclient
@@ -52,8 +67,59 @@ type M3DBStatus struct {
 	// cluster
 	State M3DBState `json:"state,omitempty"`
 
+	// Various conditions about the cluster.
+	Conditions []ClusterCondition `json:"conditions,omitempty"`
+
 	// Message is a human readable message indicating why the cluster is in it's
 	// current state
+	Message string `json:"message,omitempty"`
+
+	// ObservedGeneration is the last generation of the cluster the controller
+	// observed. Kubernetes will automatically increment metadata.Generation every
+	// time the cluster spec is changed.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+// HasInitializedNamespace returns true if the cluster has initialized its
+// namespace.
+func (s *M3DBStatus) HasInitializedNamespace() bool {
+	for _, cond := range s.Conditions {
+		if cond.Type == ClusterConditionNamespaceInitialized && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+// HasInitializedPlacement returns true if the conditions indicate an initial
+// placement has been created.
+func (s *M3DBStatus) HasInitializedPlacement() bool {
+	for _, cond := range s.Conditions {
+		if cond.Type == ClusterConditionPlacementInitialized && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+// ClusterCondition represents various conditions the cluster can be in.
+type ClusterCondition struct {
+	// Type of cluster condition.
+	Type ClusterConditionType `json:"type"`
+
+	// Status of the condition (True, False, Unknown).
+	Status corev1.ConditionStatus
+
+	// Last time this condition was updated.
+	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
+
+	// Last time this condition transitioned from one status to another.
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
+
+	// Reason this condition last changed.
+	Reason string `json:"reason,omitempty"`
+
+	// Human-friendly message about this condition.
 	Message string `json:"message,omitempty"`
 }
 

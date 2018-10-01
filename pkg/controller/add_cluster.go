@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
@@ -29,6 +30,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3x/ident"
+	corev1 "k8s.io/api/core/v1"
 
 	"go.uber.org/zap"
 )
@@ -44,85 +46,6 @@ const (
 	_M3DBSvcName          = "m3dbnode"
 	_M3CoordinatorSvcName = "m3coordinator"
 )
-
-func (c *Controller) addM3DBCluster(cluster *myspec.M3DBCluster) error {
-
-	redStatus := myspec.M3DBStatus{
-		State:   myspec.RedState,
-		Message: _failedToInitM3DB,
-	}
-
-	// Refresh cluster map with latest state
-	if err := c.refreshClusters(); err != nil {
-		c.logger.Error("error refreshing cluster", zap.Error(err))
-		return err
-	}
-	// Ensure local copies of the cluster object from the internal map
-	cls := c.clusters[cluster.GetName()]
-	status := myspec.M3DBStatus{
-		State:   myspec.YellowState,
-		Message: _initialzingM3DB,
-	}
-	if err := c.updateM3DBStatus(cls.M3DBCluster, status); err != nil {
-		return err
-	}
-	// Create M3DB node service defined in service configuration
-	svcCfg, found := c.getServiceConfig(_M3DBSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
-	if !found {
-		return fmt.Errorf("%s service was not found", _M3DBSvcName)
-	}
-	if err := c.k8sclient.EnsureService(cls.M3DBCluster, svcCfg); err != nil {
-		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-			return err
-		}
-		return err
-	}
-	// Create M3Coodinator service defined in service configuration
-	svcCfg, found = c.getServiceConfig(_M3CoordinatorSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
-	if !found {
-		return fmt.Errorf("%s service was not found", _M3DBSvcName)
-	}
-	if err := c.k8sclient.EnsureService(cls.M3DBCluster, svcCfg); err != nil {
-		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-			return err
-		}
-		return err
-	}
-	svcCfg, found = c.getServiceConfig(_M3DBSvcName, cls.M3DBCluster.Spec.ServiceConfigurations)
-	if !found {
-		return fmt.Errorf("%s service was not found", _M3DBSvcName)
-	}
-	// TODO(PS) replace statefulsets with pods instead
-	if err := c.k8sclient.EnsureStatefulSets(cls.M3DBCluster, svcCfg); err != nil {
-		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-			return err
-		}
-		return err
-
-	}
-	if err := c.EnsureNamespace(cls.M3DBCluster); err != nil {
-		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-			return err
-		}
-		return err
-	}
-	if err := c.EnsurePlacement(cls.M3DBCluster); err != nil {
-		redStatus.Message = fmt.Sprintf("%s: %v", redStatus.Message, err)
-		if err := c.updateM3DBStatus(cls.M3DBCluster, redStatus); err != nil {
-			return err
-		}
-		return err
-	}
-	status = myspec.M3DBStatus{
-		State:   myspec.GreenState,
-		Message: _upAndRunningM3DB,
-	}
-	return c.updateM3DBStatus(cls.M3DBCluster, status)
-}
 
 func (c *Controller) getServiceConfig(serviceName string, svcCfgs []myspec.ServiceConfiguration) (myspec.ServiceConfiguration, bool) {
 	for _, svcCfg := range svcCfgs {
@@ -170,24 +93,61 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 	return nil
 }
 
-// EnsureNamespace will retrieve current namespaces to ensure one matches
-// the cluster name or create a new namespace to match the cluster name
-func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) error {
+// EnsureNamespace will retrieve current namespaces to ensure one matches the
+// cluster name or create a new namespace to match the cluster name. Returns a
+// bool indicating whether a namespace was created and any errors encountered.
+func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) (bool, error) {
 	// Get namespace
 	namespaces, err := c.namespaceClient.List()
 	if err != nil {
 		c.logger.Error("failed to get namespace ", zap.Error(err))
-		return err
+		return false, err
 	}
 	for _, md := range namespaces {
 		if md.ID().Equal(ident.StringID(cluster.GetName())) {
 			c.logger.Info("namespace found", zap.String("ns", md.ID().String()))
-			return nil
+			return false, nil
 		}
 	}
 	if err = c.namespaceClient.Create(cluster.GetObjectMeta().GetName()); err != nil {
 		c.logger.Error("failed to create namespace", zap.Error(err))
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
+	// TODO(schallert): support updating service spec, not sure if this only
+	// handles creation.
+	m3dbSvc, found := c.getServiceConfig(_M3DBSvcName, cluster.Spec.ServiceConfigurations)
+	if !found {
+		err := errors.New("m3db service not found in spec")
+		c.logger.Error(err.Error())
+		c.recorder.Event(cluster, corev1.EventTypeWarning, "NoServiceConfig", "could not create m3db service, missing service config in spec")
 		return err
 	}
+
+	if err := c.k8sclient.EnsureService(cluster, m3dbSvc); err != nil {
+		err = fmt.Errorf("error creating m3db service: %v", err)
+		c.logger.Error(err.Error())
+		c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
+		return err
+	}
+
+	coordSvc, found := c.getServiceConfig(_M3CoordinatorSvcName, cluster.Spec.ServiceConfigurations)
+	if !found {
+		err := errors.New("coordinator service not found in spec")
+		c.logger.Error(err.Error())
+		c.recorder.Event(cluster, corev1.EventTypeWarning, "NoServiceConfig", "could not create m3coordinator service, missing service config in spec")
+		return err
+	}
+
+	if err := c.k8sclient.EnsureService(cluster, coordSvc); err != nil {
+		err = fmt.Errorf("error creating m3coordinator service: %v", err)
+		c.logger.Error(err.Error())
+		c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
+		return err
+	}
+
 	return nil
 }

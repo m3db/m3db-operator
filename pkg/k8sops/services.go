@@ -20,9 +20,12 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
 	"go.uber.org/zap"
+
 	"k8s.io/api/core/v1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // GetService simply gets a service by name
@@ -45,7 +48,13 @@ func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.Servic
 	_, err := k.GetService(cluster, svcCfg.Name)
 	if errors.IsNotFound(err) {
 		k.logger.Info("service doesn't exist, creating it", zap.String("service", svcCfg.Name))
-		svc := k.GenerateService(svcCfg)
+		svc := GenerateService(svcCfg)
+		selfRef := metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+			Group:   myspec.SchemeGroupVersion.Group,
+			Version: myspec.SchemeGroupVersion.Version,
+			Kind:    "m3dbcluster",
+		})
+		svc.SetOwnerReferences([]metav1.OwnerReference{*selfRef})
 		if _, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
 			return err
 		}

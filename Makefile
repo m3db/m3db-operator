@@ -1,10 +1,10 @@
 PROJECT_NAME := m3db-operator
 REPO_PATH    := github.com/m3db/m3db-operator
 BUILD_PATH   := $(REPO_PATH)/cmd/$(PROJECT_NAME)
-OUTPUT_DIR   := _output
-BUILD_SETTINGS := GOOS=linux GOARCH=amd64 CGO_ENABLED=0 
+OUTPUT_DIR   := out
+BUILD_SETTINGS := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 ifeq ($(shell uname), Darwin)
-	BUILD_SETTINGS := GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 
+	BUILD_SETTINGS := GOOS=darwin GOARCH=amd64 CGO_ENABLED=0
 endif
 .DEFAULT_GOAL := all
 
@@ -72,9 +72,9 @@ testhtml: test-internal
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
 
-.PHONY: test-ci-unit                                                              
-test-ci-unit: test-base                                                           
-	$(codecov_push) $(coverfile) 
+.PHONY: test-ci-unit
+test-ci-unit: test-base verify-gen
+	$(codecov_push) $(coverfile)
 
 .PHONY: install-mockgen
 install-mockgen: install-vendor-dep
@@ -105,11 +105,16 @@ mock-gen-no-deps:
 .PHONY: all-gen
 all-gen: mock-gen code-gen
 
+# Clean cleans all artifacts we may generate.
 .PHONY: clean
 clean:
 	@rm -f *.html *.xml *.out *.test
+	@rm -rf $(OUTPUT_DIR)
+
+# Clean-all cleans all build dependencies.
+.PHONY: clean-all
+clean-all: clean
 	@go clean
-	@rm -f $(pwd)/_output/m3db-operator
 	@rm -rf vendor*
 
 .PHONY: all
@@ -128,15 +133,19 @@ dep-ensure: dep-install ## Run dep ensure to generate vendor directory
 code-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@./hack/update-generated.sh
 
+.PHONY: verify-gen
+verify-gen: dep-ensure ## Ensure all codegen is up to date
+	@./hack/verify-generated.sh
+
 .PHONY: build-bin
-build-bin: _output code-gen ## Build m3db-operator binary
-	which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
-	echo "building $(PROJECT_NAME)..."
+build-bin: out ## Build m3db-operator binary
+	@which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
+	@echo "building $(PROJECT_NAME)..."
 	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
 
-.PHONY: build-docker 
+.PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
 	@./build/build-docker.sh
 
-_output:
-	mkdir -p $$(pwd)/$(OUTPUT_DIR)
+out:
+	@mkdir -p $$(pwd)/$(OUTPUT_DIR)

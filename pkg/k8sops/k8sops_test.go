@@ -22,21 +22,27 @@ package k8sops
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
-	yaml "gopkg.in/yaml.v2"
 
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
 func newFakeK8sops() (K8sops, error) {
 	logger := zap.NewNop()
-	kubeCli := kubeFake.NewSimpleClientset()
+	kubeCli := kubeFake.NewSimpleClientset(&appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "m3db-cluster-rep0",
+		},
+	})
 	kubeExt := kubeExtFake.NewSimpleClientset()
 	crdCli := clientsetFake.NewSimpleClientset()
 	k, err := New(
@@ -51,12 +57,12 @@ func newFakeK8sops() (K8sops, error) {
 
 func getFixture(filename string, t *testing.T) myspec.M3DBCluster {
 	spec := myspec.M3DBCluster{}
-	file, err := ioutil.ReadFile(fmt.Sprintf("./fixtures/%s", filename))
+	file, err := os.Open(fmt.Sprintf("./fixtures/%s", filename))
 	if err != nil {
 		t.Logf("Failed to read fixtures file: %v ", err)
 		t.Fail()
 	}
-	err = yaml.Unmarshal(file, &spec)
+	err = yaml.NewYAMLOrJSONDecoder(file, 2048).Decode(&spec)
 	if err != nil {
 		t.Logf("Unmarshal error: %v", err)
 		t.Fail()

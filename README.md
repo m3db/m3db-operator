@@ -2,12 +2,12 @@
 
 ## Project Status: pre-Alpha
 
-### Kubernetes cluster prerequisites 
+### Kubernetes cluster prerequisites
 
-### GKE 
-When running on GKE, the user applying the manifests will need the ability to 
+### GKE
+When running on GKE, the user applying the manifests will need the ability to
 allow `cluster-admin-binding` during the installation. Use the following
-`ClusterRoleBinding` with the user name provided by gloud 
+`ClusterRoleBinding` with the user name provided by gloud
 
 ```
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=<name@domain.com>
@@ -19,7 +19,7 @@ Apply the persistent disk storage resource
 kubectl apply -f example/storage-fast-gcp.yaml
 ```
 
-## Minikube 
+## Minikube
 
 Ensure Minikube has enough memory and cpu resources
 ```
@@ -30,6 +30,11 @@ Apply the persistent disk storage resource
 
 ```
 kubectl apply -f example/storage-fast-minikube.yaml
+```
+
+Label your minikube instance with zone metadata to support scheduling
+```
+kubectl label nodes minikube failure-domain.beta.kubernetes.io/zone=minikube
 ```
 
 ## Deploy etcd cluster
@@ -45,10 +50,10 @@ kubectl apply -f example/etcd.yaml
 Generate Go linux binary and push to a Docker registry
 
 ```
-make -e IMAGE=<registry>/<repo>/m3db-operator -e LINUX_BUILD=1  build-docker 
+make -e IMAGE=<registry>/<repo>/m3db-operator -e LINUX_BUILD=1  build-docker
 ```
 
-Update the [operator manifest](https://github.com/m3db/m3db-operator/blob/master/manifests/operator.yaml#L93) to include image location 
+Update the [operator manifest](https://github.com/m3db/m3db-operator/blob/master/manifests/operator.yaml#L93) to include image location
 ```
 ... <snip>
     spec:
@@ -58,10 +63,10 @@ Update the [operator manifest](https://github.com/m3db/m3db-operator/blob/master
           ports:
           - containerPort: 60000
 ... <snip>
-``` 
+```
 
 
-Apply the `m3db-operator` operator 
+Apply the `m3db-operator` operator
 
 ```
 kubectl apply -f manifests/operator.yaml
@@ -80,13 +85,13 @@ Delete M3 Cluster
 kubectl delete -f example/m3db-cluster.yaml
 ```
 
-Delete M3DB Operator 
+Delete M3DB Operator
 
 ```
 kubectrl delete -f manifests/operator.yaml
 ```
 
-### Help 
+### Help
 ```
 >make help
 
@@ -100,5 +105,3 @@ kubectrl delete -f manifests/operator.yaml
     dep-ensure      Run dep ensure to generate vendor directory
     dep-install     Ensure dep is installed
 ```
-
-
