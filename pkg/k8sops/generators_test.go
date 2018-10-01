@@ -26,6 +26,7 @@ import (
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -61,73 +62,53 @@ func TestGenerateCRD(t *testing.T) {
 	require.Equal(t, crd, newCRD)
 }
 
-func TestGenerateService(t *testing.T) {
-	fixture := getFixture("testM3DBCluster.yaml", t)
-	svcCfg := fixture.Spec.ServiceConfigurations[0]
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   svcCfg.Name,
-			Labels: GenerateMaps("labels", svcCfg),
-		},
-		Spec: v1.ServiceSpec{
-			Selector:  GenerateMaps("selectors", svcCfg),
-			Ports:     GenerateServicePorts(svcCfg.Ports),
-			ClusterIP: "None",
-		},
-	}
-	newSvc := GenerateService(svcCfg)
-	require.Equal(t, svc, newSvc)
-}
-
 func TestGenerateStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	clusterSpec := fixture.Spec
-	svcCfg := fixture.Spec.ServiceConfigurations[0]
 	isolationGroup := fixture.Spec.IsolationGroups[0].Name
 	instanceAmount := &fixture.Spec.IsolationGroups[0].NumInstances
 	clusterName := fixture.GetName()
 
 	ssName := StatefulSetName(clusterName, 0)
-	ports := GenerateContainerPorts(svcCfg.Ports)
 
-	limitCPU, err := resource.ParseQuantity(clusterSpec.Resources.Limits.CPU)
-	require.Nil(t, err)
-	require.NotNil(t, limitCPU)
-
-	limitMemory, err := resource.ParseQuantity(clusterSpec.Resources.Limits.Memory)
-	require.Nil(t, err)
-	require.NotNil(t, limitMemory)
-
-	requestCPU, err := resource.ParseQuantity(clusterSpec.Resources.Requests.CPU)
-	require.Nil(t, err)
-	require.NotNil(t, requestCPU)
-
-	requestMemory, err := resource.ParseQuantity(clusterSpec.Resources.Requests.Memory)
-	require.Nil(t, err)
-	require.NotNil(t, requestMemory)
-
-	probe := &v1.Probe{
+	health := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(_probePort),
-				Path:   _probePath,
+				Path:   _probePathHealth,
 				Scheme: v1.URISchemeHTTP,
 			},
 		},
 	}
 
+	readiness := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePathHealth,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+
+	labels := map[string]string{
+		"cluster":         clusterName,
+		"app":             "m3db",
+		"component":       "m3dbnode",
+		"stateful-set":    ssName,
+		"isolation-group": "us-fake1-a",
+	}
+
 	ss := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ssName,
-			Labels: map[string]string{
-				"cluster":        clusterName,
-				"app":            "m3dbnode",
-				"isolationGroup": isolationGroup,
-				"statefulSet":    ssName,
-			},
+			Name:   ssName,
+			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(&fixture, schema.GroupVersionKind{
 					Group:   myspec.SchemeGroupVersion.Group,
@@ -137,25 +118,15 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode",
+			ServiceName:         "m3dbnode-m3db-cluster",
 			PodManagementPolicy: "Parallel",
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"cluster":        clusterName,
-					"app":            "m3dbnode",
-					"isolationGroup": isolationGroup,
-					"statefulSet":    ssName,
-				},
+				MatchLabels: labels,
 			},
 			Replicas: instanceAmount,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"cluster":        clusterName,
-						"app":            "m3dbnode",
-						"isolationGroup": isolationGroup,
-						"statefulSet":    ssName,
-					},
+					Labels: labels,
 				},
 				Spec: v1.PodSpec{
 					Affinity: &v1.Affinity{
@@ -186,7 +157,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 									},
 								},
 							},
-							ReadinessProbe: probe,
+							LivenessProbe:  health,
+							ReadinessProbe: readiness,
 							Command: []string{
 								"m3dbnode",
 							},
@@ -206,7 +178,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 									},
 								},
 							},
-							Ports: ports,
+							Ports: generateContainerPorts(),
 							VolumeMounts: []v1.VolumeMount{
 								v1.VolumeMount{
 									Name:      "storage",
@@ -223,12 +195,12 @@ func TestGenerateStatefulSet(t *testing.T) {
 							},
 							Resources: v1.ResourceRequirements{
 								Limits: v1.ResourceList{
-									"cpu":    limitCPU,
-									"memory": limitMemory,
+									"cpu":    resource.MustParse("2"),
+									"memory": resource.MustParse("2Gi"),
 								},
 								Requests: v1.ResourceList{
-									"cpu":    requestCPU,
-									"memory": requestMemory,
+									"cpu":    resource.MustParse("1"),
+									"memory": resource.MustParse("1Gi"),
 								},
 							},
 						},
@@ -261,9 +233,81 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 	}
+
 	newSS, err := GenerateStatefulSet(&fixture, isolationGroup, *instanceAmount)
 	require.Nil(t, err)
 	require.NotNil(t, newSS)
 
 	require.Equal(t, ss, newSS)
+}
+
+func TestGenerateM3DBService(t *testing.T) {
+	name := ""
+	svc, err := GenerateM3DBService(name)
+	assert.Error(t, err)
+	assert.Nil(t, svc)
+
+	name = "cluster-a"
+	svc, err = GenerateM3DBService(name)
+	assert.NoError(t, err)
+	assert.NotNil(t, svc)
+
+	baseLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentM3DBNode,
+	}
+
+	expSvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "m3dbnode-cluster-a",
+			Labels: baseLabels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector:  baseLabels,
+			Ports:     generateM3DBServicePorts(),
+			ClusterIP: v1.ClusterIPNone,
+			Type:      v1.ServiceTypeClusterIP,
+		},
+	}
+
+	assert.Equal(t, expSvc, svc)
+}
+
+func TestGenerateCoordinatorService(t *testing.T) {
+	name := ""
+	svc, err := GenerateCoordinatorService(name)
+	assert.Error(t, err)
+	assert.Nil(t, svc)
+
+	name = "cluster-a"
+	svc, err = GenerateCoordinatorService(name)
+	assert.NoError(t, err)
+	assert.NotNil(t, svc)
+
+	selectLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentM3DBNode,
+	}
+
+	svcLabels := map[string]string{
+		_labelCluster:   name,
+		_labelApp:       _labelAppValue,
+		_labelComponent: _componentCoordinator,
+	}
+
+	expSvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "m3coordinator-cluster-a",
+			Labels: svcLabels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: selectLabels,
+			Ports:    generateCoordinatorServicePorts(),
+			Type:     v1.ServiceTypeClusterIP,
+		},
+	}
+
+	assert.Equal(t, expSvc, svc)
 }

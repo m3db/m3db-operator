@@ -152,60 +152,19 @@ type ClusterSpec struct {
 	// to deploy persistent volumes for data nodes
 	IsolationGroups []IsolationGroup `json:"isolationGroups" yaml:"isolationGroups"`
 
-	// Resources defines memory / cpu constraints
-	Resources Resources `json:"resources" yaml:"resources"`
+	// Services allows the user to specify their own services that the operator
+	// will create. If non-empty, only the dbnode headless service will be created
+	// and users must specify other services they wish to create. +optional
+	Services []*corev1.Service `json:"services" yaml:"services"`
 
-	// ServiceConfiguration contains the requested service configurations
-	ServiceConfigurations []ServiceConfiguration `json:"serviceConfigurations" yaml:"serviceConfigurations"`
-}
+	// Resources defines memory / cpu constraints for each container in the
+	// cluster.
+	// +optional
+	ContainerResources corev1.ResourceRequirements `json:"containerResources" yaml:"containerResources"`
 
-// Label is meta to reference the resource by
-type Label struct {
-	// Name of the label
-	Name string `json:"name" yaml:"name"`
-
-	// Value of the label
-	Value string `json:"value" yaml:"value"`
-}
-
-// Selector is used to match a set of resources given a label name and value
-type Selector struct {
-	// Name of the selector
-	Name string `json:"name" yaml:"name"`
-
-	// Value of the selector
-	Value string `json:"value" yaml:"value"`
-}
-
-// Port is which ports should be forwarded to a service and it's corresponding
-// resources
-type Port struct {
-	// Name denotes the puprose of the port
-	Name string `json:"name" yaml:"name"`
-
-	// Number is the port number
-	Number int32 `json:"number" yaml:"number"`
-
-	// Protocol is the protocol to use
-	Protocol string `json:"protocol" yaml:"protocol"`
-}
-
-// ServiceConfiguration contains the service configuration
-type ServiceConfiguration struct {
-	// Name of the service
-	Name string `json:"name" yaml:"name"`
-
-	// Labels for the service
-	Labels []Label `json:"labels" yaml:"labels"`
-
-	// Selectors for the service
-	Selectors []Selector `json:"selectors" yaml:"selectors"`
-
-	// Ports for the service
-	Ports []Port `json:"ports" yaml:"ports"`
-
-	// ClusterIP specifies if a ClusterIP should be associated or not
-	ClusterIP bool `json:"clusterIP" yaml:"clusterIP"`
+	// Labels sets the base labels that will be applied to resources created by
+	// the cluster. // TODO(schallert): design doc on labeling scheme.
+	Labels map[string]string
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
@@ -216,19 +175,4 @@ type IsolationGroup struct {
 
 	// NumInstances defines the number of instances
 	NumInstances int32 `json:"numInstances" yaml:"numInstances"`
-}
-
-// Resources defines CPU / Memory restrictions on pods
-type Resources struct {
-	Requests MemoryCPU `json:"requests" yaml:"requests"`
-	Limits   MemoryCPU `json:"limits" yaml:"limits"`
-}
-
-// MemoryCPU defines memory cpu options
-type MemoryCPU struct {
-	// Memory defines max amount of memory
-	Memory string `json:"memory" yaml:"memory"`
-
-	// CPU defines max amount of CPU
-	CPU string `json:"cpu" yaml:"cpu"`
 }

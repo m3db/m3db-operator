@@ -276,6 +276,7 @@ func (c *Controller) processItem() bool {
 		return false
 	}
 
+	// Closure so we can defer workQueue.Done.
 	err := func(obj interface{}) error {
 		defer c.workQueue.Done(obj)
 
@@ -327,8 +328,14 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	// start and remove unnecessary calls later to optimize if we want.
 	cluster = cluster.DeepCopy()
 
-	// this deepcopy is probably unnecessary
-	isoGroups := cluster.DeepCopy().Spec.IsolationGroups
+	// TODO(schallert): propagate whether services were created back up to client
+	// Per https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#statefulsetspec-v1-apps,
+	// headless service MUST exist before statefulset.
+	if err := c.ensureServices(cluster); err != nil {
+		return err
+	}
+
+	isoGroups := cluster.Spec.IsolationGroups
 
 	if len(isoGroups) == 0 {
 		// nothing to do, no groups to create in
@@ -376,11 +383,6 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		// c.recorder.Event(cluster, corev1.EventTypeNormal, "CreatedSts", "create a statefulset")
 		c.logger.Info("created statefulset", zap.String("name", name))
 		return nil
-	}
-
-	// TODO(schallert): propagate whether services were created back up to client
-	if err := c.ensureServices(cluster); err != nil {
-		return err
 	}
 
 	if !cluster.Status.HasInitializedNamespace() {

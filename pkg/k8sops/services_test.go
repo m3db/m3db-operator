@@ -27,22 +27,24 @@ import (
 )
 
 func TestService(t *testing.T) {
+	const svcName = "m3dbnode-m3db-cluster"
 	fixture := getFixture("testM3DBCluster.yaml", t)
-	svcCfg := fixture.Spec.ServiceConfigurations[0]
+	svcCfg, err := GenerateM3DBService(fixture.Name)
+	require.NoError(t, err)
 	k, err := newFakeK8sops()
 	require.Nil(t, err)
-	svc, err := k.GetService(&fixture, "sucker")
+	svc, err := k.GetService(&fixture, svcName)
 	require.Nil(t, svc)
 	require.NotNil(t, err)
 	err = k.EnsureService(&fixture, svcCfg)
 	require.Nil(t, err)
-	svc, err = k.GetService(&fixture, "fake")
+	svc, err = k.GetService(&fixture, svcName)
 	require.NotNil(t, svc)
 	require.Nil(t, err)
 	err = k.EnsureService(&fixture, svcCfg)
 	require.Nil(t, err)
-	err = k.DeleteService(&fixture, "fake")
+	err = k.DeleteService(&fixture, svcName)
 	require.Nil(t, err)
-	err = k.DeleteService(&fixture, "sucker")
+	err = k.DeleteService(&fixture, svcName)
 	require.NotNil(t, err)
 }

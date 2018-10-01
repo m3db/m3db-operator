@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/m3db/m3db-operator/pkg/k8sops"
+
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
@@ -36,7 +38,7 @@ import (
 )
 
 const (
-	_isolationGroupKey = "isolationGroup"
+	_isolationGroupKey = "isolation-group"
 	_zoneEmbedded      = "embedded"
 )
 
@@ -110,16 +112,17 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 		ReplicationFactor: cluster.Spec.ReplicationFactor,
 	}
 
-	// TODO(schallert): label helpers.
-	targetLabels := labels.Set(map[string]string{
-		"cluster": cluster.Name,
-		"app":     "m3dbnode",
-	})
+	serviceName := k8sops.HeadlessServiceName(cluster.Name)
+	targetLabels := map[string]string{}
+	for k, v := range cluster.Labels {
+		targetLabels[k] = v
+	}
+	// TODO(schallert): extend k8sops helpers for this.
+	targetLabels["component"] = "m3dbnode"
 
 	pods, err := c.podLister.Pods(cluster.Namespace).List(labels.SelectorFromSet(targetLabels))
 	for _, pod := range pods {
-		// TODO(schallert): un-hardcode service name
-		hostname := fmt.Sprintf("%s.m3dbnode", pod.Name)
+		hostname := pod.Name + "." + serviceName
 		instance := &placementpb.Instance{
 			Id:             pod.Name,
 			IsolationGroup: pod.ObjectMeta.Labels[_isolationGroupKey],
@@ -130,7 +133,6 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 			Port:           9000,
 		}
 		newPlacement.Instances = append(newPlacement.Instances, instance)
-		c.logger.Sugar().Info(instance)
 	}
 
 	if err := c.placementClient.Init(newPlacement); err != nil {

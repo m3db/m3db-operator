@@ -44,11 +44,10 @@ func (k *k8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
 }
 
 // EnsureService will create a service by name if it doesn't exist
-func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svcCfg myspec.ServiceConfiguration) error {
-	_, err := k.GetService(cluster, svcCfg.Name)
+func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error {
+	_, err := k.GetService(cluster, svc.Name)
 	if errors.IsNotFound(err) {
-		k.logger.Info("service doesn't exist, creating it", zap.String("service", svcCfg.Name))
-		svc := GenerateService(svcCfg)
+		k.logger.Info("service doesn't exist, creating it", zap.String("service", svc.Name))
 		selfRef := metav1.NewControllerRef(cluster, schema.GroupVersionKind{
 			Group:   myspec.SchemeGroupVersion.Group,
 			Version: myspec.SchemeGroupVersion.Version,

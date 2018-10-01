@@ -223,6 +223,22 @@ spec:
       numInstances: 3
     - name: us-east1-d
       numInstances: 3
+  services:
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: m3db-lb
+      annotations:
+        cloud.google.com/load-balancer-type: "Internal"
+    spec:
+      selector:
+        app: m3db
+        cluster: m3db-cluster
+      ports:
+      - protocol: TCP
+        port: 1234
+        targetPort: 7201
+      type: LoadBalancer
   resources:
     requests:
       memory: 4Gi
