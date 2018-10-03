@@ -23,6 +23,7 @@ package placement
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -30,10 +31,10 @@ import (
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/gogo/protobuf/jsonpb"
-	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
 
@@ -41,27 +42,27 @@ const (
 	_defaultPlacementURI = "/api/v1/placement"
 )
 
-type placement struct {
+type placementClient struct {
 	url    string
-	client *retryhttp.Client
+	client m3admin.Client
 	logger *zap.Logger
 }
 
 // Option provides an interface that can be used for setter options with the
 // constructor
 type Option interface {
-	execute(*placement) error
+	execute(*placementClient) error
 }
 
-type optionFn func(p *placement) error
+type optionFn func(p *placementClient) error
 
-func (fn optionFn) execute(p *placement) error {
+func (fn optionFn) execute(p *placementClient) error {
 	return fn(p)
 }
 
 // WithURL is a setter to override the default URL
 func WithURL(u string) Option {
-	return optionFn(func(p *placement) error {
+	return optionFn(func(p *placementClient) error {
 		if _, err := url.ParseRequestURI(u); err != nil {
 			return err
 		}
@@ -72,8 +73,16 @@ func WithURL(u string) Option {
 
 // WithLogger is a setter to override the default logger
 func WithLogger(logger *zap.Logger) Option {
-	return optionFn(func(p *placement) error {
+	return optionFn(func(p *placementClient) error {
 		p.logger = logger
+		return nil
+	})
+}
+
+// WithClient configures an m3admin client.
+func WithClient(cl m3admin.Client) Option {
+	return optionFn(func(p *placementClient) error {
+		p.client = cl
 		return nil
 	})
 }
@@ -81,11 +90,12 @@ func WithLogger(logger *zap.Logger) Option {
 // NewClient is the constructor the Placement interface
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
-	pl := &placement{
-		client: retryhttp.NewClient(),
+	pl := &placementClient{
+		client: m3admin.NewClient(),
 		logger: logger,
 		url:    m3admin.DefaultURL,
 	}
+
 	for _, o := range opts {
 		if err := o.execute(pl); err != nil {
 			return nil, err
@@ -95,13 +105,13 @@ func NewClient(opts ...Option) (Client, error) {
 }
 
 // Init will create the placement
-func (p *placement) Init(req *admin.PlacementInitRequest) error {
+func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 	url := fmt.Sprintf("%s%s", p.url, plc.InitURL)
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -110,9 +120,9 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 }
 
 // Delete will delete all current placements
-func (p *placement) Delete() error {
+func (p *placementClient) Delete() error {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
-	_, err := m3admin.DoHTTPRequest(p.client, "DELETE", url, nil)
+	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
@@ -121,11 +131,11 @@ func (p *placement) Delete() error {
 }
 
 // Get will get current placement
-func (p *placement) Get() (string, error) {
+func (p *placementClient) Get() (m3placement.Placement, error) {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
-	resp, err := m3admin.DoHTTPRequest(p.client, "GET", url, nil)
+	resp, err := p.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	data := &admin.PlacementGetResponse{}
 	defer func() {
@@ -133,20 +143,23 @@ func (p *placement) Get() (string, error) {
 		resp.Body.Close()
 	}()
 	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
-		return "", err
+		return nil, err
+	}
+	if data.Placement == nil {
+		return nil, errors.New("nil placement fetch")
 	}
 	p.logger.Info("placement retreived")
-	return data.GetPlacement().String(), nil
+	return m3placement.NewPlacementFromProto(data.Placement)
 }
 
 // Add will add an instance to the current placement
-func (p *placement) Add(instance placementpb.Instance) error {
+func (p *placementClient) Add(instance placementpb.Instance) error {
 	url := fmt.Sprintf("%s%s", p.url, plc.AddURL)
 	data, err := json.Marshal(instance)
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
