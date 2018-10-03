@@ -23,6 +23,7 @@ package m3admin
 import (
 	"bytes"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 
@@ -73,7 +74,8 @@ func NewClient(clientOpts ...Option) Client {
 		client.logger = zap.NewNop()
 	}
 
-	client.client.Logger = zap.NewStdLog(client.logger)
+	// We do our own request logging, silence their logger.
+	client.client.Logger.SetOutput(ioutil.Discard)
 
 	return client
 }

@@ -43,7 +43,12 @@
    "github.com/m3db/vellum/utf8",
    "github.com/golang/mock/gomock",
    "github.com/golang/mock/mockgen",
+   "github.com/kubernetes/utils/pointer",
  ]
+
+ [[constraint]]
+  name = "github.com/kubernetes/utils"
+  branch = "master"
 
  [[override]]
   name = "github.com/golang/mock"
@@ -68,7 +73,7 @@
 
  [[constraint]]
   name = "github.com/m3db/m3"
-  version = "=v0.4.3"
+  revision = "6dc1050ad0869591ba8b11817a8f506c8040b136"
 
  [[override]]
   name = "github.com/apache/thrift"
@@ -94,5 +99,3 @@
  [[override]]
    name = "k8s.io/client-go"
    branch = "release-7.0"
- 
-

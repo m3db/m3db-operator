@@ -29,6 +29,14 @@ import (
 // ClusterConditionType represents the various type of cluster conditions.
 type ClusterConditionType string
 
+// IsolationGroups is a slice of IsolationGroup. IsolationGroups satisfies the
+// sort.Sort interface, sorting by name.
+type IsolationGroups []IsolationGroup
+
+func (g IsolationGroups) Len() int           { return len(g) }
+func (g IsolationGroups) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
+func (g IsolationGroups) Less(i, j int) bool { return g[i].Name < g[j].Name }
+
 const (
 	// ClusterConditionNamespaceInitialized indicates the cluster has initialized
 	// its namespace.
@@ -37,6 +45,9 @@ const (
 	// ClusterConditionPlacementInitialized indicates an initial placement has
 	// been created for the cluster.
 	ClusterConditionPlacementInitialized ClusterConditionType = "PlacementInitialized"
+
+	// ClusterConditionPodBootstrapping indicates there is a pod bootstrapping.
+	ClusterConditionPodBootstrapping ClusterConditionType = "PodBootstrapping"
 )
 
 // +genclient
@@ -80,26 +91,55 @@ type M3DBStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// HasInitializedNamespace returns true if the cluster has initialized its
-// namespace.
-func (s *M3DBStatus) HasInitializedNamespace() bool {
-	for _, cond := range s.Conditions {
-		if cond.Type == ClusterConditionNamespaceInitialized && cond.Status == corev1.ConditionTrue {
+func (s *M3DBStatus) hasConditionTrue(cond ClusterConditionType) bool {
+	for _, c := range s.Conditions {
+		if c.Type == cond && c.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
 	return false
 }
 
+// HasInitializedNamespace returns true if the cluster has initialized its
+// namespace.
+func (s *M3DBStatus) HasInitializedNamespace() bool {
+	return s.hasConditionTrue(ClusterConditionNamespaceInitialized)
+}
+
 // HasInitializedPlacement returns true if the conditions indicate an initial
 // placement has been created.
 func (s *M3DBStatus) HasInitializedPlacement() bool {
+	return s.hasConditionTrue(ClusterConditionPlacementInitialized)
+}
+
+// HasPodBootstrapping returns true if conditions indicate a pod is currently
+// bootstrapping.
+func (s *M3DBStatus) HasPodBootstrapping() bool {
+	return s.hasConditionTrue(ClusterConditionPodBootstrapping)
+}
+
+// GetCondition returns the specified cluster condition if it exists with a bool
+// indicating whether it was found.
+func (s *M3DBStatus) GetCondition(checkCond ClusterConditionType) (ClusterCondition, bool) {
 	for _, cond := range s.Conditions {
-		if cond.Type == ClusterConditionPlacementInitialized && cond.Status == corev1.ConditionTrue {
-			return true
+		if cond.Type == checkCond {
+			return cond, true
 		}
 	}
-	return false
+	return ClusterCondition{}, false
+}
+
+// UpdateCondition updates one of the status's conditions, replacing the state
+// of cond.Type if it exists or adding the condition if it doesn't exist.
+func (s *M3DBStatus) UpdateCondition(newCond ClusterCondition) {
+	for i, cond := range s.Conditions {
+		if cond.Type == newCond.Type {
+			s.Conditions[i] = newCond
+			return
+		}
+	}
+
+	s.Conditions = append(s.Conditions, newCond)
 }
 
 // ClusterCondition represents various conditions the cluster can be in.
@@ -154,7 +194,8 @@ type ClusterSpec struct {
 
 	// Services allows the user to specify their own services that the operator
 	// will create. If non-empty, only the dbnode headless service will be created
-	// and users must specify other services they wish to create. +optional
+	// and users must specify other services they wish to create.
+	// +optional
 	Services []*corev1.Service `json:"services" yaml:"services"`
 
 	// Resources defines memory / cpu constraints for each container in the
@@ -175,4 +216,14 @@ type IsolationGroup struct {
 
 	// NumInstances defines the number of instances
 	NumInstances int32 `json:"numInstances" yaml:"numInstances"`
+}
+
+// GetByName fetches an IsolationGroup by name.
+func (g IsolationGroups) GetByName(name string) (IsolationGroup, bool) {
+	for _, group := range g {
+		if group.Name == name {
+			return group, true
+		}
+	}
+	return IsolationGroup{}, false
 }

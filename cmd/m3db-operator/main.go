@@ -21,7 +21,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"net/http"
 	"os"
@@ -30,11 +29,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/m3db/m3/src/query/util/logging"
+	"go.uber.org/zap/zapcore"
+
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
@@ -62,21 +63,35 @@ var (
 	_operatorName    = "m3db_operator"
 	_metricsPath     = "/metrics"
 	_metricsPort     = ":8080"
+	_debugLog        bool
+	_develLog        bool
 )
 
 func init() {
 	flag.StringVar(&_kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
 	flag.StringVar(&_masterURL, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
 	flag.StringVar(&_coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
+	flag.BoolVar(&_debugLog, "debug", false, "enable debug logging")
+	flag.BoolVar(&_develLog, "devel", false, "enable development logging mode")
 	flag.Parse()
 }
 
 func main() {
+	var cfg zap.Config
+	var err error
+	if _develLog {
+		cfg = zap.NewDevelopmentConfig()
+		cfg.DisableStacktrace = true
+		cfg.DisableCaller = true
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	} else {
+		cfg = zap.NewProductionConfig()
+	}
+	if _debugLog {
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+	}
+	logger, err := cfg.Build()
 
-	// Setup Logging
-	logging.InitWithCores(nil)
-	ctx := context.Background()
-	logger := logging.WithContext(ctx)
 	defer logger.Sync()
 
 	logger.Info("Go", zap.Any("VERSION", runtime.Version()))
@@ -144,7 +159,12 @@ func main() {
 
 	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
 	if _coordinatorAddr != "" {
-		pc, err := placement.NewClient(placement.WithLogger(logger), placement.WithURL(_coordinatorAddr))
+		m3adminClient := m3admin.NewClient(m3admin.WithLogger(logger))
+		pc, err := placement.NewClient(
+			placement.WithLogger(logger),
+			placement.WithURL(_coordinatorAddr),
+			placement.WithClient(m3adminClient),
+		)
 		if err != nil {
 			logger.Fatal(err.Error())
 		}

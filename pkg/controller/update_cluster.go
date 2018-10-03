@@ -24,10 +24,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -62,7 +62,7 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 
 	// TODO(schallert): we should use resource version + generation to not
 	// update this if not necessary
-	cluster.Status.Conditions = append(cluster.Status.Conditions, myspec.ClusterCondition{
+	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionNamespaceInitialized,
 		Status:         corev1.ConditionTrue,
 		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
@@ -112,7 +112,6 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 		ReplicationFactor: cluster.Spec.ReplicationFactor,
 	}
 
-	serviceName := k8sops.HeadlessServiceName(cluster.Name)
 	targetLabels := map[string]string{}
 	for k, v := range cluster.Labels {
 		targetLabels[k] = v
@@ -121,17 +120,16 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 	targetLabels["component"] = "m3dbnode"
 
 	pods, err := c.podLister.Pods(cluster.Namespace).List(labels.SelectorFromSet(targetLabels))
+	if err != nil {
+		return false, err
+	}
+
 	for _, pod := range pods {
-		hostname := pod.Name + "." + serviceName
-		instance := &placementpb.Instance{
-			Id:             pod.Name,
-			IsolationGroup: pod.ObjectMeta.Labels[_isolationGroupKey],
-			Zone:           _zoneEmbedded,
-			Weight:         100,
-			Hostname:       hostname,
-			Endpoint:       fmt.Sprintf("%s:%d", hostname, 9000),
-			Port:           9000,
+		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+		if err != nil {
+			return false, err
 		}
+
 		newPlacement.Instances = append(newPlacement.Instances, instance)
 	}
 
@@ -143,7 +141,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 }
 
 func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) error {
-	cluster.Status.Conditions = append(cluster.Status.Conditions, myspec.ClusterCondition{
+	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionPlacementInitialized,
 		Status:         corev1.ConditionTrue,
 		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
@@ -163,4 +161,49 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) erro
 	}
 
 	return nil
+}
+
+func (c *Controller) setStatusPodBootstrapping(cluster *myspec.M3DBCluster,
+	status corev1.ConditionStatus,
+	reason, message string) (*myspec.M3DBCluster, error) {
+
+	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, status, reason, message)
+}
+
+func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.ClusterConditionType,
+	status corev1.ConditionStatus, reason, message string) (*myspec.M3DBCluster, error) {
+
+	cond, ok := cluster.Status.GetCondition(condition)
+	if !ok {
+		cond = myspec.ClusterCondition{
+			Type:   condition,
+			Status: corev1.ConditionUnknown,
+		}
+	}
+
+	curTime := time.Now().UTC().Format(time.RFC3339)
+	if cond.Status != status {
+		cond.LastTransitionTime = curTime
+	}
+
+	cond.Status = status
+	cond.LastUpdateTime = curTime
+	cond.Reason = reason
+	cond.Message = message
+	cluster.Status.UpdateCondition(cond)
+
+	return c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+}
+
+// Updates the cluster if there had been a condition that a pod was
+// bootstrapping but no pods are currently bootstrapping.
+func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, placement placement.Placement) (*myspec.M3DBCluster, error) {
+	for _, inst := range placement.Instances() {
+		if !inst.IsAvailable() {
+			return cluster, nil
+		}
+	}
+
+	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, corev1.ConditionFalse,
+		"BootstrapComplete", "no bootstraps in progress")
 }

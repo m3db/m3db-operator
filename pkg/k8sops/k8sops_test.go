@@ -54,8 +54,8 @@ func newFakeK8sops() (K8sops, error) {
 	return k, err
 }
 
-func getFixture(filename string, t *testing.T) myspec.M3DBCluster {
-	spec := myspec.M3DBCluster{}
+func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {
+	spec := &myspec.M3DBCluster{}
 	file, err := os.Open(fmt.Sprintf("./fixtures/%s", filename))
 	if err != nil {
 		t.Logf("Failed to read fixtures file: %v ", err)
