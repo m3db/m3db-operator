@@ -23,10 +23,12 @@ package m3admin
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -42,14 +44,53 @@ var (
 	ErrNotFound = errors.New("status not found")
 )
 
+// Client is an m3admin client.
+type Client interface {
+	DoHTTPRequest(action, url string, data *bytes.Buffer) (*http.Response, error)
+}
+
+type client struct {
+	client *retryhttp.Client
+	logger *zap.Logger
+}
+
+// NewClient returns a new m3admin client.
+func NewClient(clientOpts ...Option) Client {
+	opts := &options{}
+	for _, o := range clientOpts {
+		o.execute(opts)
+	}
+
+	client := &client{
+		client: opts.client,
+		logger: opts.logger,
+	}
+
+	if client.client == nil {
+		client.client = retryhttp.NewClient()
+	}
+	if client.logger == nil {
+		client.logger = zap.NewNop()
+	}
+
+	client.client.Logger = zap.NewStdLog(client.logger)
+
+	return client
+}
+
 // DoHTTPRequest is a simple helper for HTTP requests
-func DoHTTPRequest(
-	client *retryhttp.Client,
+func (c *client) DoHTTPRequest(
 	action, url string,
 	data *bytes.Buffer,
 ) (*http.Response, error) {
+
+	l := c.logger.With(zap.String("action", action), zap.String("url", url))
+
 	var request *retryhttp.Request
 	var err error
+
+	// retryhttp type switches on the data parameter, if data is types as
+	// *bytes.Buffer but nil it will panic
 	if data == nil {
 		request, err = retryhttp.NewRequest(action, url, nil)
 		if err != nil {
@@ -61,12 +102,29 @@ func DoHTTPRequest(
 			return nil, err
 		}
 	}
+
 	request.Header.Add("Content-Type", "application/json")
-	response, err := client.Do(request)
+	response, err := c.client.Do(request)
 	if err != nil {
+		l.Debug("request error", zap.Error(err))
 		return nil, err
 	}
-	fmt.Println(fmt.Sprintf("status: %+v", response.Status))
+
+	l = l.With(zap.String("status", response.Status))
+
+	// If in debug mode, dump the entire response (coordinator error messages are
+	// included in it).
+	if l.Core().Enabled(zapcore.DebugLevel) {
+		dump, err := httputil.DumpResponse(response, true)
+		if err != nil {
+			l = l.With(zap.String("dumpError", err.Error()))
+		} else {
+			l = l.With(zap.ByteString("dump", dump))
+		}
+	}
+
+	l.Debug("response received")
+
 	if response.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}

@@ -23,6 +23,7 @@ package placement
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -30,10 +31,10 @@ import (
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/gogo/protobuf/jsonpb"
-	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +44,7 @@ const (
 
 type placement struct {
 	url    string
-	client *retryhttp.Client
+	client m3admin.Client
 	logger *zap.Logger
 }
 
@@ -78,14 +79,23 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
+// WithClient configures an m3admin client.
+func WithClient(cl m3admin.Client) Option {
+	return optionFn(func(p *placement) error {
+		p.client = cl
+		return nil
+	})
+}
+
 // NewClient is the constructor the Placement interface
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
 	pl := &placement{
-		client: retryhttp.NewClient(),
+		client: m3admin.NewClient(),
 		logger: logger,
 		url:    m3admin.DefaultURL,
 	}
+
 	for _, o := range opts {
 		if err := o.execute(pl); err != nil {
 			return nil, err
@@ -101,7 +111,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -112,7 +122,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 // Delete will delete all current placements
 func (p *placement) Delete() error {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
-	_, err := m3admin.DoHTTPRequest(p.client, "DELETE", url, nil)
+	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
@@ -121,11 +131,11 @@ func (p *placement) Delete() error {
 }
 
 // Get will get current placement
-func (p *placement) Get() (string, error) {
+func (p *placement) Get() (m3placement.Placement, error) {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
-	resp, err := m3admin.DoHTTPRequest(p.client, "GET", url, nil)
+	resp, err := p.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	data := &admin.PlacementGetResponse{}
 	defer func() {
@@ -133,10 +143,13 @@ func (p *placement) Get() (string, error) {
 		resp.Body.Close()
 	}()
 	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
-		return "", err
+		return nil, err
+	}
+	if data.Placement == nil {
+		return nil, errors.New("nil placement fetch")
 	}
 	p.logger.Info("placement retreived")
-	return data.GetPlacement().String(), nil
+	return m3placement.NewPlacementFromProto(data.Placement)
 }
 
 // Add will add an instance to the current placement
@@ -146,7 +159,7 @@ func (p *placement) Add(instance placementpb.Instance) error {
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHTTPRequest(p.client, "POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}

@@ -25,10 +25,32 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/stretchr/testify/require"
 )
+
+// Client to avoid waiting many seconds in tests.
+func newM3adminClient() m3admin.Client {
+	retry := retryhttp.NewClient()
+	retry.RetryMax = 0
+
+	return m3admin.NewClient(m3admin.WithHTTPClient(retry))
+}
+
+func newPlacementClient(t *testing.T, url string) Client {
+	cl, err := NewClient(
+		WithURL(url),
+		WithClient(newM3adminClient()),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, cl)
+
+	return cl
+}
 
 func TestDelete(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,13 +59,9 @@ func TestDelete(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Delete()
+	err := client.Delete()
 	require.Nil(t, err)
 }
 
@@ -54,13 +72,9 @@ func TestDeleteErr(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Delete()
+	err := client.Delete()
 	require.NotNil(t, err)
 }
 
@@ -71,13 +85,9 @@ func TestAdd(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Add(placementpb.Instance{})
+	err := client.Add(placementpb.Instance{})
 	require.Nil(t, err)
 }
 
@@ -88,13 +98,9 @@ func TestAddErr(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Add(placementpb.Instance{})
+	err := client.Add(placementpb.Instance{})
 	require.NotNil(t, err)
 }
 
@@ -105,13 +111,9 @@ func TestInit(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Init(&admin.PlacementInitRequest{})
+	err := client.Init(&admin.PlacementInitRequest{})
 	require.Nil(t, err)
 }
 
@@ -122,31 +124,23 @@ func TestInitErr(t *testing.T) {
 	}))
 
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	err = client.Init(&admin.PlacementInitRequest{})
+	err := client.Init(&admin.PlacementInitRequest{})
 	require.NotNil(t, err)
 }
 
 func TestGet(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("{}"))
+		w.Write([]byte(`{"placement": {}}`))
 	}))
 	defer s.Close()
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	client := newPlacementClient(t, s.URL)
 
-	name, err := client.Get()
-	require.NotNil(t, name)
-	require.Nil(t, err)
+	placement, err := client.Get()
+	require.NotNil(t, placement)
+	require.NoError(t, err)
 }
 
 func TestGetErr(t *testing.T) {
@@ -154,14 +148,11 @@ func TestGetErr(t *testing.T) {
 		w.WriteHeader(404)
 		w.Write([]byte("{}"))
 	}))
-	client, err := NewClient(
-		WithURL(s.URL),
-	)
-	require.Nil(t, err)
-	require.NotNil(t, client)
+	defer s.Close()
 
-	name, err := client.Get()
-	require.Equal(t, "", name)
-	require.NotNil(t, err)
-	s.Close()
+	client := newPlacementClient(t, s.URL)
+
+	placement, err := client.Get()
+	require.Nil(t, placement)
+	require.Error(t, err)
 }

@@ -35,7 +35,6 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/gogo/protobuf/jsonpb"
-	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
 
@@ -62,7 +61,7 @@ const (
 )
 
 type namespace struct {
-	client *retryhttp.Client
+	client m3admin.Client
 	logger *zap.Logger
 	url    string
 }
@@ -98,11 +97,19 @@ func WithLogger(logger *zap.Logger) Option {
 	})
 }
 
+// WithClient configures an m3admin client.
+func WithClient(cl m3admin.Client) Option {
+	return optionFn(func(n *namespace) error {
+		n.client = cl
+		return nil
+	})
+}
+
 // NewClient constructs a new namespace client
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
 	ns := &namespace{
-		client: retryhttp.NewClient(),
+		client: m3admin.NewClient(),
 		logger: logger,
 		url:    m3admin.DefaultURL,
 	}
@@ -148,7 +155,7 @@ func (n *namespace) Create(namespaceName string) error {
 	if err != nil {
 		return err
 	}
-	_, err = m3admin.DoHTTPRequest(n.client, "POST", url, bytes.NewBuffer(data))
+	_, err = n.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -159,7 +166,7 @@ func (n *namespace) Create(namespaceName string) error {
 // List will retrieve all namespaces
 func (n *namespace) List() ([]ns.Metadata, error) {
 	url := fmt.Sprintf("%s%s", n.url, nsh.GetURL)
-	resp, err := m3admin.DoHTTPRequest(n.client, "GET", url, nil)
+	resp, err := n.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +193,7 @@ func (n *namespace) List() ([]ns.Metadata, error) {
 // Delete will delete a namespace
 func (n *namespace) Delete(namespace string) error {
 	url := fmt.Sprintf("%s%s/%s", n.url, nsh.AddURL, namespace)
-	_, err := m3admin.DoHTTPRequest(n.client, "DELETE", url, nil)
+	_, err := n.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}

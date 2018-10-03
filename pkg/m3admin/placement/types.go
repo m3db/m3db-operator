@@ -23,6 +23,7 @@ package placement
 import (
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3cluster/placement"
 )
 
 // Client provides the interface to interact with the placement API
@@ -30,7 +31,7 @@ type Client interface {
 	// Init will initialize a placement give a valid placement request
 	Init(request *admin.PlacementInitRequest) error
 	// Get will provide the current placement
-	Get() (placementName string, err error)
+	Get() (placement m3placement.Placement, err error)
 	// Delete will delete the current placment
 	Delete() error
 	// Add will add an instance to the placement
