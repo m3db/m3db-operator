@@ -23,9 +23,11 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
+	"github.com/kubernetes/utils/pointer"
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
@@ -41,9 +43,11 @@ import (
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -79,6 +83,7 @@ type Cluster struct {
 type Controller struct {
 	lock            *sync.Mutex
 	logger          *zap.Logger
+	clock           clock.Clock
 	scope           tally.Scope
 	k8sclient       k8sops.K8sops
 	clusters        map[string]Cluster
@@ -163,6 +168,7 @@ func New(opts ...Option) (*Controller, error) {
 		lock:      &sync.Mutex{},
 		logger:    logger,
 		scope:     scope,
+		clock:     clock.RealClock{},
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
 		doneCh:    make(chan struct{}),
@@ -333,17 +339,15 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		return err
 	}
 
-	isoGroups := cluster.Spec.IsolationGroups
-
-	if len(isoGroups) == 0 {
+	if len(cluster.Spec.IsolationGroups) == 0 {
 		// nothing to do, no groups to create in
 		return nil
 	}
 
-	zones := make([]string, len(isoGroups))
-	for i := range zones {
-		zones[i] = isoGroups[i].Name
-	}
+	// copy since we sort the array
+	isoGroups := make([]myspec.IsolationGroup, len(cluster.Spec.IsolationGroups))
+	copy(isoGroups, cluster.Spec.IsolationGroups)
+	sort.Sort(myspec.IsolationGroups(isoGroups))
 
 	childrenSets, err := c.getChildStatefulSets(cluster)
 	if err != nil {
@@ -362,12 +366,12 @@ func (c *Controller) handleClusterUpdate(key string) error {
 
 	// At this point all existing statefulsets are bootstrapped.
 
-	if len(childrenSets) != len(zones) {
+	if len(childrenSets) != len(isoGroups) {
 		nextID := len(childrenSets)
 		// create a statefulset
 
 		name := fmt.Sprintf("%s-%d", cluster.Name, nextID)
-		sts, err := k8sops.GenerateStatefulSet(cluster, zones[nextID], isoGroups[nextID].NumInstances)
+		sts, err := k8sops.GenerateStatefulSet(cluster, isoGroups[nextID].Name, isoGroups[nextID].NumInstances)
 		if err != nil {
 			return err
 		}
@@ -390,7 +394,8 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		}
 
 		// TODO(schallert): Decide for sure what our conventions for re-enqueueing
-		// will be.
+		// will be. EDIT: just return the cluster object from funcs and continue
+		// using that version of it.
 		if updated {
 			err = errors.New("re-enqueing cluster due to API update")
 			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, err.Error())
@@ -410,9 +415,116 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		}
 	}
 
+	// At this point we have the desired number of statefulsets, and every pod
+	// across those sets is bootstrapped. However some may be bootstrapped because
+	// they own no shards. Check to see that all pods are in the placement.
+	selector := labels.SelectorFromSet(k8sops.GenerateBaseLabels(cluster))
+	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
+	if err != nil {
+		return fmt.Errorf("error listing pods: %v", err)
+	}
+
+	// TODO(schallert): per-cluster m3admin clients
+	placement, err := c.placementClient.Get()
+	if err != nil {
+		return fmt.Errorf("error fetching active placement: %v", err)
+	}
+
+	c.logger.Info("found placement", zap.Int("currentPods", len(pods)), zap.Int("placementInsts", placement.NumInstances()))
+
+	if placement.NumInstances() < len(pods) {
+		for _, pod := range pods {
+			_, ok := placement.Instance(pod.Name)
+			if ok {
+				continue
+			}
+
+			c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
+			inst, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+			if err != nil {
+				err := fmt.Errorf("error creating instance for pod %s", pod.Name)
+				c.logger.Error(err.Error())
+				return err
+			}
+
+			reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
+			cluster, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
+			if err != nil {
+				err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
+				c.logger.Error(err.Error())
+				return err
+			}
+
+			err = c.placementClient.Add(*inst)
+			if err != nil {
+				err := fmt.Errorf("error adding pod to placement: %s", pod.Name)
+				c.logger.Error(err.Error())
+				return err
+			}
+
+			c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
+			return nil
+		}
+	}
+
+	// Determine if any sets aren't at their desired replica count. Maybe we can
+	// reuse the set objects from above but being paranoid for now.
+	childrenSets, err = c.getChildStatefulSets(cluster)
+	if err != nil {
+		return err
+	}
+
+	for _, set := range childrenSets {
+		zone, ok := set.Labels["isolation-group"]
+		if !ok {
+			return fmt.Errorf("statefulset %s has no isolation-group label", set.Name)
+		}
+
+		group, ok := myspec.IsolationGroups(isoGroups).GetByName(zone)
+		if !ok {
+			return fmt.Errorf("zone %s not found in cluster isoGroups %v", zone, isoGroups)
+		}
+
+		if set.Spec.Replicas == nil {
+			return fmt.Errorf("set %s has unset spec replica", set.Name)
+		}
+
+		desired := group.NumInstances
+		current := *set.Spec.Replicas
+
+		// TODO(schallert): modify once we handle removes
+		if current >= desired {
+			continue
+		}
+
+		c.logger.Info("need to expand set, desired < current",
+			zap.String("set", set.Name),
+			zap.Int32("desired", desired),
+			zap.Int32("current", current))
+
+		set.Spec.Replicas = pointer.Int32Ptr(current + 1)
+		set, err = c.kubeClient.AppsV1().StatefulSets(set.Namespace).Update(set)
+		if err != nil {
+			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
+		}
+
+		return nil
+	}
+
+	placement, err = c.placementClient.Get()
+	if err != nil {
+		return fmt.Errorf("error fetching placement: %v", err)
+	}
+
+	// See if we need to clean up the pod bootstrapping status.
+	cluster, err = c.reconcileBootstrappingStatus(cluster, placement)
+	if err != nil {
+		return fmt.Errorf("error reconciling bootstrap status: %v", err)
+	}
+
 	c.logger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
-		zap.Int("zones", len(zones)),
+		zap.Int("zones", len(isoGroups)),
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
@@ -423,9 +535,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 // This func is currently read-only, but if we end up modifying statefulsets
 // we'll have to deepcopy.
 func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
-	// TODO(schallert): mark sts w/ a label selector so we can query more
-	// efficiently (already have label helpers in k8sops)
-	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(labels.Everything())
+	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(labels.Set(cluster.Labels).AsSelector())
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error listing statefulsets: %v", err))
 		return nil, err

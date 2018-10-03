@@ -131,8 +131,10 @@ all-gen: mock-gen kubernetes-gen license-gen
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
 test-all-gen: all-gen
+	@echo "--- :git: verifying HEAD up-to-date with generated code"
 	@test "$(shell git diff --exit-code --shortstat 2>/dev/null)" = "" || (git diff --exit-code && echo "Check git status, there are dirty files" && exit 1)
 	@test "$(shell git status --exit-code --porcelain 2>/dev/null | grep "^??")" = "" || (git status --exit-code --porcelain && echo "Check git status, there are untracked files" && exit 1)
+	@echo "--- end codegen verification"
 
 .PHONY: clean ## Clean cleans all artifacts we may generate.
 clean:

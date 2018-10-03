@@ -2,4 +2,4 @@ _mock.go
 vendor/
 _tools/
 zz_generated.deepcopy.go
-pkg/apis/client/
+pkg/client/

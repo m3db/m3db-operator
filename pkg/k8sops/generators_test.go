@@ -62,6 +62,27 @@ func TestGenerateCRD(t *testing.T) {
 	require.Equal(t, crd, newCRD)
 }
 
+func TestGenerateBaseLabels(t *testing.T) {
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-foo",
+		},
+	}
+
+	labels := GenerateBaseLabels(cluster)
+	expLabels := map[string]string{
+		"app":     "m3db",
+		"cluster": "cluster-foo",
+	}
+
+	assert.Equal(t, expLabels, labels)
+
+	cluster.Spec.Labels = map[string]string{"foo": "bar"}
+	labels = GenerateBaseLabels(cluster)
+	expLabels["foo"] = "bar"
+	assert.Equal(t, expLabels, labels)
+}
+
 func TestGenerateStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	clusterSpec := fixture.Spec
@@ -108,7 +129,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 			Name:   ssName,
 			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(&fixture, schema.GroupVersionKind{
+				*metav1.NewControllerRef(fixture, schema.GroupVersionKind{
 					Group:   myspec.SchemeGroupVersion.Group,
 					Version: myspec.SchemeGroupVersion.Version,
 					Kind:    "m3dbcluster",
@@ -232,7 +253,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 		},
 	}
 
-	newSS, err := GenerateStatefulSet(&fixture, isolationGroup, *instanceAmount)
+	newSS, err := GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	require.Nil(t, err)
 	require.NotNil(t, newSS)
 
@@ -240,18 +261,18 @@ func TestGenerateStatefulSet(t *testing.T) {
 }
 
 func TestGenerateM3DBService(t *testing.T) {
-	name := ""
-	svc, err := GenerateM3DBService(name)
+	cluster := &myspec.M3DBCluster{}
+	svc, err := GenerateM3DBService(cluster)
 	assert.Error(t, err)
 	assert.Nil(t, svc)
 
-	name = "cluster-a"
-	svc, err = GenerateM3DBService(name)
+	cluster.Name = "cluster-a"
+	svc, err = GenerateM3DBService(cluster)
 	assert.NoError(t, err)
 	assert.NotNil(t, svc)
 
 	baseLabels := map[string]string{
-		_labelCluster:   name,
+		_labelCluster:   cluster.Name,
 		_labelApp:       _labelAppValue,
 		_labelComponent: _componentM3DBNode,
 	}
@@ -273,24 +294,24 @@ func TestGenerateM3DBService(t *testing.T) {
 }
 
 func TestGenerateCoordinatorService(t *testing.T) {
-	name := ""
-	svc, err := GenerateCoordinatorService(name)
+	cluster := &myspec.M3DBCluster{}
+	svc, err := GenerateCoordinatorService(cluster)
 	assert.Error(t, err)
 	assert.Nil(t, svc)
 
-	name = "cluster-a"
-	svc, err = GenerateCoordinatorService(name)
+	cluster.Name = "cluster-a"
+	svc, err = GenerateCoordinatorService(cluster)
 	assert.NoError(t, err)
 	assert.NotNil(t, svc)
 
 	selectLabels := map[string]string{
-		_labelCluster:   name,
+		_labelCluster:   cluster.Name,
 		_labelApp:       _labelAppValue,
 		_labelComponent: _componentM3DBNode,
 	}
 
 	svcLabels := map[string]string{
-		_labelCluster:   name,
+		_labelCluster:   cluster.Name,
 		_labelApp:       _labelAppValue,
 		_labelComponent: _componentCoordinator,
 	}
