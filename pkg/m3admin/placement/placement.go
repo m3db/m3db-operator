@@ -106,7 +106,7 @@ func NewClient(opts ...Option) (Client, error) {
 
 // Init will create the placement
 func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
-	url := fmt.Sprintf("%s%s", p.url, plc.InitURL)
+	url := fmt.Sprintf("%s%s", p.url, plc.M3DBInitURL)
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 
 // Delete will delete all current placements
 func (p *placementClient) Delete() error {
-	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
+	url := fmt.Sprintf("%s%s", p.url, plc.M3DBGetURL)
 	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
 		return err
@@ -132,7 +132,7 @@ func (p *placementClient) Delete() error {
 
 // Get will get current placement
 func (p *placementClient) Get() (m3placement.Placement, error) {
-	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
+	url := fmt.Sprintf("%s%s", p.url, plc.M3DBGetURL)
 	resp, err := p.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -154,8 +154,11 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 
 // Add will add an instance to the current placement
 func (p *placementClient) Add(instance placementpb.Instance) error {
-	url := fmt.Sprintf("%s%s", p.url, plc.AddURL)
-	data, err := json.Marshal(instance)
+	url := fmt.Sprintf("%s%s", p.url, plc.M3DBAddURL)
+	request := &admin.PlacementAddRequest{
+		Instances: []*placementpb.Instance{&instance},
+	}
+	data, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}

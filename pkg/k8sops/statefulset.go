@@ -210,7 +210,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 	clusterName := cluster.Name
 	image := cluster.Spec.Image
 
-	labels := generateBaseLabels(clusterName)
+	labels := GenerateBaseLabels(cluster)
 	labels[_labelIsolationGroup] = isolationGroup
 	labels[_labelStatefulSet] = ssName
 	labels[_labelComponent] = _componentM3DBNode
