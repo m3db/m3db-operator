@@ -24,9 +24,8 @@
 package namespace
 
 import (
-	"github.com/m3db/m3/src/dbnode/storage/namespace"
-
-	"github.com/golang/mock/gomock"
+	gomock "github.com/golang/mock/gomock"
+	namespace "github.com/m3db/m3/src/dbnode/storage/namespace"
 )
 
 // Mock of Client interface
@@ -60,9 +59,9 @@ func (_mr *_MockClientRecorder) Create(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Create", arg0)
 }
 
-func (_m *MockClient) List() ([]Metadata, error) {
+func (_m *MockClient) List() ([]namespace.Metadata, error) {
 	ret := _m.ctrl.Call(_m, "List")
-	ret0, _ := ret[0].([]Metadata)
+	ret0, _ := ret[0].([]namespace.Metadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

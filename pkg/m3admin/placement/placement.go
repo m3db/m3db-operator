@@ -42,7 +42,7 @@ const (
 	_defaultPlacementURI = "/api/v1/placement"
 )
 
-type placement struct {
+type placementClient struct {
 	url    string
 	client m3admin.Client
 	logger *zap.Logger
@@ -51,18 +51,18 @@ type placement struct {
 // Option provides an interface that can be used for setter options with the
 // constructor
 type Option interface {
-	execute(*placement) error
+	execute(*placementClient) error
 }
 
-type optionFn func(p *placement) error
+type optionFn func(p *placementClient) error
 
-func (fn optionFn) execute(p *placement) error {
+func (fn optionFn) execute(p *placementClient) error {
 	return fn(p)
 }
 
 // WithURL is a setter to override the default URL
 func WithURL(u string) Option {
-	return optionFn(func(p *placement) error {
+	return optionFn(func(p *placementClient) error {
 		if _, err := url.ParseRequestURI(u); err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ func WithURL(u string) Option {
 
 // WithLogger is a setter to override the default logger
 func WithLogger(logger *zap.Logger) Option {
-	return optionFn(func(p *placement) error {
+	return optionFn(func(p *placementClient) error {
 		p.logger = logger
 		return nil
 	})
@@ -81,7 +81,7 @@ func WithLogger(logger *zap.Logger) Option {
 
 // WithClient configures an m3admin client.
 func WithClient(cl m3admin.Client) Option {
-	return optionFn(func(p *placement) error {
+	return optionFn(func(p *placementClient) error {
 		p.client = cl
 		return nil
 	})
@@ -90,7 +90,7 @@ func WithClient(cl m3admin.Client) Option {
 // NewClient is the constructor the Placement interface
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
-	pl := &placement{
+	pl := &placementClient{
 		client: m3admin.NewClient(),
 		logger: logger,
 		url:    m3admin.DefaultURL,
@@ -105,7 +105,7 @@ func NewClient(opts ...Option) (Client, error) {
 }
 
 // Init will create the placement
-func (p *placement) Init(req *admin.PlacementInitRequest) error {
+func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 	url := fmt.Sprintf("%s%s", p.url, plc.InitURL)
 	data, err := json.Marshal(req)
 	if err != nil {
@@ -120,7 +120,7 @@ func (p *placement) Init(req *admin.PlacementInitRequest) error {
 }
 
 // Delete will delete all current placements
-func (p *placement) Delete() error {
+func (p *placementClient) Delete() error {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
 	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
@@ -131,7 +131,7 @@ func (p *placement) Delete() error {
 }
 
 // Get will get current placement
-func (p *placement) Get() (m3placement.Placement, error) {
+func (p *placementClient) Get() (m3placement.Placement, error) {
 	url := fmt.Sprintf("%s%s", p.url, plc.GetURL)
 	resp, err := p.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
@@ -153,7 +153,7 @@ func (p *placement) Get() (m3placement.Placement, error) {
 }
 
 // Add will add an instance to the current placement
-func (p *placement) Add(instance placementpb.Instance) error {
+func (p *placementClient) Add(instance placementpb.Instance) error {
 	url := fmt.Sprintf("%s%s", p.url, plc.AddURL)
 	data, err := json.Marshal(instance)
 	if err != nil {

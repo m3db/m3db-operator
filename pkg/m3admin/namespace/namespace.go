@@ -60,7 +60,7 @@ const (
 	_defaultIndexOptionBlockSizeNanos                                = int64(7200000000000)
 )
 
-type namespace struct {
+type namespaceClient struct {
 	client m3admin.Client
 	logger *zap.Logger
 	url    string
@@ -69,18 +69,18 @@ type namespace struct {
 // Option provides an interface that can be used for setter options with the
 // constructor
 type Option interface {
-	execute(*namespace) error
+	execute(*namespaceClient) error
 }
 
-type optionFn func(n *namespace) error
+type optionFn func(n *namespaceClient) error
 
-func (fn optionFn) execute(n *namespace) error {
+func (fn optionFn) execute(n *namespaceClient) error {
 	return fn(n)
 }
 
 // WithURL is a setter to override the default url of m3coordinator
 func WithURL(u string) Option {
-	return optionFn(func(n *namespace) error {
+	return optionFn(func(n *namespaceClient) error {
 		if _, err := url.ParseRequestURI(u); err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func WithURL(u string) Option {
 
 // WithLogger is a setter to override the default logger
 func WithLogger(logger *zap.Logger) Option {
-	return optionFn(func(n *namespace) error {
+	return optionFn(func(n *namespaceClient) error {
 		n.logger = logger
 		return nil
 	})
@@ -99,7 +99,7 @@ func WithLogger(logger *zap.Logger) Option {
 
 // WithClient configures an m3admin client.
 func WithClient(cl m3admin.Client) Option {
-	return optionFn(func(n *namespace) error {
+	return optionFn(func(n *namespaceClient) error {
 		n.client = cl
 		return nil
 	})
@@ -108,7 +108,7 @@ func WithClient(cl m3admin.Client) Option {
 // NewClient constructs a new namespace client
 func NewClient(opts ...Option) (Client, error) {
 	logger := zap.NewNop()
-	ns := &namespace{
+	ns := &namespaceClient{
 		client: m3admin.NewClient(),
 		logger: logger,
 		url:    m3admin.DefaultURL,
@@ -149,7 +149,7 @@ func defaultNamespaceRequest(namespaceName string) *admin.NamespaceAddRequest {
 }
 
 // Create will create a namespace
-func (n *namespace) Create(namespaceName string) error {
+func (n *namespaceClient) Create(namespaceName string) error {
 	url := fmt.Sprintf("%s%s", n.url, nsh.AddURL)
 	data, err := json.Marshal(defaultNamespaceRequest(namespaceName))
 	if err != nil {
@@ -164,7 +164,7 @@ func (n *namespace) Create(namespaceName string) error {
 }
 
 // List will retrieve all namespaces
-func (n *namespace) List() ([]ns.Metadata, error) {
+func (n *namespaceClient) List() ([]ns.Metadata, error) {
 	url := fmt.Sprintf("%s%s", n.url, nsh.GetURL)
 	resp, err := n.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
@@ -191,7 +191,7 @@ func (n *namespace) List() ([]ns.Metadata, error) {
 }
 
 // Delete will delete a namespace
-func (n *namespace) Delete(namespace string) error {
+func (n *namespaceClient) Delete(namespace string) error {
 	url := fmt.Sprintf("%s%s/%s", n.url, nsh.AddURL, namespace)
 	_, err := n.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {

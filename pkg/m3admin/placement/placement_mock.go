@@ -24,11 +24,10 @@
 package placement
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	"github.com/m3db/m3cluster/placement"
-
-	"github.com/golang/mock/gomock"
+	gomock "github.com/golang/mock/gomock"
+	admin "github.com/m3db/m3/src/query/generated/proto/admin"
+	placementpb "github.com/m3db/m3cluster/generated/proto/placementpb"
+	placement "github.com/m3db/m3cluster/placement"
 )
 
 // Mock of Client interface
@@ -62,9 +61,9 @@ func (_mr *_MockClientRecorder) Init(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Init", arg0)
 }
 
-func (_m *MockClient) Get() (Placement, error) {
+func (_m *MockClient) Get() (placement.Placement, error) {
 	ret := _m.ctrl.Call(_m, "Get")
-	ret0, _ := ret[0].(Placement)
+	ret0, _ := ret[0].(placement.Placement)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
