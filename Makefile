@@ -40,10 +40,12 @@ LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
 .PHONY: setup
 setup:
+	@echo "+ $@"
 	mkdir -p $(BUILD)
 
 .PHONY: lint
 lint:
+	@echo "+ $@"
 	@which golint > /dev/null || go get -u github.com/golang/lint/golint
 	$(VENDOR_ENV) $(lint_check)
 
@@ -53,11 +55,13 @@ metalint: install-metalinter install-linter-badtime
 
 .PHONY: test-internal
 test-internal:
+	@echo "+ $@"
 	@which go-junit-report > /dev/null || go get -u github.com/sectioneight/go-junit-report
 	@$(VENDOR_ENV) $(test) $(coverfile) | tee $(test_log)
 
 .PHONY: test-xml
 test-xml: test-internal
+	@echo "+ $@"
 	go-junit-report < $(test_log) > $(junit_xml)
 	gocov convert $(coverfile) | gocov-xml > $(coverage_xml)
 	@$(convert-test-data) $(coverage_xml)
@@ -65,72 +69,78 @@ test-xml: test-internal
 
 .PHONY: test
 test: test-internal
+	@echo "+ $@"
 	gocov convert $(coverfile) | gocov report
 
 .PHONY: testhtml
 testhtml: test-internal
+	@echo "+ $@"
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
 
 .PHONY: test-ci-unit
 test-ci-unit: test-base verify-gen
+	@echo "+ $@"
 	$(codecov_push) $(coverfile)
 
 .PHONY: install-mockgen
 install-mockgen: install-vendor-dep
+	@echo "+ $@"
 	@which goveralls > /dev/null || (go get github.com/golang/mock/gomock && \
 		go install github.com/golang/mock/mockgen)
 
 .PHONY: install-licence-bin
 install-license-bin: install-vendor-dep
-	@echo Installing node modules
+	@echo "+ $@, installing node modules"
 	[ -d $(license_node_modules) ] || (cd $(license_dir) && npm install)
 
 .PHONY: install-proto-bin
 install-proto-bin: install-vendor-dep
-	@echo Installing protobuf binaries
+	@echo "+ $@, Installing protobuf binaries"
 	@echo Note: the protobuf compiler v3.0.0 can be downloaded from https://github.com/google/protobuf/releases or built from source at https://github.com/google/protobuf.
 	go install $(package_root)/$(vendor_prefix)/$(protoc_go_package)
 
 .PHONY: mock-gen
 mock-gen: install-mockgen install-license-bin install-util-mockclean
-	@echo Generating mocks
+	@echo "+ $@, generating mocks"
 	PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 .PHONY: mock-gen-deps
 mock-gen-no-deps:
-	@echo Generating mocks
+	@echo "+ $@"
 	PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 .PHONY: all-gen
 all-gen: mock-gen code-gen
 
-# Clean cleans all artifacts we may generate.
-.PHONY: clean
+.PHONY: clean ## Clean cleans all artifacts we may generate.
 clean:
 	@rm -f *.html *.xml *.out *.test
 	@rm -rf $(OUTPUT_DIR)
 
-# Clean-all cleans all build dependencies.
 .PHONY: clean-all
-clean-all: clean
+clean-all: clean ## Clean-all cleans all build dependencies.
+	@echo "+ $@"
 	@go clean
 	@rm -rf vendor*
 
 .PHONY: all
 all: clean code-gen lint metalint test-ci-unit
-	@echo make all successfully finished
+	@echo "$@ successfully finished"
 
 .PHONY: dep-install
 dep-install: ## Ensure dep is installed
+	@echo "+ $@"
 	@which dep > /dev/null || ./build/install-dep.sh
 
 .PHONY: dep-ensure
 dep-ensure: dep-install ## Run dep ensure to generate vendor directory
+	@echo "+ $@"
 	dep ensure
 
 .PHONY: code-gen
 code-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
+	@echo "+ $@"
 	@./hack/update-generated.sh
 
 .PHONY: verify-gen
@@ -139,12 +149,14 @@ verify-gen: dep-ensure ## Ensure all codegen is up to date
 
 .PHONY: build-bin
 build-bin: out ## Build m3db-operator binary
+	@echo "+ $@"
 	@which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
 	@echo "building $(PROJECT_NAME)..."
 	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
+	@echo "+ $@"
 	@./build/build-docker.sh
 
 out:
