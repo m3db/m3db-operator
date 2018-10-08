@@ -506,8 +506,16 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		return nil
 	}
 
+	placement, err = c.placementClient.Get()
+	if err != nil {
+		return fmt.Errorf("error fetching placement: %v", err)
+	}
+
 	// See if we need to clean up the pod bootstrapping status.
-	// var allAvail bool
+	cluster, err = c.reconcileBootstrappingStatus(cluster, placement)
+	if err != nil {
+		return fmt.Errorf("error reconciling bootstrap status: %v", err)
+	}
 
 	c.logger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
