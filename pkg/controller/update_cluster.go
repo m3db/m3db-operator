@@ -24,13 +24,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/m3db/m3cluster/placement"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3cluster/placement"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -65,7 +64,7 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionNamespaceInitialized,
 		Status:         corev1.ConditionTrue,
-		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
+		LastUpdateTime: c.clock.Now().UTC().Format(time.RFC3339),
 		// TODO(schallert): probably a better reason and we should strongly type
 		// them
 		Reason:  "NamespaceCreated",
@@ -144,7 +143,7 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) erro
 	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionPlacementInitialized,
 		Status:         corev1.ConditionTrue,
-		LastUpdateTime: time.Now().UTC().Format(time.RFC3339),
+		LastUpdateTime: c.clock.Now().UTC().Format(time.RFC3339),
 		Reason:         "PlacementCreated",
 		Message:        "Created placement",
 	})
@@ -181,7 +180,7 @@ func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.Clu
 		}
 	}
 
-	curTime := time.Now().UTC().Format(time.RFC3339)
+	curTime := c.clock.Now().UTC().Format(time.RFC3339)
 	if cond.Status != status {
 		cond.LastTransitionTime = curTime
 	}

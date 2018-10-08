@@ -2,6 +2,7 @@ package controller
 
 import (
 	"testing"
+	"time"
 
 	"github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3cluster/shard"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 )
 
 func TestSetPodBootstrappingStatus(t *testing.T) {
@@ -18,6 +20,7 @@ func TestSetPodBootstrappingStatus(t *testing.T) {
 
 	controller := &Controller{
 		crdClient: crdfake.NewSimpleClientset(cluster),
+		clock:     clock.NewFakeClock(time.Now()),
 	}
 
 	cluster, err := controller.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "foo", "bar")
@@ -29,8 +32,10 @@ func TestSetPodBootstrappingStatus(t *testing.T) {
 func TestSetStatus(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 
+	fakeClock := clock.NewFakeClock(time.Now())
 	controller := &Controller{
 		crdClient: crdfake.NewSimpleClientset(cluster),
+		clock:     fakeClock,
 	}
 
 	const cond = myspec.ClusterConditionNamespaceInitialized
@@ -49,6 +54,8 @@ func TestSetStatus(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, transitionTime, c.LastTransitionTime)
 
+	fakeClock.Step(10 * time.Second)
+
 	cluster, err = controller.setStatus(cluster, cond, corev1.ConditionFalse, "foo", "bar")
 	assert.NoError(t, err)
 
@@ -63,6 +70,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 
 	controller := &Controller{
 		crdClient: crdfake.NewSimpleClientset(cluster),
+		clock:     clock.NewFakeClock(time.Now()),
 	}
 
 	const cond = myspec.ClusterConditionPodBootstrapping

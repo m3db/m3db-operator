@@ -47,6 +47,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -84,6 +85,7 @@ type Cluster struct {
 type Controller struct {
 	lock            *sync.Mutex
 	logger          *zap.Logger
+	clock           clock.Clock
 	scope           tally.Scope
 	k8sclient       k8sops.K8sops
 	clusters        map[string]Cluster
@@ -168,6 +170,7 @@ func New(opts ...Option) (*Controller, error) {
 		lock:      &sync.Mutex{},
 		logger:    logger,
 		scope:     scope,
+		clock:     clock.RealClock{},
 		k8sclient: kclient,
 		clusters:  make(map[string]Cluster),
 		doneCh:    make(chan struct{}),
