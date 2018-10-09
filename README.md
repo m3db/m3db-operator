@@ -7,7 +7,7 @@
 ### GKE
 When running on GKE, the user applying the manifests will need the ability to
 allow `cluster-admin-binding` during the installation. Use the following
-`ClusterRoleBinding` with the user name provided by gloud
+`ClusterRoleBinding` with the user name provided by gcloud
 
 ```
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=<name@domain.com>
@@ -125,7 +125,7 @@ coordinator, which it must do in order to create placements and namespaces:
 
 To allow communication between your local operator and the cluster, you can `kubectl port-forward` to the coordinator:
 ```
-$ kubectl port-forward -n m3db svc/m3coordinator-m3db-cluster 7201
+$ kubectl port-forward  svc/m3coordinator-m3db-cluster 7201
 Forwarding from 127.0.0.1:7201 -> 7201
 Forwarding from [::1]:7201 -> 7201
 ```
@@ -150,7 +150,7 @@ $ kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --prefix ""
 Delete M3DB Operator
 
 ```
-kubectrl delete -f manifests/operator.yaml
+kubectl delete -f manifests/operator.yaml
 ```
 
 ### Help

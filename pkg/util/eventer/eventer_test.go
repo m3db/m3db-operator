@@ -18,32 +18,44 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package controller
+package eventer
 
 import (
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
+	"testing"
+
+	"github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
-	if err := c.namespaceClient.Delete(cluster.GetObjectMeta().GetName()); err != nil {
-		return err
-	}
-	if err := c.placementClient.Delete(); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteStatefulSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteService(cluster, _M3DBSvcName); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteService(cluster, _M3CoordinatorSvcName); err != nil {
-		return err
-	}
+var (
+	creator runtime.ObjectCreater = scheme.Scheme
+)
 
-	// TODO(cward): eventually move this to where the function is called so cluster.GetName() isn't lost
-	// and we can a warning event to the error message
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulDelete, "Deleted cluster "+cluster.GetName())
-	return nil
+func TestNormalEvent(t *testing.T) {
+	testObject, err := creator.New(schema.GroupVersionKind{})
+	// empty object will throw error
+	assert.Error(t, err)
+
+	testEventer := testNewEventRecorder(t)
+	testEventer.NormalEvent(testObject, ReasonAdding, "this is a normal event")
+}
+
+func TestWarningEvent(t *testing.T) {
+	testObject, err := creator.New(schema.GroupVersionKind{})
+	// empty object will throw error
+	assert.Error(t, err)
+
+	testEventer := testNewEventRecorder(t)
+	testEventer.WarningEvent(testObject, ReasonFailSync, "this is a warning event")
+}
+
+func testNewEventRecorder(t *testing.T) Poster {
+	testEventer := NewEventRecorder(kubeFake.NewSimpleClientset(), zap.NewNop(), "test", "testy")
+	require.NotNil(t, testEventer)
+	return testEventer
 }
