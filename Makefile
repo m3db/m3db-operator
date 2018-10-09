@@ -2,6 +2,7 @@ PROJECT_NAME := m3db-operator
 REPO_PATH    := github.com/m3db/m3db-operator
 BUILD_PATH   := $(REPO_PATH)/cmd/$(PROJECT_NAME)
 OUTPUT_DIR   := out
+DEP_VERSION  := v0.5.0
 BUILD_SETTINGS := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 ifeq ($(shell uname), Darwin)
 	BUILD_SETTINGS := GOOS=darwin GOARCH=amd64 CGO_ENABLED=0
@@ -25,23 +26,18 @@ lint_check           := .ci/lint.sh
 metalint_check       := .ci/metalint.sh
 metalint_config      := .metalinter.json
 metalint_exclude     := .excludemetalint
-package_root         := github.com/m3db/m3db-operator
 gopath_prefix        := $(GOPATH)/src
+package_root         := github.com/m3db/m3db-operator
+package_path         := $(gopath_prefix)/$(package_root)
+retool_bin_path      := $(package_path)/_tools/bin
+retool_package       := github.com/twitchtv/retool
 vendor_prefix        := vendor
 mockgen_package      := github.com/golang/mock/mockgen
-mocks_output_dir     := generated/mocks/mocks
+mocks_output_dir     := generated/mocks
 mocks_rules_dir      := generated/mocks
-auto_gen             := .ci/auto-gen.sh
-license_dir          := .ci/uber-licence
-license_node_modules := $(license_dir)/node_modules
+auto_gen             := scripts/auto-gen.sh
 
-BUILD           := $(abspath ./bin)
 LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-
-.PHONY: setup
-setup:
-	@echo "+ $@"
-	mkdir -p $(BUILD)
 
 .PHONY: lint
 lint:
@@ -53,14 +49,8 @@ lint:
 metalint: install-metalinter install-linter-badtime
 	@($(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
-.PHONY: test-internal
-test-internal:
-	@echo "+ $@"
-	@which go-junit-report > /dev/null || go get -u github.com/sectioneight/go-junit-report
-	@$(VENDOR_ENV) $(test) $(coverfile) | tee $(test_log)
-
 .PHONY: test-xml
-test-xml: test-internal
+test-xml: test-base
 	@echo "+ $@"
 	go-junit-report < $(test_log) > $(junit_xml)
 	gocov convert $(coverfile) | gocov-xml > $(coverage_xml)
@@ -68,50 +58,82 @@ test-xml: test-internal
 	@rm $(coverfile) &> /dev/null
 
 .PHONY: test
-test: test-internal
+test: test-base
 	@echo "+ $@"
 	gocov convert $(coverfile) | gocov report
 
 .PHONY: testhtml
-testhtml: test-internal
+testhtml: test-base
 	@echo "+ $@"
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
 
 .PHONY: test-ci-unit
-test-ci-unit: test-base verify-gen
+test-ci-unit: install-ci-tools test-base verify-gen
 	@echo "+ $@"
 	$(codecov_push) $(coverfile)
 
-.PHONY: install-mockgen
-install-mockgen: install-vendor-dep
+.PHONY: install-ci-tools
+install-ci-tools: install-codegen-tools dep-ensure install-mockgen
 	@echo "+ $@"
-	@which goveralls > /dev/null || (go get github.com/golang/mock/gomock && \
-		go install github.com/golang/mock/mockgen)
+	@which gocov > /dev/null || go get github.com/axw/gocov/gocov
 
-.PHONY: install-licence-bin
-install-license-bin: install-vendor-dep
-	@echo "+ $@, installing node modules"
-	[ -d $(license_node_modules) ] || (cd $(license_dir) && npm install)
+# NB(prateek): cannot use retool for mock-gen, as mock-gen reflection mode requires
+# it's full source code be present in the GOPATH at runtime.
+.PHONY: install-mockgen
+install-mockgen:
+	@echo Installing mockgen
+	@which mockgen >/dev/null || (                                                     \
+		rm -rf $(gopath_prefix)/$(mockgen_package)                                    && \
+		mkdir -p $(shell dirname $(gopath_prefix)/$(mockgen_package))                 && \
+		cp -r $(vendor_prefix)/$(mockgen_package) $(gopath_prefix)/$(mockgen_package) && \
+		go install $(mockgen_package)                                                    \
+	)
+
+.PHONY: install-retool
+install-retool:
+	@which retool >/dev/null || go get $(retool_package)
+
+.PHONY: install-codegen-tools
+install-codegen-tools: install-retool
+	@echo "Installing retool dependencies"
+	@retool sync >/dev/null 2>/dev/null
+	@retool build >/dev/null 2>/dev/null
+
+.PHONY: install-gometalinter
+install-gometalinter:
+	@mkdir -p $(retool_bin_path)
+	./scripts/install-gometalinter.sh -b $(retool_bin_path) -d $(GOMETALINT_VERSION)
 
 .PHONY: install-proto-bin
-install-proto-bin: install-vendor-dep
+install-proto-bin: install-codegen-tools
 	@echo "+ $@, Installing protobuf binaries"
 	@echo Note: the protobuf compiler v3.0.0 can be downloaded from https://github.com/google/protobuf/releases or built from source at https://github.com/google/protobuf.
 	go install $(package_root)/$(vendor_prefix)/$(protoc_go_package)
 
 .PHONY: mock-gen
-mock-gen: install-mockgen install-license-bin install-util-mockclean
-	@echo "+ $@, generating mocks"
-	PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
+mock-gen: install-ci-tools mock-gen-no-deps
+	@echo "+ $@"
 
-.PHONY: mock-gen-deps
+.PHONY: license-gen
+license-gen:
+	@echo "+ $@"
+	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
+
+.PHONY: mock-gen-no-deps
 mock-gen-no-deps:
 	@echo "+ $@"
-	PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
+	@echo generating mocks
+	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 .PHONY: all-gen
-all-gen: mock-gen code-gen
+all-gen: mock-gen kubernetes-gen license-gen
+
+# Ensure base commit had up-to-date generated artifacts
+.PHONY: test-all-gen
+test-all-gen: all-gen
+	@test "$(shell git diff --exit-code --shortstat 2>/dev/null)" = "" || (git diff --exit-code && echo "Check git status, there are dirty files" && exit 1)
+	@test "$(shell git status --exit-code --porcelain 2>/dev/null | grep "^??")" = "" || (git status --exit-code --porcelain && echo "Check git status, there are untracked files" && exit 1)
 
 .PHONY: clean ## Clean cleans all artifacts we may generate.
 clean:
@@ -122,24 +144,20 @@ clean:
 clean-all: clean ## Clean-all cleans all build dependencies.
 	@echo "+ $@"
 	@go clean
-	@rm -rf vendor*
+	@rm -rf vendor/
+	@rm -rf _tools/
 
 .PHONY: all
-all: clean code-gen lint metalint test-ci-unit
+all: clean-all kubernetes-gen lint metalint test-ci-unit
 	@echo "$@ successfully finished"
 
-.PHONY: dep-install
-dep-install: ## Ensure dep is installed
-	@echo "+ $@"
-	@which dep > /dev/null || ./build/install-dep.sh
-
 .PHONY: dep-ensure
-dep-ensure: dep-install ## Run dep ensure to generate vendor directory
+dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 	@echo "+ $@"
-	dep ensure
+	PATH=$(retool_bin_path):$(PATH) dep ensure
 
-.PHONY: code-gen
-code-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
+.PHONY: kubernetes-gen
+kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "+ $@"
 	@./hack/update-generated.sh
 

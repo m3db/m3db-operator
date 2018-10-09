@@ -1,3 +1,9 @@
+# OSX artifacts
+.DS_Store
+
+# Dev artifacts
+.vscode/
+
 # Binaries for programs and plugins
 *.so
 *.dylib
@@ -10,6 +16,7 @@
 test.log
 
 # Disregard vendor packages
+_tools/
 vendor/
 
 # Ignore build artifacts
