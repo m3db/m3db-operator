@@ -121,6 +121,11 @@ install-proto-bin: install-codegen-tools
 mock-gen: install-ci-tools mock-gen-no-deps
 	@echo "+ $@"
 
+.PHONY: license-gen
+license-gen:
+	@echo "+ $@"
+	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
+
 .PHONY: mock-gen-no-deps
 mock-gen-no-deps:
 	@echo "+ $@"
@@ -128,7 +133,7 @@ mock-gen-no-deps:
 	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 .PHONY: all-gen
-all-gen: mock-gen kubernetes-gen
+all-gen: mock-gen kubernetes-gen license-gen
 
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
