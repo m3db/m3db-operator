@@ -35,13 +35,12 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -50,7 +49,6 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -155,11 +153,6 @@ func New(opts ...Option) (*Controller, error) {
 
 	samplescheme.AddToScheme(scheme.Scheme)
 
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(logger.Sugar().Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kclient.Events("")})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: _controllerName})
-
 	workQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), _workQueueName)
 
 	p := &Controller{
@@ -184,7 +177,7 @@ func New(opts ...Option) (*Controller, error) {
 		namespaceClient: nsClient,
 
 		workQueue: workQueue,
-		recorder:  recorder,
+		recorder:  eventer.NewEventRecorder(kubeClient, logger, _controllerName),
 	}
 
 	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -380,7 +373,6 @@ func (c *Controller) handleClusterUpdate(key string) error {
 			return err
 		}
 
-		// c.recorder.Event(cluster, corev1.EventTypeNormal, "CreatedSts", "create a statefulset")
 		c.logger.Info("created statefulset", zap.String("name", name))
 		return nil
 	}
@@ -388,13 +380,18 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	if !cluster.Status.HasInitializedNamespace() {
 		updated, err := c.validateNamespaceWithStatus(cluster)
 		if err != nil {
+			eventer.PostWarningEvent(c.recorder,
+				cluster,
+				eventer.EventReasonFailedToUpdate,
+				"namespace not validated: %v", err.Error())
 			return err
 		}
 
 		// TODO(schallert): Decide for sure what our conventions for re-enqueueing
 		// will be.
 		if updated {
-			return errors.New("re-enqueing cluster due to API update")
+			err = errors.New("re-enqueing cluster due to API update")
+			eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedToUpdate, err.Error())
 		}
 	}
 
@@ -405,7 +402,9 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		}
 
 		if updated {
-			return errors.New("re-enqueing cluster due to API update")
+			err = errors.New("re-enqueing cluster due to API update")
+			eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedToUpdate, err.Error())
+			return err
 		}
 	}
 
@@ -415,6 +414,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
+	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulUpdate, "Cluster update handled successfully")
 	return nil
 }
 
@@ -458,12 +458,12 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 		c.logger.Info("recovered object from tombstone", zap.String("name", object.GetName()))
 	}
 
+
 	c.logger.Info("processing statefulset", zap.String("name", object.GetName()))
 
 	owner := metav1.GetControllerOf(object)
 	// TODO(schallert): const
 	if owner == nil || owner.Kind != "m3dbcluster" {
-		// we don't own this object, ignore
 		return
 	}
 
@@ -475,5 +475,6 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
+	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulUpdate, "StatefulSet update handled successfully")
 	return
 }

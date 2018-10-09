@@ -32,6 +32,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -50,7 +51,7 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 	if err != nil {
 		err = fmt.Errorf("error creating namespace: %v", err)
 		c.logger.Error(err.Error())
-		c.recorder.Event(cluster, corev1.EventTypeWarning, "NamespaceCreateError", err.Error())
+		eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedCreate, err.Error())
 		return false, err
 	}
 
@@ -71,6 +72,8 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 		Reason:  "NamespaceCreated",
 		Message: "Created namespace",
 	})
+
+	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulCreate, "Namespace created")
 
 	_, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
 	if err != nil {

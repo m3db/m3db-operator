@@ -35,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"go.uber.org/zap"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 )
 
 const (
@@ -141,8 +142,7 @@ func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 		err := c.k8sclient.EnsureService(cluster, svc)
 		if err != nil {
 			err := fmt.Errorf("error creating service '%s': %v", svc.Name, err)
-			c.logger.Error(err.Error())
-			c.recorder.Event(cluster, corev1.EventTypeWarning, "ServiceCreateError", err.Error())
+			eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedCreate, err.Error())
 			return err
 		}
 	}

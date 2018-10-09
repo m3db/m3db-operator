@@ -22,6 +22,7 @@ package controller
 
 import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 )
 
 func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
@@ -41,5 +42,6 @@ func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
+	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulDelete, "Deleted cluster "+ cluster.GetName())
 	return nil
 }
