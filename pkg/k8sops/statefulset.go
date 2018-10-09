@@ -27,6 +27,7 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
@@ -96,7 +97,7 @@ func (k *k8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.Li
 func (k *k8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]string, error) {
 	placementDetails := make(map[string]string)
 	for _, ig := range cluster.Spec.IsolationGroups {
-		pods, err := k.GetPodsByLabel(cluster, k.LabelSelector("isolationGroup", ig.Name))
+		pods, err := k.GetPodsByLabel(cluster, k.LabelSelector(labels.IsolationGroup, ig.Name))
 		if err != nil {
 			return nil, err
 		}
@@ -210,29 +211,29 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 	clusterName := cluster.Name
 	image := cluster.Spec.Image
 
-	labels := GenerateBaseLabels(cluster)
-	labels[_labelIsolationGroup] = isolationGroup
-	labels[_labelStatefulSet] = ssName
-	labels[_labelComponent] = _componentM3DBNode
+	objLabels := labels.BaseLabels(cluster)
+	objLabels[labels.IsolationGroup] = isolationGroup
+	objLabels[labels.StatefulSet] = ssName
+	objLabels[labels.Component] = labels.ComponentM3DBNode
 	for k, v := range cluster.Spec.Labels {
-		labels[k] = v
+		objLabels[k] = v
 	}
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   ssName,
-			Labels: labels,
+			Labels: objLabels,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName:         HeadlessServiceName(clusterName),
 			PodManagementPolicy: "Parallel",
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: objLabels,
 			},
 			Replicas: &ic,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels: objLabels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

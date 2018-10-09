@@ -24,13 +24,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	"github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3cluster/shard"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	pkgplacement "github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 )
 
@@ -118,4 +123,50 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, cond, c.Type)
 	assert.Equal(t, string(corev1.ConditionFalse), string(c.Status))
+}
+
+func TestAddPodToPlacement(t *testing.T) {
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	cluster := getFixture("cluster-simple.yaml", t)
+
+	placementMock := pkgplacement.NewMockClient(mc)
+	controller := &Controller{
+		crdClient:       crdfake.NewSimpleClientset(cluster),
+		placementClient: placementMock,
+		logger:          zap.NewNop(),
+		clock:           clock.NewFakeClock(time.Now()),
+	}
+
+	pl := placement.NewPlacement().SetReplicaFactor(1).SetMaxShardSetID(1)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-a",
+			Labels: map[string]string{
+				"operator.m3db.io/isolation-group": "zone-a",
+			},
+		},
+	}
+
+	expInstance := placementpb.Instance{
+		Id:             "pod-a",
+		IsolationGroup: "zone-a",
+		Zone:           "embedded",
+		Endpoint:       "pod-a.m3dbnode-cluster-simple:9000",
+		Hostname:       "pod-a.m3dbnode-cluster-simple",
+		Port:           9000,
+		Weight:         100,
+	}
+
+	placementMock.EXPECT().Add(expInstance)
+
+	err := controller.addPodToPlacement(cluster, pod, pl)
+	assert.NoError(t, err)
+
+	cluster, err = controller.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	assert.True(t, cluster.Status.HasPodBootstrapping())
 }
