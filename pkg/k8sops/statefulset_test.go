@@ -34,12 +34,12 @@ func TestStatefulSet(t *testing.T) {
 	ssName := StatefulSetName(fixture.GetName(), 0)
 	require.Equal(t, "m3db-cluster-rep0", ssName)
 
-	getSS, err := k.GetStatefulSet(&fixture, ssName)
+	getSS, err := k.GetStatefulSet(fixture, ssName)
 	require.Nil(t, err)
 	require.NotNil(t, getSS)
 
-	_, err = k.GetStatefulSets(&fixture, k.LabelSelector("fake", "fake"))
+	_, err = k.GetStatefulSets(fixture, k.LabelSelector("fake", "fake"))
 	require.NotNil(t, err)
-	err = k.DeleteStatefulSets(&fixture, k.LabelSelector("fake", "fake"))
+	err = k.DeleteStatefulSets(fixture, k.LabelSelector("fake", "fake"))
 	require.NotNil(t, err)
 }

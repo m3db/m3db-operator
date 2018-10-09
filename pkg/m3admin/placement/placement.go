@@ -155,7 +155,10 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 // Add will add an instance to the current placement
 func (p *placementClient) Add(instance placementpb.Instance) error {
 	url := fmt.Sprintf("%s%s", p.url, plc.AddURL)
-	data, err := json.Marshal(instance)
+	request := &admin.PlacementAddRequest{
+		Instances: []*placementpb.Instance{&instance},
+	}
+	data, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
