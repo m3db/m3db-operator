@@ -76,6 +76,7 @@ func NewClient(clientOpts ...Option) Client {
 
 	// We do our own request logging, silence their logger.
 	client.client.Logger.SetOutput(ioutil.Discard)
+	client.client.ErrorHandler = retryhttp.PassthroughErrorHandler
 
 	return client
 }
@@ -106,6 +107,16 @@ func (c *client) DoHTTPRequest(
 	}
 
 	request.Header.Add("Content-Type", "application/json")
+
+	if l.Core().Enabled(zapcore.DebugLevel) {
+		dump, err := httputil.DumpRequest(request.Request, true)
+		if err != nil {
+			l = l.With(zap.String("requestDumpError", err.Error()))
+		} else {
+			l = l.With(zap.ByteString("requestDump", dump))
+		}
+	}
+
 	response, err := c.client.Do(request)
 	if err != nil {
 		l.Debug("request error", zap.Error(err))
@@ -114,14 +125,14 @@ func (c *client) DoHTTPRequest(
 
 	l = l.With(zap.String("status", response.Status))
 
-	// If in debug mode, dump the entire response (coordinator error messages are
-	// included in it).
+	// If in debug mode, dump the entire request+response (coordinator error
+	// messages are included in it).
 	if l.Core().Enabled(zapcore.DebugLevel) {
 		dump, err := httputil.DumpResponse(response, true)
 		if err != nil {
-			l = l.With(zap.String("dumpError", err.Error()))
+			l = l.With(zap.String("responseDumpError", err.Error()))
 		} else {
-			l = l.With(zap.ByteString("dump", dump))
+			l = l.With(zap.ByteString("responseDump", dump))
 		}
 	}
 
