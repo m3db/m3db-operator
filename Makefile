@@ -37,13 +37,7 @@ mocks_output_dir     := generated/mocks
 mocks_rules_dir      := generated/mocks
 auto_gen             := scripts/auto-gen.sh
 
-BUILD           := $(abspath ./bin)
 LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-
-.PHONY: setup
-setup:
-	@echo "+ $@"
-	mkdir -p $(BUILD)
 
 .PHONY: lint
 lint:
@@ -154,7 +148,7 @@ clean-all: clean ## Clean-all cleans all build dependencies.
 	@rm -rf _tools/
 
 .PHONY: all
-all: clean kubernetes-gen lint metalint test-ci-unit
+all: clean-all kubernetes-gen lint metalint test-ci-unit
 	@echo "$@ successfully finished"
 
 .PHONY: dep-ensure
