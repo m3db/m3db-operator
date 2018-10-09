@@ -42,6 +42,6 @@ func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
-	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulDelete, "Deleted cluster "+ cluster.GetName())
+	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulDelete, "Deleted cluster "+cluster.GetName())
 	return nil
 }

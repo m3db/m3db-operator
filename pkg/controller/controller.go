@@ -458,7 +458,6 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 		c.logger.Info("recovered object from tombstone", zap.String("name", object.GetName()))
 	}
 
-
 	c.logger.Info("processing statefulset", zap.String("name", object.GetName()))
 
 	owner := metav1.GetControllerOf(object)

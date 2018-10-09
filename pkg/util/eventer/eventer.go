@@ -26,7 +26,7 @@ const (
 
 	// Delete events
 	EventReasonCreating         = "Creating"
-	EventReasonFailedCreate   = "FailedToCreate"
+	EventReasonFailedCreate     = "FailedToCreate"
 	EventReasonSuccessfulCreate = "SuccessfulCreate"
 
 	// Update events

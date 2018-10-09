@@ -34,8 +34,8 @@ import (
 	"github.com/m3db/m3x/ident"
 	corev1 "k8s.io/api/core/v1"
 
-	"go.uber.org/zap"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
+	"go.uber.org/zap"
 )
 
 const (
