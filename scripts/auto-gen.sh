@@ -44,9 +44,8 @@ mocks_cleanup_helper() {
 
     # NB(prateek): running mockclean makes mock-gen idempotent.
     # NB(xichen): mockclean should be run after the vendor path is stripped.
-    # NB(schallert): mockclean screws up our imports
-    # basePkg=$(echo $DIR | sed -e "s@${GOPATH}/src/@@g")
-    # mockclean -pkg $basePkg -out $FILE -in $FILE
+    basePkg=$(echo $DIR | sed -e "s@${GOPATH}/src/@@g")
+    mockclean -cleanup-selfref=false -pkg $basePkg -out $FILE -in $FILE
     gofmt -w $FILE
 }
 

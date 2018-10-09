@@ -86,14 +86,9 @@ test-ci-unit: install-ci-tools test-base verify-gen
 	$(codecov_push) $(coverfile)
 
 .PHONY: install-ci-tools
-install-ci-tools: install-vendor-dep install-codegen-tools dep-ensure install-mockgen
+install-ci-tools: install-codegen-tools dep-ensure install-mockgen
 	@echo "+ $@"
 	@which gocov > /dev/null || go get github.com/axw/gocov/gocov
-
-.PHONY: install-vendor-dep
-install-vendor-dep:
-	@echo "+ $@"
-	@which dep > /dev/null || (curl https://raw.githubusercontent.com/golang/dep/$(DEP_VERSION)/install.sh | DEP_RELEASE_TAG=$(DEP_VERSION) sh)
 
 # NB(prateek): cannot use retool for mock-gen, as mock-gen reflection mode requires
 # it's full source code be present in the GOPATH at runtime.
@@ -123,7 +118,7 @@ install-gometalinter:
 	./scripts/install-gometalinter.sh -b $(retool_bin_path) -d $(GOMETALINT_VERSION)
 
 .PHONY: install-proto-bin
-install-proto-bin: install-vendor-dep
+install-proto-bin: install-codegen-tools
 	@echo "+ $@, Installing protobuf binaries"
 	@echo Note: the protobuf compiler v3.0.0 can be downloaded from https://github.com/google/protobuf/releases or built from source at https://github.com/google/protobuf.
 	go install $(package_root)/$(vendor_prefix)/$(protoc_go_package)
@@ -142,8 +137,8 @@ mock-gen-no-deps:
 all-gen: mock-gen kubernetes-gen
 
 # Ensure base commit had up-to-date generated artifacts
-.PHONY: verify-all-gen
-verify-all-gen: mock-gen kubernetes-gen
+.PHONY: test-all-gen
+test-all-gen: all-gen
 	@test "$(shell git diff --exit-code --shortstat 2>/dev/null)" = "" || (git diff --exit-code && echo "Check git status, there are dirty files" && exit 1)
 	@test "$(shell git status --exit-code --porcelain 2>/dev/null | grep "^??")" = "" || (git status --exit-code --porcelain && echo "Check git status, there are untracked files" && exit 1)
 
@@ -164,9 +159,9 @@ all: clean kubernetes-gen lint metalint test-ci-unit
 	@echo "$@ successfully finished"
 
 .PHONY: dep-ensure
-dep-ensure: install-vendor-dep ## Run dep ensure to generate vendor directory
+dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 	@echo "+ $@"
-	dep ensure
+	PATH=$(retool_bin_path):$(PATH) dep ensure
 
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages

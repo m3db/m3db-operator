@@ -25,9 +25,11 @@
 package namespace
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	namespace "github.com/m3db/m3/src/dbnode/storage/namespace"
-	reflect "reflect"
+	"reflect"
+
+	"github.com/m3db/m3/src/dbnode/storage/namespace"
+
+	"github.com/golang/mock/gomock"
 )
 
 // MockClient is a mock of Client interface

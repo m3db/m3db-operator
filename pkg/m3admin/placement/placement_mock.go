@@ -25,11 +25,13 @@
 package placement
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	admin "github.com/m3db/m3/src/query/generated/proto/admin"
-	placementpb "github.com/m3db/m3cluster/generated/proto/placementpb"
-	placement "github.com/m3db/m3cluster/placement"
-	reflect "reflect"
+	"reflect"
+
+	"github.com/m3db/m3/src/query/generated/proto/admin"
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	"github.com/m3db/m3cluster/placement"
+
+	"github.com/golang/mock/gomock"
 )
 
 // MockClient is a mock of Client interface
