@@ -55,14 +55,8 @@ lint:
 metalint: install-metalinter install-linter-badtime
 	@($(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
-.PHONY: test-internal
-test-internal:
-	@echo "+ $@"
-	@which go-junit-report > /dev/null || go get -u github.com/sectioneight/go-junit-report
-	@$(VENDOR_ENV) $(test) $(coverfile) | tee $(test_log)
-
 .PHONY: test-xml
-test-xml: test-internal
+test-xml: test-base
 	@echo "+ $@"
 	go-junit-report < $(test_log) > $(junit_xml)
 	gocov convert $(coverfile) | gocov-xml > $(coverage_xml)
@@ -70,12 +64,12 @@ test-xml: test-internal
 	@rm $(coverfile) &> /dev/null
 
 .PHONY: test
-test: test-internal
+test: test-base
 	@echo "+ $@"
 	gocov convert $(coverfile) | gocov report
 
 .PHONY: testhtml
-testhtml: test-internal
+testhtml: test-base
 	@echo "+ $@"
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
