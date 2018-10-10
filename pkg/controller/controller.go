@@ -52,7 +52,6 @@ import (
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -98,7 +97,7 @@ type Controller struct {
 	podsSynced         cache.InformerSynced
 
 	workQueue workqueue.RateLimitingInterface
-	recorder  record.EventRecorder
+	recorder  eventer.Poster
 }
 
 // New creates new instance of Controller
@@ -177,7 +176,8 @@ func New(opts ...Option) (*Controller, error) {
 		namespaceClient: nsClient,
 
 		workQueue: workQueue,
-		recorder:  eventer.NewEventRecorder(kubeClient, logger, _controllerName),
+		// TODO(celina): figure out if we actually need a recorder for each namespace
+		recorder: eventer.NewEventRecorder(kubeClient, logger, "", _controllerName),
 	}
 
 	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -380,10 +380,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	if !cluster.Status.HasInitializedNamespace() {
 		updated, err := c.validateNamespaceWithStatus(cluster)
 		if err != nil {
-			eventer.PostWarningEvent(c.recorder,
-				cluster,
-				eventer.EventReasonFailedToUpdate,
-				"namespace not validated: %v", err.Error())
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "namespace not validated: %v", err.Error())
 			return err
 		}
 
@@ -391,7 +388,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		// will be.
 		if updated {
 			err = errors.New("re-enqueing cluster due to API update")
-			eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedToUpdate, err.Error())
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, err.Error())
 		}
 	}
 
@@ -403,7 +400,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 
 		if updated {
 			err = errors.New("re-enqueing cluster due to API update")
-			eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedToUpdate, err.Error())
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, err.Error())
 			return err
 		}
 	}
@@ -414,7 +411,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
-	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulUpdate, "Cluster update handled successfully")
+	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "Cluster update handled successfully")
 	return nil
 }
 
@@ -474,6 +471,6 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
-	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulUpdate, "StatefulSet update handled successfully")
+	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "StatefulSet update handled successfully")
 	return
 }

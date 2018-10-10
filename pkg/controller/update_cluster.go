@@ -51,7 +51,7 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 	if err != nil {
 		err = fmt.Errorf("error creating namespace: %v", err)
 		c.logger.Error(err.Error())
-		eventer.PostWarningEvent(c.recorder, cluster, eventer.EventReasonFailedCreate, err.Error())
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, err.Error())
 		return false, err
 	}
 
@@ -73,7 +73,7 @@ func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (b
 		Message: "Created namespace",
 	})
 
-	eventer.PostNormalEvent(c.recorder, cluster, eventer.EventReasonSuccessfulCreate, "Namespace created")
+	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulCreate, "Namespace created")
 
 	_, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
 	if err != nil {

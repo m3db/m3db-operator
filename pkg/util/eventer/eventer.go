@@ -35,63 +35,75 @@ import (
 const (
 
 	// Add events
-	EventReasonAdding        = "Adding"
-	EventReasonFailedToAdd   = "FailedToAdd"
-	EventReasonSuccessfulAdd = "SuccessfulAdd"
+	ReasonAdding        = "Adding"
+	ReasonFailedToAdd   = "FailedToAdd"
+	ReasonSuccessfulAdd = "SuccessfulAdd"
 
 	// Delete events
-	EventReasonDeleting         = "Deleting"
-	EventReasonFailedToDelete   = "FailedToDelete"
-	EventReasonSuccessfulDelete = "SuccessfulDelete"
+	ReasonDeleting         = "Deleting"
+	ReasonFailedToDelete   = "FailedToDelete"
+	ReasonSuccessfulDelete = "SuccessfulDelete"
 
-	// Delete events
-	EventReasonCreating         = "Creating"
-	EventReasonFailedCreate     = "FailedToCreate"
-	EventReasonSuccessfulCreate = "SuccessfulCreate"
+	// Create events
+	ReasonCreating         = "Creating"
+	ReasonFailedCreate     = "FailedToCreate"
+	ReasonSuccessfulCreate = "SuccessfulCreate"
 
 	// Update events
-	EventReasonUpdating         = "Updating"
-	EventReasonFailedToUpdate   = "FailedToUpdate"
-	EventReasonSuccessfulUpdate = "SuccessfulUpdate"
+	ReasonUpdating         = "Updating"
+	ReasonFailedToUpdate   = "FailedToUpdate"
+	ReasonSuccessfulUpdate = "SuccessfulUpdate"
 
 	// Sync events
-	EventReasonSyncing     = "Syncing"
-	EventReasonSuccessSync = "FailedToSync"
-	EventReasonFailSync    = "SuccessfulSync"
+	ReasonSyncing     = "Syncing"
+	ReasonSuccessSync = "FailedToSync"
+	ReasonFailSync    = "SuccessfulSync"
 
 	// Misc events
-	EventReasonLongerThanUsual = "TimeLongerThanUsual"
-	EventReasonUnknown         = "Unknown"
+	ReasonLongerThanUsual = "TimeLongerThanUsual"
+	ReasonUnknown         = "Unknown"
 )
+
+// Poster posts events accordingly to kind of behavior
+type Poster interface {
+	NormalEvent(object runtime.Object, reason, message string)
+	WarningEvent(object runtime.Object, reason, message string, args ...interface{})
+}
+
+type eventer struct {
+	recorder record.EventRecorder
+}
 
 // NewEventRecorder creates a new recorder to emit kubernetes events.
 func NewEventRecorder(
 	kubeClient kubernetes.Interface,
 	logger *zap.Logger,
-	component string) record.EventRecorder {
+	namespace, component string) Poster {
 
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(logger.Sugar().Infof)
 	broadcaster.StartRecordingToSink(
 		&typedcorev1.EventSinkImpl{
-			Interface: kubeClient.CoreV1().Events("")})
+			Interface: kubeClient.CoreV1().Events(namespace)})
 
-	return broadcaster.NewRecorder(
-		scheme.Scheme,
-		corev1.EventSource{Component: component})
+	return &eventer{
+		recorder: broadcaster.NewRecorder(
+			scheme.Scheme,
+			corev1.EventSource{Component: component}),
+	}
 }
 
-// PostNormalEvent posts an event of expected healthy behavior
-func PostNormalEvent(recorder record.EventRecorder, object runtime.Object, reason, message string) {
-	recorder.Eventf(object,
+// NormalEvent posts an event of expected healthy behavior
+func (e *eventer) NormalEvent(object runtime.Object, reason, message string) {
+	e.recorder.Event(object,
 		corev1.EventTypeNormal,
 		reason,
 		message)
 }
 
-// PostWarningEvent post an event of type errors or unexpectled possibly unhealthy behavior
-func PostWarningEvent(recorder record.EventRecorder, object runtime.Object, reason, message string, args ...interface{}) {
-	recorder.Eventf(object,
+// WarningEvent post an event of type errors or unexpectled possibly unhealthy behavior
+func (e *eventer) WarningEvent(object runtime.Object, reason, message string, args ...interface{}) {
+	e.recorder.Eventf(object,
 		corev1.EventTypeWarning,
 		reason,
 		message,
