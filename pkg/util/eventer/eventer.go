@@ -21,9 +21,9 @@
 package eventer
 
 import (
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -71,31 +71,48 @@ type Poster interface {
 }
 
 type eventer struct {
-	recorder record.EventRecorder
+	recorder  record.EventRecorder
+	logger    *zap.Logger
+	namespace string
+	component string
 }
 
 // NewEventRecorder creates a new recorder to emit kubernetes events.
 func NewEventRecorder(
 	kubeClient kubernetes.Interface,
-	logger *zap.Logger,
-	namespace, component string) Poster {
+	eventerOpts ...Option) Poster {
+
+	opts := &options{}
+	for _, o := range eventerOpts {
+		o.execute(opts)
+	}
+
+	e := &eventer{
+		logger:    opts.logger,
+		namespace: opts.namespace,
+		component: opts.component,
+	}
+
+	if e.logger == nil {
+		e.logger = zap.NewNop()
+	}
 
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartLogging(logger.Sugar().Infof)
+	broadcaster.StartLogging(e.logger.Sugar().Infof)
 	broadcaster.StartRecordingToSink(
 		&typedcorev1.EventSinkImpl{
-			Interface: kubeClient.CoreV1().Events(namespace)})
+			Interface: kubeClient.CoreV1().Events(e.namespace)})
 
-	return &eventer{
-		recorder: broadcaster.NewRecorder(
-			scheme.Scheme,
-			corev1.EventSource{Component: component}),
-	}
+	e.recorder = broadcaster.NewRecorder(
+		scheme.Scheme,
+		corev1.EventSource{Component: e.component})
+
+	return e
 }
 
 // NormalEvent posts an event of expected healthy behavior
 func (e *eventer) NormalEvent(object runtime.Object, reason, message string) {
-	e.recorder.Event(object,
+	e.recorder.Eventf(object,
 		corev1.EventTypeNormal,
 		reason,
 		message)

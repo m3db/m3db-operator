@@ -55,7 +55,11 @@ func TestWarningEvent(t *testing.T) {
 }
 
 func testNewEventRecorder(t *testing.T) Poster {
-	testEventer := NewEventRecorder(kubeFake.NewSimpleClientset(), zap.NewNop(), "test", "testy")
+	testEventer := NewEventRecorder(
+		kubeFake.NewSimpleClientset(),
+		WithLogger(zap.NewNop()),
+		WithNamespace("test"),
+		WithComponent("testy"))
 	require.NotNil(t, testEventer)
 	return testEventer
 }
