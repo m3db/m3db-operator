@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Uber Technologies, Inc.
+// Copyright (c) 2016 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,32 +18,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package controller
+package eventer
 
-import (
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
-)
+import "go.uber.org/zap"
 
-func (c *Controller) deleteM3DBCluster(cluster *myspec.M3DBCluster) error {
-	if err := c.namespaceClient.Delete(cluster.GetObjectMeta().GetName()); err != nil {
-		return err
-	}
-	if err := c.placementClient.Delete(); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteStatefulSets(cluster, c.k8sclient.LabelSelector("cluster", cluster.GetName())); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteService(cluster, _M3DBSvcName); err != nil {
-		return err
-	}
-	if err := c.k8sclient.DeleteService(cluster, _M3CoordinatorSvcName); err != nil {
-		return err
-	}
+// Option provides configuration of an eventer.
+type Option interface {
+	execute(*options)
+}
 
-	// TODO(cward): eventually move this to where the function is called so cluster.GetName() isn't lost
-	// and we can a warning event to the error message
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulDelete, "Deleted cluster "+cluster.GetName())
-	return nil
+type options struct {
+	logger    *zap.Logger
+	namespace string
+	component string
+}
+
+type optionFn func(o *options)
+
+func (fn optionFn) execute(o *options) {
+	fn(o)
+}
+
+// WithLogger sets a logger for the eventer. If not set a noop logger will
+// be used.
+func WithLogger(l *zap.Logger) Option {
+	return optionFn(func(o *options) {
+		o.logger = l
+	})
+}
+
+// WithNamespace sets a namespace for the eventer.
+func WithNamespace(ns string) Option {
+	return optionFn(func(o *options) {
+		o.namespace = ns
+	})
+}
+
+// WithComponent sets a component for the eventer.
+func WithComponent(c string) Option {
+	return optionFn(func(o *options) {
+		o.component = c
+	})
 }
