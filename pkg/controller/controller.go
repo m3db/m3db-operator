@@ -177,7 +177,7 @@ func New(opts ...Option) (*Controller, error) {
 
 		workQueue: workQueue,
 		// TODO(celina): figure out if we actually need a recorder for each namespace
-		recorder: eventer.NewEventRecorder(kubeClient, logger, "", _controllerName),
+		recorder: eventer.NewEventRecorder(kubeClient, eventer.WithLogger(logger), eventer.WithComponent(_controllerName)),
 	}
 
 	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
