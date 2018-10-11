@@ -20,7 +20,10 @@
 
 package eventer
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
+)
 
 // Option provides configuration of an eventer.
 type Option interface {
@@ -28,15 +31,23 @@ type Option interface {
 }
 
 type options struct {
-	logger    *zap.Logger
-	namespace string
-	component string
+	kubeClient kubernetes.Interface
+	logger     *zap.Logger
+	namespace  string
+	component  string
 }
 
 type optionFn func(o *options)
 
 func (fn optionFn) execute(o *options) {
 	fn(o)
+}
+
+// WithClient sets a client for the eventer (required).
+func WithClient(c kubernetes.Interface) Option {
+	return optionFn(func(o *options) {
+		o.kubeClient = c
+	})
 }
 
 // WithLogger sets a logger for the eventer. If not set a noop logger will

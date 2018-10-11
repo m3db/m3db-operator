@@ -154,6 +154,11 @@ func New(opts ...Option) (*Controller, error) {
 
 	workQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), _workQueueName)
 
+	r, err := eventer.NewEventRecorder(eventer.WithClient(kubeClient), eventer.WithLogger(logger), eventer.WithComponent(_controllerName))
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Controller{
 		lock:      &sync.Mutex{},
 		logger:    logger,
@@ -177,7 +182,7 @@ func New(opts ...Option) (*Controller, error) {
 
 		workQueue: workQueue,
 		// TODO(celina): figure out if we actually need a recorder for each namespace
-		recorder: eventer.NewEventRecorder(kubeClient, eventer.WithLogger(logger), eventer.WithComponent(_controllerName)),
+		recorder: r,
 	}
 
 	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
