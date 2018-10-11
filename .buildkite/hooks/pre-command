@@ -10,6 +10,6 @@ else
   echo "No \$GIMME_GO_VERSION set, skipping..."
 fi
 
-echo "---- :buildkite: :codecov: environment variables"
+echo "--- :buildkite: :codecov: environment variables"
 export CI="true" # required by codecov.sh
 export CODECOV_TOKEN="$CODECOV_TOKEN_M3DB_OPERATOR"
