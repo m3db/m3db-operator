@@ -40,10 +40,9 @@ auto_gen             := scripts/auto-gen.sh
 LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
 .PHONY: lint
-lint:
+lint: install-codegen-tools
 	@echo "+ $@"
-	@which golint > /dev/null || go get -u github.com/golang/lint/golint
-	$(VENDOR_ENV) $(lint_check)
+	PATH=$(retool_bin_path):$(PATH) $(lint_check)
 
 .PHONY: metalint
 metalint: install-metalinter install-linter-badtime
