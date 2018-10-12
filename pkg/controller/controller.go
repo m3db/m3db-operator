@@ -27,21 +27,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kubernetes/utils/pointer"
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
-
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
-
-	"github.com/uber-go/tally"
-	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,13 +45,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/kubernetes/utils/pointer"
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
 )
 
 const (
@@ -386,7 +384,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 			return err
 		}
 
-		sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
+		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
 		if err != nil {
 			c.logger.Error(err.Error())
 			return err
@@ -572,5 +570,4 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
 	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "StatefulSet update handled successfully")
-	return
 }

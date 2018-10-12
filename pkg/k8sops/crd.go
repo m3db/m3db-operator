@@ -27,7 +27,6 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspecv1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
-	"go.uber.org/zap"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +35,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
+
+	"go.uber.org/zap"
 )
 
 // ListM3DBCluster  will list all the CRDS for M3DBClusters in all namespaces

@@ -4,5 +4,7 @@ set -exuo pipefail
 
 export PACKAGE=github.com/m3db/m3db-operator
 
+echo "--- :git: Updating git submodules"
 git submodule update --init --recursive
-make clean-all test-ci-unit lint test-all-gen build-bin
+echo "--- Running unit tests"
+make clean-all test-ci-unit lint metalint test-all-gen build-bin

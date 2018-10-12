@@ -26,10 +26,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	retryhttp "github.com/hashicorp/go-retryablehttp"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
+
+	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -24,19 +24,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	"github.com/m3db/m3cluster/placement"
-	"github.com/m3db/m3cluster/shard"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	pkgplacement "github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	"github.com/m3db/m3cluster/placement"
+	"github.com/m3db/m3cluster/shard"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestSetPodBootstrappingStatus(t *testing.T) {

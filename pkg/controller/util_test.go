@@ -29,10 +29,11 @@ import (
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 
-	"go.uber.org/zap"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
+
+	"go.uber.org/zap"
 )
 
 func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {

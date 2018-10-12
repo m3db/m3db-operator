@@ -21,11 +21,11 @@
 package v1
 
 import (
+	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 )
 
 // SchemeGroupVersion is group version used to register these objects

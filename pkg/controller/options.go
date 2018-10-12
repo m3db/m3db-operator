@@ -26,7 +26,6 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
-
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
