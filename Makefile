@@ -118,10 +118,12 @@ install-proto-bin: install-codegen-tools
 .PHONY: mock-gen
 mock-gen: install-ci-tools mock-gen-no-deps
 	@echo "+ $@"
+	@echo "--- Generating mocks"
 
 .PHONY: license-gen
 license-gen:
 	@echo "+ $@"
+	@echo "--- :apache: Generating license headers"
 	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
 
 .PHONY: mock-gen-no-deps
@@ -165,6 +167,7 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "+ $@"
+	@echo "--- Generating Kubernetes resources"
 	@./hack/update-generated.sh
 
 .PHONY: verify-gen
