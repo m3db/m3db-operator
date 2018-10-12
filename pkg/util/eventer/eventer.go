@@ -67,7 +67,7 @@ const (
 
 // Poster posts events accordingly to kind of behavior
 type Poster interface {
-	NormalEvent(object runtime.Object, reason, message string)
+	NormalEvent(object runtime.Object, reason, message string, args ...interface{})
 	WarningEvent(object runtime.Object, reason, message string, args ...interface{})
 }
 
@@ -117,11 +117,12 @@ func NewEventRecorder(eventerOpts ...Option) (Poster, error) {
 }
 
 // NormalEvent posts an event of expected healthy behavior
-func (e *eventer) NormalEvent(object runtime.Object, reason, message string) {
+func (e *eventer) NormalEvent(object runtime.Object, reason, message string, args ...interface{}) {
 	e.recorder.Eventf(object,
 		corev1.EventTypeNormal,
 		reason,
-		message)
+		message,
+		args)
 }
 
 // WarningEvent post an event of type errors or unexpectled possibly unhealthy behavior
