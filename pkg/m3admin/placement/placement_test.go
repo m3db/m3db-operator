@@ -21,6 +21,7 @@
 package placement
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,6 +30,7 @@ import (
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,6 +82,15 @@ func TestDeleteErr(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(400)
+			return
+		}
+
+		const expected = `{"instances":[{"id":"a"}]}`
+		assert.Equal(t, expected, string(bytes))
+
 		w.WriteHeader(200)
 		w.Write([]byte("{}"))
 	}))
@@ -87,7 +98,7 @@ func TestAdd(t *testing.T) {
 	defer s.Close()
 	client := newPlacementClient(t, s.URL)
 
-	err := client.Add(placementpb.Instance{})
+	err := client.Add(placementpb.Instance{Id: "a"})
 	require.Nil(t, err)
 }
 
