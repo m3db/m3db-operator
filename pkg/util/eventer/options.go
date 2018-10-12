@@ -21,8 +21,9 @@
 package eventer
 
 import (
-	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
+
+	"go.uber.org/zap"
 )
 
 // Option provides configuration of an eventer.

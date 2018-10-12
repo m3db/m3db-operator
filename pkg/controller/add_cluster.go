@@ -24,30 +24,24 @@ import (
 	"errors"
 	"fmt"
 
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3x/ident"
+
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
 	"go.uber.org/zap"
 )
 
 const (
 	// defaults for placement init request
 	_defaultM3DBPort = 9000
-
-	_failedToInitM3DB = "m3 db failed to initialize"
-	_initialzingM3DB  = "m3 db is initializing"
-	_upAndRunningM3DB = "m3 db is up and running"
-
-	_M3DBSvcName          = "m3dbnode"
-	_M3CoordinatorSvcName = "m3coordinator"
 )
 
 // EnsurePlacement ensures that a placement exists otherwise create one

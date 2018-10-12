@@ -24,12 +24,14 @@ import (
 	"testing"
 
 	"github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 var (

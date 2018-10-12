@@ -22,14 +22,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
-
-	"go.uber.org/zap/zapcore"
 
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
@@ -39,15 +38,17 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
-	"github.com/uber-go/tally"
-	promreporter "github.com/uber-go/tally/prometheus"
-	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/uber-go/tally"
+	promreporter "github.com/uber-go/tally/prometheus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -78,7 +79,6 @@ func init() {
 
 func main() {
 	var cfg zap.Config
-	var err error
 	if _develLog {
 		cfg = zap.NewDevelopmentConfig()
 		cfg.DisableStacktrace = true
@@ -91,6 +91,10 @@ func main() {
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 	}
 	logger, err := cfg.Build()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error building logger: %v", err)
+		os.Exit(1)
+	}
 
 	defer logger.Sync()
 

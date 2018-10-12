@@ -15,6 +15,14 @@
     {
       "Repository": "golang.org/x/lint/golint",
       "Commit": "5906bd5c48cd840279ace88b165057fbbd7fb35a"
+    },
+    {
+      "Repository": "github.com/m3db/build-tools/linters/badtime",
+      "Commit": "294ebc8b60b6758a4fe1b0921fb10630db16a5bf"
+    },
+    {
+      "Repository": "github.com/m3db/build-tools/linters/importorder",
+      "Commit": "294ebc8b60b6758a4fe1b0921fb10630db16a5bf"
     }
   ],
   "RetoolVersion": "1.3.7"

@@ -28,12 +28,13 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 
-	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
+
+	"go.uber.org/zap"
 )
 
 func newFakeK8sops() (K8sops, error) {

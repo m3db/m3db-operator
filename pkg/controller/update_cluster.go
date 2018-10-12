@@ -29,19 +29,15 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
-	"go.uber.org/zap"
 
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/placement"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
-)
 
-const (
-	_zoneEmbedded = "embedded"
+	"go.uber.org/zap"
 )
 
 // Ensure a given namespace exists and update its last updated time. Returns a
@@ -223,7 +219,7 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	}
 
 	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
-	cluster, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
+	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
 	if err != nil {
 		err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
 		c.logger.Error(err.Error())
@@ -238,13 +234,5 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	}
 
 	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
-	return nil
-}
-
-func (c *Controller) findCandidateRemovalPod(set *appsv1.StatefulSet) error {
-	return nil
-}
-
-func (c *Controller) removePodFromPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
 	return nil
 }

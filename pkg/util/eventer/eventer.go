@@ -21,15 +21,16 @@
 package eventer
 
 import (
-	corev1 "k8s.io/api/core/v1"
-
 	"fmt"
-	"go.uber.org/zap"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/record"
+
+	"go.uber.org/zap"
 )
 
 // Types of kubernetes emitted events
