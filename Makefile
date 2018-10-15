@@ -42,19 +42,17 @@ LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
 .PHONY: lint
 lint: install-codegen-tools
-	@echo "+ $@"
-	@echo "--- Running linter"
+	@echo "--- $@"
 	PATH=$(retool_bin_path):$(PATH) $(lint_check)
 
 .PHONY: metalint
 metalint: install-codegen-tools dep-ensure install-gometalinter
-	@echo "+ $@"
-	@echo "--- Running metalinter"
+	@echo "--- $@"
 	@(PATH=$(retool_bin_path):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
 .PHONY: test-xml
 test-xml: test-base
-	@echo "+ $@"
+	@echo "--- $@"
 	go-junit-report < $(test_log) > $(junit_xml)
 	gocov convert $(coverfile) | gocov-xml > $(coverage_xml)
 	@$(convert-test-data) $(coverage_xml)
@@ -62,31 +60,30 @@ test-xml: test-base
 
 .PHONY: test
 test: test-base
-	@echo "+ $@"
+	@echo "--- $@"
 	gocov convert $(coverfile) | gocov report
 
 .PHONY: testhtml
 testhtml: test-base
-	@echo "+ $@"
+	@echo "--- $@"
 	gocov convert $(coverfile) | gocov-html > $(html_report) && open $(html_report)
 	@rm -f $(test_log) &> /dev/null
 
 .PHONY: test-ci-unit
 test-ci-unit: install-ci-tools test-base verify-gen
-	@echo "+ $@"
-	@echo "--- Pushing to codecov"
+	@echo "--- $@"
 	$(codecov_push) $(coverfile)
 
 .PHONY: install-ci-tools
 install-ci-tools: install-codegen-tools dep-ensure install-mockgen
-	@echo "+ $@"
+	@echo "--- $@"
 	@which gocov > /dev/null || go get github.com/axw/gocov/gocov
 
 # NB(prateek): cannot use retool for mock-gen, as mock-gen reflection mode requires
 # it's full source code be present in the GOPATH at runtime.
 .PHONY: install-mockgen
 install-mockgen:
-	@echo Installing mockgen
+	@echo "--- $@"
 	@which mockgen >/dev/null || (                                                     \
 		rm -rf $(gopath_prefix)/$(mockgen_package)                                    && \
 		mkdir -p $(shell dirname $(gopath_prefix)/$(mockgen_package))                 && \
@@ -100,35 +97,34 @@ install-retool:
 
 .PHONY: install-codegen-tools
 install-codegen-tools: install-retool
-	@echo "Installing retool dependencies"
+	@echo "--- Installing retool dependencies"
 	@retool sync >/dev/null 2>/dev/null
 	@retool build >/dev/null 2>/dev/null
 
 .PHONY: install-gometalinter
 install-gometalinter:
 	@mkdir -p $(retool_bin_path)
+	@echo "--- Installing gometalinter"
 	./scripts/install-gometalinter.sh -b $(retool_bin_path) -d $(GOMETALINT_VERSION)
 
 .PHONY: install-proto-bin
 install-proto-bin: install-codegen-tools
-	@echo "+ $@, Installing protobuf binaries"
+	@echo "--- $@, Installing protobuf binaries"
 	@echo Note: the protobuf compiler v3.0.0 can be downloaded from https://github.com/google/protobuf/releases or built from source at https://github.com/google/protobuf.
 	go install $(package_root)/$(vendor_prefix)/$(protoc_go_package)
 
 .PHONY: mock-gen
 mock-gen: install-ci-tools mock-gen-no-deps
-	@echo "+ $@"
-	@echo "--- Generating mocks"
+	@echo "--- $@"
 
 .PHONY: license-gen
 license-gen:
-	@echo "+ $@"
-	@echo "--- :apache: Generating license headers"
+	@echo "--- :apache: $@"
 	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
 
 .PHONY: mock-gen-no-deps
 mock-gen-no-deps:
-	@echo "+ $@"
+	@echo "--- $@"
 	@echo generating mocks
 	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
@@ -150,7 +146,7 @@ clean:
 
 .PHONY: clean-all
 clean-all: clean ## Clean-all cleans all build dependencies.
-	@echo "+ $@"
+	@echo "--- $@"
 	@go clean
 	@rm -rf vendor/
 	@rm -rf _tools/
@@ -161,13 +157,12 @@ all: clean-all kubernetes-gen lint metalint test-ci-unit
 
 .PHONY: dep-ensure
 dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
-	@echo "+ $@"
+	@echo "--- $@"
 	PATH=$(retool_bin_path):$(PATH) dep ensure
 
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
-	@echo "+ $@"
-	@echo "--- Generating Kubernetes resources"
+	@echo "--- $@"
 	@./hack/update-generated.sh
 
 .PHONY: verify-gen
@@ -176,14 +171,14 @@ verify-gen: dep-ensure ## Ensure all codegen is up to date
 
 .PHONY: build-bin
 build-bin: out ## Build m3db-operator binary
-	@echo "+ $@"
+	@echo "--- $@"
 	@which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
 	@echo "building $(PROJECT_NAME)..."
 	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
-	@echo "+ $@"
+	@echo "--- $@"
 	@./build/build-docker.sh
 
 .PHONY: publish-helm-charts

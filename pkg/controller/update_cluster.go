@@ -21,7 +21,11 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
@@ -33,6 +37,7 @@ import (
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/placement"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -235,4 +240,108 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 
 	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
 	return nil
+}
+
+// expandPlacementForSet takes a StatefulSet that has pods in it which need to
+// be added to the placement and chooses a pod to expand to the placement.
+func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet,
+	group myspec.IsolationGroup, placement placement.Placement) error {
+
+	existInsts := instancesInIsoGroup(placement, group.Name)
+	if len(existInsts) >= int(group.NumInstances) {
+		c.logger.Warn("not expanding set, already at desired capacity",
+			zap.Int32("groupSize", group.NumInstances),
+			zap.Int("instsInGroup", len(existInsts)))
+		return nil
+	}
+
+	if set.Status.ReadyReplicas < group.NumInstances {
+		c.logger.Error("cannot expand set, ready replicas < desired",
+			zap.Int32("ready", set.Status.ReadyReplicas),
+			zap.Int32("desired", group.NumInstances))
+		return fmt.Errorf("cannot expand set '%s', not yet ready", set.Name)
+	}
+
+	selector := klabels.SelectorFromSet(set.Labels)
+	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods {
+		_, ok := placement.Instance(pod.Name)
+		if !ok {
+			return c.addPodToPlacement(cluster, pod, placement)
+		}
+	}
+
+	return errors.New("could not find pod absent from placement")
+}
+
+// shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and
+// removes the last pod in the StatefulSet from the active placement, enabling
+// the StatefulSet size to be decreased once the remove completes.
+func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet) error {
+	selector := klabels.SelectorFromSet(set.Labels)
+	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
+	if err != nil {
+		c.logger.Error("error listing pods", zap.Error(err))
+		return err
+	}
+
+	removePod, err := findPodToRemove(pods)
+	if err != nil {
+		c.logger.Error("error finding pod to remove", zap.Error(err))
+		return err
+	}
+
+	c.logger.Info("removing pod from placement", zap.String("pod", removePod.Name))
+	return c.placementClient.Remove(removePod.Name)
+}
+
+// podID encapsulates a pod and its ordinal ID to facilitate sorting a list of
+// pod names by ID and easily keeping a reference to the original pod.
+type podID struct {
+	pod *corev1.Pod
+	id  int
+}
+
+// byPodID supports sorting a list of statefulset pods by their ordinal ID.
+type byPodID []podID
+
+func (names byPodID) Len() int           { return len(names) }
+func (names byPodID) Swap(i, j int)      { names[i], names[j] = names[j], names[i] }
+func (names byPodID) Less(i, j int) bool { return names[i].id < names[j].id }
+
+// findPodToRemove returns the pod name with the highest ordinal number in the
+// stateful set so that we remove from the placement the pod that will be
+// deleted when the set size is scaled down.
+func findPodToRemove(pods []*corev1.Pod) (*corev1.Pod, error) {
+	if len(pods) == 0 {
+		return nil, errors.New("cannot find removal candidate in empty list")
+	}
+
+	podIDs := make([]podID, len(pods))
+	for i, pod := range pods {
+		parts := strings.Split(pod.Name, "-")
+		if len(parts) == 0 {
+			return nil, fmt.Errorf("invalid pod name '%s'", pod.Name)
+		}
+
+		id := parts[len(parts)-1]
+		idN, err := strconv.Atoi(id)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing pod '%s' ID: %v", pod.Name, err)
+		}
+
+		podIDs[i] = podID{
+			pod: pod,
+			id:  idN,
+		}
+	}
+
+	sort.Sort(byPodID(podIDs))
+	lastPod := podIDs[len(podIDs)-1].pod
+
+	return lastPod, nil
 }

@@ -21,21 +21,48 @@
 package placement
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	m3placement "github.com/m3db/m3cluster/placement"
+	"net/url"
+
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
+	"go.uber.org/zap"
 )
 
-// Client provides the interface to interact with the placement API
-type Client interface {
-	// Init will initialize a placement give a valid placement request
-	Init(request *admin.PlacementInitRequest) error
-	// Get will provide the current placement
-	Get() (placement m3placement.Placement, err error)
-	// Delete will delete the current placment
-	Delete() error
-	// Add will add an instance to the placement
-	Add(instance placementpb.Instance) error
-	// Remove removes a given instance with the given ID from the placement.
-	Remove(id string) error
+// Option provides an interface that can be used for setter options with the
+// constructor
+type Option interface {
+	execute(*placementClient) error
+}
+
+type optionFn func(p *placementClient) error
+
+func (fn optionFn) execute(p *placementClient) error {
+	return fn(p)
+}
+
+// WithURL is a setter to override the default URL
+func WithURL(u string) Option {
+	return optionFn(func(p *placementClient) error {
+		if _, err := url.ParseRequestURI(u); err != nil {
+			return err
+		}
+		p.url = u
+		return nil
+	})
+}
+
+// WithLogger is a setter to override the default logger
+func WithLogger(logger *zap.Logger) Option {
+	return optionFn(func(p *placementClient) error {
+		p.logger = logger
+		return nil
+	})
+}
+
+// WithClient configures an m3admin client.
+func WithClient(cl m3admin.Client) Option {
+	return optionFn(func(p *placementClient) error {
+		p.client = cl
+		return nil
+	})
 }

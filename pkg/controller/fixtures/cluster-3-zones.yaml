@@ -1,0 +1,24 @@
+---
+apiVersion: operator.m3db.io/v1
+kind: M3DBCluster
+metadata:
+  name: cluster-zones
+  namespace: fake
+spec:
+  image: foo/m3dbnode:latest
+  replicationFactor: 3
+  numberOfShards: 8
+  isolationGroups:
+    - name: us-fake1-a
+      numInstances: 3
+    - name: us-fake1-b
+      numInstances: 3
+    - name: us-fake1-c
+      numInstances: 3
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: '1'
+    limits:
+      memory: 2Gi
+      cpu: '2'

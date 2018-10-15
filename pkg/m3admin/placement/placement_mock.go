@@ -105,3 +105,15 @@ func (m *MockClient) Add(instance placementpb.Instance) error {
 func (mr *MockClientMockRecorder) Add(instance interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), instance)
 }
+
+// Remove mocks base method
+func (m *MockClient) Remove(id string) error {
+	ret := m.ctrl.Call(m, "Remove", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Remove indicates an expected call of Remove
+func (mr *MockClientMockRecorder) Remove(id interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockClient)(nil).Remove), id)
+}

@@ -21,21 +21,34 @@
 package placement
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	m3placement "github.com/m3db/m3cluster/placement"
+	"testing"
+
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
-// Client provides the interface to interact with the placement API
-type Client interface {
-	// Init will initialize a placement give a valid placement request
-	Init(request *admin.PlacementInitRequest) error
-	// Get will provide the current placement
-	Get() (placement m3placement.Placement, err error)
-	// Delete will delete the current placment
-	Delete() error
-	// Add will add an instance to the placement
-	Add(instance placementpb.Instance) error
-	// Remove removes a given instance with the given ID from the placement.
-	Remove(id string) error
+func TestOptions(t *testing.T) {
+	client := &placementClient{}
+
+	opt := WithURL("...")
+	assert.Error(t, opt.execute(client))
+
+	const url = "http://localhost:1234"
+	l := zap.NewNop()
+	m3cl := m3admin.NewClient()
+	opts := []Option{
+		WithURL(url),
+		WithLogger(l),
+		WithClient(m3cl),
+	}
+
+	for _, opt := range opts {
+		assert.NoError(t, opt.execute(client))
+	}
+
+	assert.Equal(t, l, client.logger)
+	assert.Equal(t, m3cl, client.client)
+	assert.Equal(t, url, client.url)
 }
