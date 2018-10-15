@@ -51,7 +51,7 @@ func WithLogger(l *zap.Logger) Option {
 
 // WithHTTPClient configures an http client for the m3admin client. If not set,
 // go-retryablehttp's default client will be used. Note that the retry client's
-// logger will be overriden with the stdlog-wrapped wrapped zap logger.
+// logger will be overridden with the stdlog-wrapped wrapped zap logger.
 func WithHTTPClient(cl *retryhttp.Client) Option {
 	return optionFn(func(o *options) {
 		o.client = cl

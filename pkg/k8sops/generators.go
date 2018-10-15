@@ -56,7 +56,6 @@ var (
 	_configurationFileLocation = fmt.Sprintf("%s%s", _configurationDirectory, _configurationFileName)
 
 	errEmptyClusterName = errors.New("cluster name cannot be empty")
-	errNilCluster       = errors.New("cluster cannot be nil")
 )
 
 type m3dbPort struct {

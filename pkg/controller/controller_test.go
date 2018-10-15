@@ -26,7 +26,6 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/stretchr/testify/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +34,8 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {

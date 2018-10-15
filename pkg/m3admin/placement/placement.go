@@ -28,18 +28,15 @@ import (
 	"io/ioutil"
 	"net/url"
 
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	m3placement "github.com/m3db/m3cluster/placement"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
-)
-
-const (
-	_defaultPlacementURI = "/api/v1/placement"
 )
 
 type placementClient struct {

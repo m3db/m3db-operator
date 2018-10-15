@@ -23,10 +23,10 @@ package k8sops
 import (
 	"fmt"
 
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+
+	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
 	corev1 "k8s.io/api/core/v1"
 )

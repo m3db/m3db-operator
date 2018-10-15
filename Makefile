@@ -36,17 +36,21 @@ mockgen_package      := github.com/golang/mock/mockgen
 mocks_output_dir     := generated/mocks
 mocks_rules_dir      := generated/mocks
 auto_gen             := scripts/auto-gen.sh
+GOMETALINT_VERSION   := v2.0.5
 
 LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
 .PHONY: lint
 lint: install-codegen-tools
 	@echo "+ $@"
+	@echo "--- Running linter"
 	PATH=$(retool_bin_path):$(PATH) $(lint_check)
 
 .PHONY: metalint
-metalint: install-metalinter install-linter-badtime
-	@($(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
+metalint: install-codegen-tools dep-ensure install-gometalinter
+	@echo "+ $@"
+	@echo "--- Running metalinter"
+	@(PATH=$(retool_bin_path):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
 .PHONY: test-xml
 test-xml: test-base
@@ -70,6 +74,7 @@ testhtml: test-base
 .PHONY: test-ci-unit
 test-ci-unit: install-ci-tools test-base verify-gen
 	@echo "+ $@"
+	@echo "--- Pushing to codecov"
 	$(codecov_push) $(coverfile)
 
 .PHONY: install-ci-tools
@@ -113,10 +118,12 @@ install-proto-bin: install-codegen-tools
 .PHONY: mock-gen
 mock-gen: install-ci-tools mock-gen-no-deps
 	@echo "+ $@"
+	@echo "--- Generating mocks"
 
 .PHONY: license-gen
 license-gen:
 	@echo "+ $@"
+	@echo "--- :apache: Generating license headers"
 	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
 
 .PHONY: mock-gen-no-deps
@@ -160,6 +167,7 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "+ $@"
+	@echo "--- Generating Kubernetes resources"
 	@./hack/update-generated.sh
 
 .PHONY: verify-gen

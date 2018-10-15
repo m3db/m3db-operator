@@ -23,13 +23,10 @@ package k8sops
 import (
 	genclient "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 
-	"go.uber.org/zap"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
-)
 
-var (
-	initContainerClusterVersionMin = []int{1, 8}
+	"go.uber.org/zap"
 )
 
 // Option provides an interface that can be used for setter options with the

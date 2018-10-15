@@ -26,24 +26,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"time"
+
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	ns "github.com/m3db/m3/src/dbnode/storage/namespace"
 	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
 )
 
 const (
-	_httpTimeout = time.Duration(30) * time.Second
-
 	// TODO(PS) add to spec for crd?
 	// defaults for namespace creation
-	_defaultName                                                     = "default"
 	_defaultBootstrapEnabled                                         = true
 	_defaultFlushEnabled                                             = true
 	_defaultWritesToCommitLog                                        = true
