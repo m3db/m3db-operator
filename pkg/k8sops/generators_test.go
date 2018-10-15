@@ -25,6 +25,7 @@ import (
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,27 +63,6 @@ func TestGenerateCRD(t *testing.T) {
 	require.Equal(t, crd, newCRD)
 }
 
-func TestGenerateBaseLabels(t *testing.T) {
-	cluster := &myspec.M3DBCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "cluster-foo",
-		},
-	}
-
-	labels := GenerateBaseLabels(cluster)
-	expLabels := map[string]string{
-		"app":     "m3db",
-		"cluster": "cluster-foo",
-	}
-
-	assert.Equal(t, expLabels, labels)
-
-	cluster.Spec.Labels = map[string]string{"foo": "bar"}
-	labels = GenerateBaseLabels(cluster)
-	expLabels["foo"] = "bar"
-	assert.Equal(t, expLabels, labels)
-}
-
 func TestGenerateStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	clusterSpec := fixture.Spec
@@ -117,11 +97,11 @@ func TestGenerateStatefulSet(t *testing.T) {
 	}
 
 	labels := map[string]string{
-		"cluster":         clusterName,
-		"app":             "m3db",
-		"component":       "m3dbnode",
-		"stateful-set":    ssName,
-		"isolation-group": "us-fake1-a",
+		"operator.m3db.io/cluster":         clusterName,
+		"operator.m3db.io/app":             "m3db",
+		"operator.m3db.io/component":       "m3dbnode",
+		"operator.m3db.io/stateful-set":    ssName,
+		"operator.m3db.io/isolation-group": "us-fake1-a",
 	}
 
 	ss := &appsv1.StatefulSet{
@@ -272,9 +252,9 @@ func TestGenerateM3DBService(t *testing.T) {
 	assert.NotNil(t, svc)
 
 	baseLabels := map[string]string{
-		_labelCluster:   cluster.Name,
-		_labelApp:       _labelAppValue,
-		_labelComponent: _componentM3DBNode,
+		labels.Cluster:   cluster.Name,
+		labels.App:       labels.AppM3DB,
+		labels.Component: labels.ComponentM3DBNode,
 	}
 
 	expSvc := &v1.Service{
@@ -305,15 +285,15 @@ func TestGenerateCoordinatorService(t *testing.T) {
 	assert.NotNil(t, svc)
 
 	selectLabels := map[string]string{
-		_labelCluster:   cluster.Name,
-		_labelApp:       _labelAppValue,
-		_labelComponent: _componentM3DBNode,
+		labels.Cluster:   cluster.Name,
+		labels.App:       labels.AppM3DB,
+		labels.Component: labels.ComponentM3DBNode,
 	}
 
 	svcLabels := map[string]string{
-		_labelCluster:   cluster.Name,
-		_labelApp:       _labelAppValue,
-		_labelComponent: _componentCoordinator,
+		labels.Cluster:   cluster.Name,
+		labels.App:       labels.AppM3DB,
+		labels.Component: labels.ComponentCoordinator,
 	}
 
 	expSvc := &v1.Service{

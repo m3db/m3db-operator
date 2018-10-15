@@ -26,6 +26,7 @@ import (
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -37,9 +38,9 @@ const (
 // PlacementInstanceFromPod creates a new m3cluster placement instance given a
 // pod spec.
 func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod) (*placementpb.Instance, error) {
-	isoGroup, ok := pod.ObjectMeta.Labels[_labelIsolationGroup]
+	isoGroup, ok := pod.ObjectMeta.Labels[labels.IsolationGroup]
 	if !ok {
-		return nil, fmt.Errorf("could not find label %s in %v", _labelIsolationGroup, pod.ObjectMeta.Labels)
+		return nil, fmt.Errorf("could not find label %s in %v", labels.IsolationGroup, pod.ObjectMeta.Labels)
 	}
 
 	setService := HeadlessServiceName(cluster.Name)

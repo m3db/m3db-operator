@@ -18,47 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package labels
 
 import (
 	"testing"
 
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
-func TestPlacementInstanceFromPod(t *testing.T) {
-	cluster := &myspec.M3DBCluster{}
-	pod := &corev1.Pod{
+func TestGenerateBaseLabels(t *testing.T) {
+	cluster := &myspec.M3DBCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{},
+			Name: "cluster-foo",
 		},
 	}
 
-	_, err := PlacementInstanceFromPod(cluster, pod)
-	assert.Error(t, err)
-
-	cluster.ObjectMeta.Name = "cluster-a"
-	pod.ObjectMeta.Labels[labels.IsolationGroup] = "zone-a"
-	pod.ObjectMeta.Name = "pod-a"
-
-	expInst := &placementpb.Instance{
-		Id:             "pod-a",
-		IsolationGroup: "zone-a",
-		Zone:           "embedded",
-		Weight:         100,
-		Hostname:       "pod-a.m3dbnode-cluster-a",
-		Endpoint:       "pod-a.m3dbnode-cluster-a:9000",
-		Port:           9000,
+	labels := BaseLabels(cluster)
+	expLabels := map[string]string{
+		"operator.m3db.io/app":     "m3db",
+		"operator.m3db.io/cluster": "cluster-foo",
 	}
 
-	inst, err := PlacementInstanceFromPod(cluster, pod)
-	assert.NoError(t, err)
-	assert.Equal(t, expInst, inst)
+	assert.Equal(t, expLabels, labels)
+
+	cluster.Spec.Labels = map[string]string{"foo": "bar"}
+	labels = BaseLabels(cluster)
+	expLabels["foo"] = "bar"
+	assert.Equal(t, expLabels, labels)
 }

@@ -33,6 +33,7 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
@@ -43,10 +44,9 @@ import (
 	"go.uber.org/zap"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -292,7 +292,7 @@ func (c *Controller) processItem() bool {
 			return nil
 		}
 
-		if err := c.handleClusterUpdate(key); err != nil {
+		if err := c.handleClusterEvent(key); err != nil {
 			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
 		}
 
@@ -309,7 +309,7 @@ func (c *Controller) processItem() bool {
 	return true
 }
 
-func (c *Controller) handleClusterUpdate(key string) error {
+func (c *Controller) handleClusterEvent(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
@@ -327,6 +327,16 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		return err
 	}
 
+	if cluster == nil {
+		return errors.New("got nil cluster for " + key)
+	}
+
+	return c.handleClusterUpdate(cluster)
+}
+
+// We are guaranteed by handleClusterEvent that we will never be passed a nil
+// cluster here.
+func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// MUST create a deep copy of the cluster or risk corruping cache! Technically
 	// only need if we modify, but we frequently do that so let's deep copy to
 	// start and remove unnecessary calls later to optimize if we want.
@@ -418,7 +428,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	// At this point we have the desired number of statefulsets, and every pod
 	// across those sets is bootstrapped. However some may be bootstrapped because
 	// they own no shards. Check to see that all pods are in the placement.
-	selector := labels.SelectorFromSet(k8sops.GenerateBaseLabels(cluster))
+	selector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
 	if err != nil {
 		return fmt.Errorf("error listing pods: %v", err)
@@ -435,35 +445,11 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	if placement.NumInstances() < len(pods) {
 		for _, pod := range pods {
 			_, ok := placement.Instance(pod.Name)
-			if ok {
-				continue
+			if !ok {
+				// We want pod adds to restart the event loop to run regular sanity
+				// checks.
+				return c.addPodToPlacement(cluster, pod, placement)
 			}
-
-			c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
-			inst, err := k8sops.PlacementInstanceFromPod(cluster, pod)
-			if err != nil {
-				err := fmt.Errorf("error creating instance for pod %s", pod.Name)
-				c.logger.Error(err.Error())
-				return err
-			}
-
-			reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
-			cluster, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
-			if err != nil {
-				err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
-				c.logger.Error(err.Error())
-				return err
-			}
-
-			err = c.placementClient.Add(*inst)
-			if err != nil {
-				err := fmt.Errorf("error adding pod to placement: %s", pod.Name)
-				c.logger.Error(err.Error())
-				return err
-			}
-
-			c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
-			return nil
 		}
 	}
 
@@ -475,7 +461,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 	}
 
 	for _, set := range childrenSets {
-		zone, ok := set.Labels["isolation-group"]
+		zone, ok := set.Labels[labels.IsolationGroup]
 		if !ok {
 			return fmt.Errorf("statefulset %s has no isolation-group label", set.Name)
 		}
@@ -492,7 +478,6 @@ func (c *Controller) handleClusterUpdate(key string) error {
 		desired := group.NumInstances
 		current := *set.Spec.Replicas
 
-		// TODO(schallert): modify once we handle removes
 		if current >= desired {
 			continue
 		}
@@ -535,7 +520,7 @@ func (c *Controller) handleClusterUpdate(key string) error {
 // This func is currently read-only, but if we end up modifying statefulsets
 // we'll have to deepcopy.
 func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
-	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(labels.Set(cluster.Labels).AsSelector())
+	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(klabels.Set(cluster.Labels).AsSelector())
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error listing statefulsets: %v", err))
 		return nil, err

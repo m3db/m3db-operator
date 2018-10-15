@@ -26,20 +26,22 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
+	"go.uber.org/zap"
 
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/placement"
 
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 const (
-	_isolationGroupKey = "isolation-group"
-	_zoneEmbedded      = "embedded"
+	_zoneEmbedded = "embedded"
 )
 
 // Ensure a given namespace exists and update its last updated time. Returns a
@@ -118,10 +120,11 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 	for k, v := range cluster.Labels {
 		targetLabels[k] = v
 	}
-	// TODO(schallert): extend k8sops helpers for this.
-	targetLabels["component"] = "m3dbnode"
+	targetLabels[labels.Component] = labels.ComponentM3DBNode
 
-	pods, err := c.podLister.Pods(cluster.Namespace).List(labels.SelectorFromSet(targetLabels))
+	sel := klabels.SelectorFromSet(targetLabels)
+	c.logger.Debug("placement init selector", zap.String("selector", sel.String()))
+	pods, err := c.podLister.Pods(cluster.Namespace).List(sel)
 	if err != nil {
 		return false, err
 	}
@@ -208,4 +211,40 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 
 	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, corev1.ConditionFalse,
 		"BootstrapComplete", "no bootstraps in progress")
+}
+
+func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
+	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
+	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+	if err != nil {
+		err := fmt.Errorf("error creating instance for pod %s", pod.Name)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
+	cluster, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
+	if err != nil {
+		err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	err = c.placementClient.Add(*inst)
+	if err != nil {
+		err := fmt.Errorf("error adding pod to placement: %s", pod.Name)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
+	return nil
+}
+
+func (c *Controller) findCandidateRemovalPod(set *appsv1.StatefulSet) error {
+	return nil
+}
+
+func (c *Controller) removePodFromPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
+	return nil
 }

@@ -26,6 +26,7 @@ import (
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -49,15 +50,6 @@ const (
 	_configurationName      = "m3-configuration"
 	_configurationFileName  = "m3.yml"
 	_healthFileName         = "/bin/m3dbnode_bootstrapped.sh"
-
-	_labelApp             = "app"
-	_labelAppValue        = "m3db"
-	_labelCluster         = "cluster"
-	_labelIsolationGroup  = "isolation-group"
-	_labelStatefulSet     = "stateful-set"
-	_labelComponent       = "component"
-	_componentM3DBNode    = "m3dbnode"
-	_componentCoordinator = "coordinator"
 )
 
 var (
@@ -107,21 +99,6 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 			},
 		},
 	}
-}
-
-// GenerateBaseLabels returns the base labels we apply to all objects created by
-// the operator.
-func GenerateBaseLabels(cluster *myspec.M3DBCluster) map[string]string {
-	base := map[string]string{
-		_labelApp:     _labelAppValue,
-		_labelCluster: cluster.Name,
-	}
-
-	for k, v := range cluster.Spec.Labels {
-		base[k] = v
-	}
-
-	return base
 }
 
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
@@ -198,16 +175,16 @@ func GenerateM3DBService(cluster *myspec.M3DBCluster) (*v1.Service, error) {
 		return nil, errEmptyClusterName
 	}
 
-	labels := GenerateBaseLabels(cluster)
-	labels[_labelComponent] = _componentM3DBNode
+	svcLabels := labels.BaseLabels(cluster)
+	svcLabels[labels.Component] = labels.ComponentM3DBNode
 
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   HeadlessServiceName(cluster.Name),
-			Labels: labels,
+			Labels: svcLabels,
 		},
 		Spec: v1.ServiceSpec{
-			Selector:  labels,
+			Selector:  svcLabels,
 			Ports:     generateM3DBServicePorts(),
 			ClusterIP: v1.ClusterIPNone,
 			Type:      v1.ServiceTypeClusterIP,
@@ -222,11 +199,11 @@ func GenerateCoordinatorService(cluster *myspec.M3DBCluster) (*v1.Service, error
 		return nil, errEmptyClusterName
 	}
 
-	selectorLabels := GenerateBaseLabels(cluster)
-	selectorLabels[_labelComponent] = _componentM3DBNode
+	selectorLabels := labels.BaseLabels(cluster)
+	selectorLabels[labels.Component] = labels.ComponentM3DBNode
 
-	serviceLabels := GenerateBaseLabels(cluster)
-	serviceLabels[_labelComponent] = _componentCoordinator
+	serviceLabels := labels.BaseLabels(cluster)
+	serviceLabels[labels.Component] = labels.ComponentCoordinator
 
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
