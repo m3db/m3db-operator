@@ -5,7 +5,7 @@ version: 0.0.1
 # Error: Chart requires kubernetesVersion: >=1.10.6 which is incompatible with Kubernetes v1.10.7-gke.2
 #
 #kubeVersion: ">=1.10.7"
-description: m3db-operator provides an automated control plane for managing m3 clusters
+description: manages m3db clusters
 keywords:
   - operator
   - m3
