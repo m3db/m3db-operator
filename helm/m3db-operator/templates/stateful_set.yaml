@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.operator.name }}
+  namespace: {{ .Values.operator.namespace }}
+spec:
+  serviceName: {{ .Values.operator.name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      name: {{ .Values.operator.name }}
+  template:
+    metadata:
+      labels:
+        name: {{ .Values.operator.name }}
+    spec:
+      containers:
+        - name: {{ .Values.operator.name }}
+          image: {{ .Values.image.repository}}:{{ .Values.image.tag }}
+          command:
+          - m3db-operator
+          imagePullPolicy: Always
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.environment }} 
+      serviceAccount: {{ .Values.operator.name }}

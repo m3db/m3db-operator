@@ -1,0 +1,22 @@
+apiVersion: v1
+name: m3db-operator
+version: 0.0.1
+# TODO(PS) - helm has issues with GKE's SemVer
+# Error: Chart requires kubernetesVersion: >=1.10.6 which is incompatible with Kubernetes v1.10.7-gke.2
+#
+#kubeVersion: ">=1.10.7"
+description: manages m3db clusters
+keywords:
+  - operator
+  - m3
+home: https://github.com/m3db/m3db-operator
+sources:
+  - https://github.com/m3db/m3db-operator
+maintainers: 
+  - name: m3 Authors
+    email: m3db@googlegroups.com
+    url: https://m3db.io/
+engine: gotpl 
+icon: https://github.com/m3db/m3/blob/master/docs/theme/assets/images/M3-logo.png
+appVersion: ">0.4.7"
+tillerVersion: ">=2.11.0"
