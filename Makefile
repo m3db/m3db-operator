@@ -189,7 +189,7 @@ build-docker: ## Build m3db-operator docker image with go binary
 .PHONY: publish-helm-charts
 publish-helm-charts: ## pushes a new version of the helm chart
 	@echo "+ $@"
-	./helm/hack/package.sh
+	./build/package-helm-charts.sh
 
 out:
 	@mkdir -p $$(pwd)/$(OUTPUT_DIR)
