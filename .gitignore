@@ -26,3 +26,6 @@ out/**/*
 .ci/
 test.log
 profile.cov
+
+# helm binaries
+linux-amd64/
