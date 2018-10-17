@@ -450,7 +450,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	}
 
 	if len(unavailInsts) > 0 {
-		c.logger.Info("waiting for instances to be available", zap.Strings("instances", unavailInsts))
+		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
 		return nil
 	}
 
