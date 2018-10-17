@@ -38,6 +38,8 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	m3placement "github.com/m3db/m3cluster/placement"
+
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -440,15 +442,16 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 
 	c.logger.Info("found placement", zap.Int("currentPods", len(pods)), zap.Int("placementInsts", placement.NumInstances()))
 
-	if placement.NumInstances() < len(pods) {
-		for _, pod := range pods {
-			_, ok := placement.Instance(pod.Name)
-			if !ok {
-				// We want pod adds to restart the event loop to run regular sanity
-				// checks.
-				return c.addPodToPlacement(cluster, pod, placement)
-			}
+	unavailInsts := []string{}
+	for _, inst := range placement.Instances() {
+		if !inst.IsAvailable() {
+			unavailInsts = append(unavailInsts, inst.ID())
 		}
+	}
+
+	if len(unavailInsts) > 0 {
+		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
+		return nil
 	}
 
 	// Determine if any sets aren't at their desired replica count. Maybe we can
@@ -475,17 +478,46 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 
 		desired := group.NumInstances
 		current := *set.Spec.Replicas
+		inPlacement := int32(len(instancesInIsoGroup(placement, group.Name)))
 
-		if current >= desired {
-			continue
+		setLogger := c.logger.With(
+			zap.String("statefulSet", set.Name),
+			zap.Int32("inPlacement", inPlacement),
+			zap.Int32("current", current),
+			zap.Int32("desired", desired),
+		)
+
+		if desired == current {
+			// If the set is at its desired size, and all pods in the set are in the
+			// placement, there's nothing we need to do for this set.
+			if current == inPlacement {
+				continue
+			}
+
+			// If the set is at its desired size but there's pods in the set that are
+			// absent from the placement, add pods to placement.
+			if inPlacement < current {
+				setLogger.Info("expanding placement for set")
+				return c.expandPlacementForSet(cluster, set, group, placement)
+			}
 		}
 
-		c.logger.Info("need to expand set, desired < current",
-			zap.String("set", set.Name),
-			zap.Int32("desired", desired),
-			zap.Int32("current", current))
+		// If there are more pods in the placement than we want in the group,
+		// trigger a remove so that we can shrink the set.
+		if inPlacement > desired {
+			setLogger.Info("remove instance from placement for set")
+			return c.shrinkPlacementForSet(cluster, set)
+		}
 
-		set.Spec.Replicas = pointer.Int32Ptr(current + 1)
+		var newCount int32
+		if current < desired {
+			newCount = current + 1
+		} else {
+			newCount = current - 1
+		}
+		setLogger.Info("resizing set, desired != current", zap.Int32("newSize", newCount))
+
+		set.Spec.Replicas = pointer.Int32Ptr(newCount)
 		set, err = c.kubeClient.AppsV1().StatefulSets(set.Namespace).Update(set)
 		if err != nil {
 			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
@@ -511,8 +543,17 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "Cluster update handled successfully")
 	return nil
+}
+
+func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placement.Instance {
+	insts := []m3placement.Instance{}
+	for _, inst := range pl.Instances() {
+		if inst.IsolationGroup() == isoGroup {
+			insts = append(insts, inst)
+		}
+	}
+	return insts
 }
 
 // This func is currently read-only, but if we end up modifying statefulsets
@@ -569,5 +610,4 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "StatefulSet update handled successfully")
 }

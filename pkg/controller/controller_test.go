@@ -27,13 +27,12 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
+	"github.com/m3db/m3cluster/placement"
+
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	kubeinformers "k8s.io/client-go/informers"
-	kubefake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -84,30 +83,11 @@ func TestGetChildStatefulSets(t *testing.T) {
 			objects[i] = set
 		}
 
-		clientSet := kubefake.NewSimpleClientset(objects...)
-		informers := kubeinformers.NewSharedInformerFactory(clientSet, 0)
-		sets := informers.Apps().V1().StatefulSets()
-		lister := sets.Lister()
+		deps := newTestDeps(t, &testOpts{
+			kubeObjects: objects,
+		})
 
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-		go informers.Start(stopCh)
-
-		warmCh := make(chan bool)
-		go func() {
-			warmCh <- cache.WaitForCacheSync(stopCh, sets.Informer().HasSynced)
-		}()
-
-		select {
-		case success := <-warmCh:
-			assert.True(t, success)
-		case <-time.After(5 * time.Second):
-			t.Fatal("timeout waiting for informer cache")
-		}
-
-		c := &Controller{
-			statefulSetLister: lister,
-		}
+		c := deps.newController()
 
 		// Ensure that with no owner references we don't act on these sets
 		children, err := c.getChildStatefulSets(cluster)
@@ -123,7 +103,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 					Kind:    "m3dbcluster",
 				}),
 			})
-			_, err := clientSet.AppsV1().StatefulSets("namespace").Update(set)
+			_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
 			assert.NoError(t, err)
 		}
 
@@ -146,5 +126,36 @@ func TestGetChildStatefulSets(t *testing.T) {
 		}
 		sort.Strings(setNames)
 		assert.Equal(t, test.expChildren, setNames)
+
+		deps.cleanup()
 	}
+}
+
+func instanceWithGroup(id, group string) placement.Instance {
+	return placement.NewInstance().
+		SetID(id).
+		SetIsolationGroup(group)
+}
+
+func TestInstancesInIsoGroup(t *testing.T) {
+	i1 := instanceWithGroup("i1", "g1")
+	i2 := instanceWithGroup("i2", "g1")
+	i3 := instanceWithGroup("i3", "g2")
+
+	pl := placement.NewPlacement().SetInstances([]placement.Instance{
+		i1,
+		i2,
+		i3,
+	})
+
+	insts := instancesInIsoGroup(pl, "foo")
+	assert.Empty(t, insts)
+
+	insts = instancesInIsoGroup(pl, "g1")
+	exp := []placement.Instance{i1, i2}
+	assert.Equal(t, exp, insts)
+
+	insts = instancesInIsoGroup(pl, "g2")
+	exp = []placement.Instance{i3}
+	assert.Equal(t, exp, insts)
 }

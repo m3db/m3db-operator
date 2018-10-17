@@ -169,3 +169,19 @@ func TestGetErr(t *testing.T) {
 	require.Nil(t, placement)
 	require.Error(t, err)
 }
+
+func TestRemove(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.String() != "/api/v1/services/m3db/placement/instFoo" || r.Method != http.MethodDelete {
+			w.WriteHeader(404)
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"placement": {}}`))
+	}))
+	defer s.Close()
+
+	client := newPlacementClient(t, s.URL)
+	err := client.Remove("instFoo")
+	assert.NoError(t, err)
+}
