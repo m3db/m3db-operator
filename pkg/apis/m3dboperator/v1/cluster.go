@@ -202,9 +202,10 @@ type ClusterSpec struct {
 	// +optional
 	ContainerResources corev1.ResourceRequirements `json:"containerResources" yaml:"containerResources"`
 
-	// PersistentVolumeClaim claims a PersistentVolume for cluster storage;
-	// volumes are dynamically provisioned by when StorageClass is defined & applied
-	PersistentVolumeClaim corev1.PersistentVolumeClaim `json:"volumeClaimTemplate" yaml:"volumeClaimTemplate"`
+	// PersistentVolumeClaims are created with predefined volumeClaimTemplates.
+	// They claim PersistentVolumes for cluster storage, volumes are dynamically
+	// provisioned by when the StorageClass is defined.
+	PersistentVolumeClaims []corev1.PersistentVolumeClaim `json:"volumeClaimTemplate" yaml:"volumeClaimTemplate"`
 
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
