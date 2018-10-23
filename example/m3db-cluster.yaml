@@ -230,3 +230,15 @@ spec:
     limits:
       memory: 12Gi
       cpu: '4'
+  volumeClaimTemplate:
+    metadata:
+        name: m3db-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: m3db-sc
+      resources:
+        requests:
+          storage: 2Gi
+        limits:
+          storage: 2Gi
