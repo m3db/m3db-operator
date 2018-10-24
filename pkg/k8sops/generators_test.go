@@ -231,7 +231,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 					},
 				},
 			},
-			VolumeClaimTemplates: clusterSpec.PersistentVolumeClaims,
+			VolumeClaimTemplates: clusterSpec.VolumeClaimTemplates,
 		},
 	}
 

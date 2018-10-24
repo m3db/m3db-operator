@@ -65,8 +65,8 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		}
 	}
 	in.ContainerResources.DeepCopyInto(&out.ContainerResources)
-	if in.PersistentVolumeClaims != nil {
-		in, out := &in.PersistentVolumeClaims, &out.PersistentVolumeClaims
+	if in.VolumeClaimTemplates != nil {
+		in, out := &in.VolumeClaimTemplates, &out.VolumeClaimTemplates
 		*out = make([]corev1.PersistentVolumeClaim, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])

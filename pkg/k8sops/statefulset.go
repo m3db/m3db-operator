@@ -310,7 +310,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					},
 				},
 			},
-			VolumeClaimTemplates: cluster.Spec.PersistentVolumeClaims,
+			VolumeClaimTemplates: cluster.Spec.VolumeClaimTemplates,
 		},
 	}
 }
