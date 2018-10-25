@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -28,8 +29,12 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+	pkgnamespace "github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	pkgplacement "github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	dbns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 	"github.com/m3db/m3cluster/placement"
 	"github.com/m3db/m3cluster/shard"
@@ -44,6 +49,204 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type namespaceMatcher struct {
+	name string
+}
+
+func (n namespaceMatcher) Matches(x interface{}) bool {
+	return x.(*admin.NamespaceAddRequest).Name == n.name
+}
+
+func (namespaceMatcher) String() string {
+	return "matches whether a namespaces name is expected"
+}
+
+func TestReconcileNamespaces(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	nsMock := pkgnamespace.NewMockClient(mc)
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects:      []runtime.Object{cluster},
+		namespaceClient: nsMock,
+	})
+
+	controller := deps.newController()
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{
+		Namespaces: map[string]*dbns.NamespaceOptions{
+			"a": &dbns.NamespaceOptions{},
+		},
+	}
+	resp := &admin.NamespaceGetResponse{
+		Registry: registry,
+	}
+	nsMock.EXPECT().List().Return(resp, nil)
+
+	nsMock.EXPECT().Delete("a").Return(nil)
+	nsMock.EXPECT().Create(namespaceMatcher{"metrics-10s:2d"}).Return(nil)
+
+	err := controller.reconcileNamespaces(cluster)
+	assert.NoError(t, err)
+}
+
+func TestCleanupNamespaces(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	cluster.Spec.Namespaces = []myspec.Namespace{}
+
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	nsMock := pkgnamespace.NewMockClient(mc)
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects:      []runtime.Object{cluster},
+		namespaceClient: nsMock,
+	})
+
+	controller := deps.newController()
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{
+		"foo": &dbns.NamespaceOptions{},
+	}}
+
+	nsMock.EXPECT().Delete("foo").Return(nil)
+	err := controller.cleanupNamespaces(cluster, registry)
+	assert.NoError(t, err)
+
+	nsMock.EXPECT().Delete("foo").Return(m3admin.ErrNotFound)
+	err = controller.cleanupNamespaces(cluster, registry)
+	assert.NoError(t, err)
+
+	nsMock.EXPECT().Delete("foo").Return(errors.New("foo"))
+	err = controller.cleanupNamespaces(cluster, registry)
+	assert.Error(t, err)
+
+	registry.Namespaces["baz"] = &dbns.NamespaceOptions{}
+	nsMock.EXPECT().Delete("foo").Return(nil)
+	nsMock.EXPECT().Delete("baz").Return(nil)
+	err = controller.cleanupNamespaces(cluster, registry)
+	assert.NoError(t, err)
+}
+
+func TestCreateNamespaces(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	cluster.Spec.Namespaces = append(cluster.Spec.Namespaces, myspec.Namespace{
+		Name:   "foo",
+		Preset: "10s:2d",
+	})
+
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	nsMock := pkgnamespace.NewMockClient(mc)
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects:      []runtime.Object{cluster},
+		namespaceClient: nsMock,
+	})
+
+	controller := deps.newController()
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
+
+	nsMock.EXPECT().Create(namespaceMatcher{"metrics-10s:2d"}).Return(nil)
+	nsMock.EXPECT().Create(namespaceMatcher{"foo"}).Return(nil)
+
+	err := controller.createNamespaces(cluster, registry)
+	assert.NoError(t, err)
+}
+
+func TestNamespacesToCreate(t *testing.T) {
+	tests := []struct {
+		registry   *dbns.Registry
+		namespaces []myspec.Namespace
+		exp        []myspec.Namespace
+	}{
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": &dbns.NamespaceOptions{},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo", Preset: "bar"},
+			},
+		},
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": &dbns.NamespaceOptions{},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo", Preset: "bar"},
+				{Name: "baz", Preset: "qux"},
+			},
+			exp: []myspec.Namespace{
+				{Name: "baz", Preset: "qux"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		res := namespacesToCreate(test.registry, test.namespaces)
+		assert.Equal(t, test.exp, res)
+	}
+}
+
+func TestNamespacesToDelete(t *testing.T) {
+	tests := []struct {
+		registry   *dbns.Registry
+		namespaces []myspec.Namespace
+		exp        []string
+	}{
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": &dbns.NamespaceOptions{},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo", Preset: "bar"},
+			},
+		},
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": &dbns.NamespaceOptions{},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo", Preset: "bar"},
+				{Name: "baz", Preset: "qux"},
+			},
+		},
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": &dbns.NamespaceOptions{},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "baz", Preset: "qux"},
+			},
+			exp: []string{"foo"},
+		},
+	}
+
+	for _, test := range tests {
+		res := namespacesToDelete(test.registry, test.namespaces)
+		assert.Equal(t, test.exp, res)
+	}
+}
 
 func TestSetPodBootstrappingStatus(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
@@ -72,7 +275,7 @@ func TestSetStatus(t *testing.T) {
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	const cond = myspec.ClusterConditionNamespaceInitialized
+	const cond = myspec.ClusterConditionPlacementInitialized
 	cluster, err := controller.setStatus(cluster, cond, corev1.ConditionTrue, "foo", "bar")
 	assert.NoError(t, err)
 

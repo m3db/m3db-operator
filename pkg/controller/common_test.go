@@ -30,6 +30,7 @@ import (
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
@@ -80,6 +81,8 @@ func (deps *testDeps) newController() *Controller {
 
 		placementClient: deps.placementClient,
 		namespaceClient: deps.namespaceClient,
+
+		recorder: eventer.NewNopPoster(),
 	}
 }
 

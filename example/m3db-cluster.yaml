@@ -223,6 +223,9 @@ spec:
       numInstances: 3
     - name: us-east1-d
       numInstances: 3
+  namespaces:
+    - name: metrics-10s:2d
+      preset: 10s:2d
   resources:
     requests:
       memory: 4Gi

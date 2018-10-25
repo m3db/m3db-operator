@@ -11,6 +11,9 @@ spec:
   isolationGroups:
     - name: us-fake1-a
       numInstances: 1
+  namespaces:
+    - name: metrics-10s:2d
+      preset: 10s:2d
   resources:
     requests:
       memory: 1Gi

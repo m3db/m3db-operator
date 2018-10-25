@@ -35,10 +35,6 @@ func TestStatus(t *testing.T) {
 		f    func(s *M3DBStatus) bool
 	}{
 		{
-			cond: ClusterConditionNamespaceInitialized,
-			f:    func(s *M3DBStatus) bool { return s.HasInitializedNamespace() },
-		},
-		{
 			cond: ClusterConditionPlacementInitialized,
 			f:    func(s *M3DBStatus) bool { return s.HasInitializedPlacement() },
 		},
@@ -68,17 +64,17 @@ func TestStatus(t *testing.T) {
 func TestGetCondition(t *testing.T) {
 	status := &M3DBStatus{}
 
-	_, ok := status.GetCondition(ClusterConditionNamespaceInitialized)
+	_, ok := status.GetCondition(ClusterConditionPlacementInitialized)
 	assert.False(t, ok)
 
 	cond := ClusterCondition{
-		Type:   ClusterConditionNamespaceInitialized,
+		Type:   ClusterConditionPlacementInitialized,
 		Reason: "foo",
 	}
 
 	status.UpdateCondition(cond)
 
-	cond2, ok := status.GetCondition(ClusterConditionNamespaceInitialized)
+	cond2, ok := status.GetCondition(ClusterConditionPlacementInitialized)
 	assert.True(t, ok)
 	assert.Equal(t, cond, cond2)
 }
@@ -87,14 +83,14 @@ func TestUpdateCondition(t *testing.T) {
 	status := &M3DBStatus{}
 
 	status.UpdateCondition(ClusterCondition{
-		Type:   ClusterConditionNamespaceInitialized,
+		Type:   ClusterConditionPlacementInitialized,
 		Status: corev1.ConditionUnknown,
 	})
 
 	exp := &M3DBStatus{
 		Conditions: []ClusterCondition{
 			{
-				Type:   ClusterConditionNamespaceInitialized,
+				Type:   ClusterConditionPlacementInitialized,
 				Status: corev1.ConditionUnknown,
 			},
 		},
@@ -103,14 +99,14 @@ func TestUpdateCondition(t *testing.T) {
 	assert.Equal(t, exp, status)
 
 	status.UpdateCondition(ClusterCondition{
-		Type:   ClusterConditionNamespaceInitialized,
+		Type:   ClusterConditionPlacementInitialized,
 		Status: corev1.ConditionTrue,
 	})
 
 	exp = &M3DBStatus{
 		Conditions: []ClusterCondition{
 			{
-				Type:   ClusterConditionNamespaceInitialized,
+				Type:   ClusterConditionPlacementInitialized,
 				Status: corev1.ConditionTrue,
 			},
 		},

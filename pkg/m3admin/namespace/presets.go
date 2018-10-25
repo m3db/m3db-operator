@@ -21,16 +21,40 @@
 package namespace
 
 import (
-	"github.com/m3db/m3/src/query/generated/proto/admin"
+	"time"
+
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 )
 
-// Client provides the interface to interact with the namespace API
-type Client interface {
-	// Create will create a namepace for the given request.
-	Create(request *admin.NamespaceAddRequest) error
-	// List will retrieve all namespaces in the current cluster. The registry in
-	// the namespace response is guaranteed to be non-nil if err == nil.
-	List() (*admin.NamespaceGetResponse, error)
-	// Delete will delete a namespace given a name
-	Delete(namespace string) error
-}
+// Preset represents a predfined namespace.
+type Preset string
+
+const (
+	// PresetTenSecondsTwoDaysIndexed stores metrics at 10 second resolution for
+	// two days with a block size of 2h. BufferPast and BufferFuture are both 10m.
+	// Snapshotting is enabled. Metrics are indexed based on tags.
+	PresetTenSecondsTwoDaysIndexed Preset = "10s:2d"
+)
+
+var (
+	presetTenSecondsTwoDaysIndexed = myspec.NamespaceOptions{
+		BootstrapEnabled:  true,
+		FlushEnabled:      true,
+		WritesToCommitLog: true,
+		CleanupEnabled:    true,
+		RepairEnabled:     false,
+		SnapshotEnabled:   true,
+		RetentionOptions: myspec.RetentionOptions{
+			RetentionPeriod:                     48 * time.Hour,
+			BlockSize:                           2 * time.Hour,
+			BufferFuture:                        10 * time.Minute,
+			BufferPast:                          10 * time.Minute,
+			BlockDataExpiry:                     true,
+			BlockDataExpiryAfterNotAccessPeriod: 5 * time.Minute,
+		},
+		IndexOptions: myspec.IndexOptions{
+			Enabled:   true,
+			BlockSize: 2 * time.Hour,
+		},
+	}
+)

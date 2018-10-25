@@ -38,6 +38,12 @@ var (
 	creator runtime.ObjectCreater = scheme.Scheme
 )
 
+func TestNop(t *testing.T) {
+	p := NewNopPoster()
+	p.NormalEvent(nil, "foo", "bar")
+	p.WarningEvent(nil, "foo", "bar")
+}
+
 func TestNormalEvent(t *testing.T) {
 	testObject, err := creator.New(schema.GroupVersionKind{})
 	// empty object will throw error

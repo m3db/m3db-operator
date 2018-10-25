@@ -32,7 +32,6 @@ import (
 	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	"github.com/m3db/m3x/ident"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -79,29 +78,6 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 	return nil
-}
-
-// EnsureNamespace will retrieve current namespaces to ensure one matches the
-// cluster name or create a new namespace to match the cluster name. Returns a
-// bool indicating whether a namespace was created and any errors encountered.
-func (c *Controller) EnsureNamespace(cluster *myspec.M3DBCluster) (bool, error) {
-	// Get namespace
-	namespaces, err := c.namespaceClient.List()
-	if err != nil {
-		c.logger.Error("failed to get namespace ", zap.Error(err))
-		return false, err
-	}
-	for _, md := range namespaces {
-		if md.ID().Equal(ident.StringID(cluster.GetName())) {
-			c.logger.Info("namespace found", zap.String("ns", md.ID().String()))
-			return false, nil
-		}
-	}
-	if err = c.namespaceClient.Create(cluster.GetObjectMeta().GetName()); err != nil {
-		c.logger.Error("failed to create namespace", zap.Error(err))
-		return false, err
-	}
-	return true, nil
 }
 
 func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {

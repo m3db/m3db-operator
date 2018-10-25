@@ -123,7 +123,7 @@ func (e *eventer) NormalEvent(object runtime.Object, reason, message string, arg
 		corev1.EventTypeNormal,
 		reason,
 		message,
-		args)
+		args...)
 }
 
 // WarningEvent post an event of type errors or unexpectled possibly unhealthy behavior
@@ -132,5 +132,16 @@ func (e *eventer) WarningEvent(object runtime.Object, reason, message string, ar
 		corev1.EventTypeWarning,
 		reason,
 		message,
-		args)
+		args...)
 }
+
+// NewNopPoster returns an Poster that does nothing.
+func NewNopPoster() Poster {
+	return nopPoster{}
+}
+
+type nopPoster struct{}
+
+func (nopPoster) NormalEvent(object runtime.Object, reason, message string, args ...interface{}) {}
+
+func (nopPoster) WarningEvent(object runtime.Object, reason, message string, args ...interface{}) {}
