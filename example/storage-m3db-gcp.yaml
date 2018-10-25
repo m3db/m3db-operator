@@ -1,7 +1,8 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: fast # for etcd cluster
+  name: m3db-sc # for m3db cluster
 provisioner: kubernetes.io/gce-pd
+reclaimPolicy: Retain
 parameters:
   type: pd-ssd
