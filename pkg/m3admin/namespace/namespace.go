@@ -24,9 +24,10 @@ import (
 	"errors"
 	"fmt"
 
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+
 	m3ns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 )
 
 // RequestFromSpec returns a namespace add request from a cluster spec namespace

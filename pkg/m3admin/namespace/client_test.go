@@ -26,9 +26,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
 	ns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"

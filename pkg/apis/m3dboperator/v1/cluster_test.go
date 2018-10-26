@@ -143,3 +143,17 @@ func TestSortIsoGroups(t *testing.T) {
 	})
 	assert.Equal(t, expGroups, groups)
 }
+
+func TestGetByName(t *testing.T) {
+	a := IsolationGroup{Name: "a"}
+	groups := IsolationGroups([]IsolationGroup{
+		a,
+	})
+
+	_, ok := groups.GetByName("b")
+	assert.False(t, ok)
+
+	g, ok := groups.GetByName("a")
+	assert.True(t, ok)
+	assert.Equal(t, a, g)
+}
