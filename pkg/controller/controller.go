@@ -401,6 +401,11 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
+	if len(cluster.Spec.Namespaces) == 0 {
+		c.logger.Warn("cluster has no namespaces defined", zap.String("cluster", cluster.Name))
+		c.recorder.WarningEvent(cluster, eventer.ReasonUnknown, "cluster %s has no namespaces", cluster.Name)
+	}
+
 	if !cluster.Status.HasInitializedPlacement() {
 		updated, err := c.validatePlacementWithStatus(cluster)
 		if err != nil {
