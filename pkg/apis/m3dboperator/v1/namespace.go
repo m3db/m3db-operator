@@ -22,7 +22,7 @@ package v1
 
 import "time"
 
-// Namespace defines a namespace or points to a preset namespace.
+// Namespace defines an M3DB namespace or points to a preset M3DB namespace.
 type Namespace struct {
 	// Name is the namespace name.
 	Name string `json:"name,omitempty"`
