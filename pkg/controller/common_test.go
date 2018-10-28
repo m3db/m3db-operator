@@ -28,6 +28,7 @@ import (
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
@@ -67,10 +68,18 @@ type testDeps struct {
 }
 
 func (deps *testDeps) newController() *Controller {
+	m := newMultiAdminClient(m3admin.NewClient(), zap.NewNop())
+	m.nsClientFn = func(...namespace.Option) (namespace.Client, error) {
+		return deps.namespaceClient, nil
+	}
+	m.plClientFn = func(...placement.Option) (placement.Client, error) {
+		return deps.placementClient, nil
+	}
 	return &Controller{
-		logger: zap.NewNop(),
-		scope:  tally.NoopScope,
-		clock:  deps.clock,
+		logger:      zap.NewNop(),
+		scope:       tally.NoopScope,
+		clock:       deps.clock,
+		adminClient: m,
 
 		kubeClient: deps.kubeClient,
 		crdClient:  deps.crdClient,
@@ -78,9 +87,6 @@ func (deps *testDeps) newController() *Controller {
 		clusterLister:     deps.crdLister,
 		statefulSetLister: deps.statefulSetLister,
 		podLister:         deps.podLister,
-
-		placementClient: deps.placementClient,
-		namespaceClient: deps.namespaceClient,
 
 		recorder: eventer.NewNopPoster(),
 	}

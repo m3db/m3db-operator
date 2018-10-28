@@ -29,7 +29,6 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
-	plc "github.com/m3db/m3/src/query/api/v1/handler/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
@@ -41,12 +40,14 @@ import (
 const (
 	// defaults for placement init request
 	_defaultM3DBPort = 9000
+	_defaultZone     = "embedded"
 )
 
 // EnsurePlacement ensures that a placement exists otherwise create one
 func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 	// Get placement
-	_, err := c.placementClient.Get()
+	plClient := c.adminClient.placementClientForCluster(cluster)
+	_, err := plClient.Get()
 	if err == m3admin.ErrNotFound {
 		placementInitRequest := &admin.PlacementInitRequest{
 			NumShards:         cluster.Spec.NumberOfShards,
@@ -57,11 +58,11 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 			return err
 		}
 		for hostname, zone := range placementDetails {
-			fqdnHostname := fmt.Sprintf("%s.%s", hostname, plc.M3DBServiceName)
+			fqdnHostname := fmt.Sprintf("%s.%s", hostname, cluster.Namespace)
 			instance := &placementpb.Instance{
 				Id:             hostname,
 				IsolationGroup: zone,
-				Zone:           plc.DefaultServiceZone,
+				Zone:           _defaultZone,
 				Weight:         100, // TODO(PS) Remove once [PR](https://github.com/m3db/m3/pull/901) is merged
 				Hostname:       fqdnHostname,
 				Endpoint:       fmt.Sprintf("%s:%d", fqdnHostname, _defaultM3DBPort),
@@ -69,7 +70,7 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 			}
 			placementInitRequest.Instances = append(placementInitRequest.Instances, instance)
 		}
-		if err := c.placementClient.Init(placementInitRequest); err != nil {
+		if err := plClient.Init(placementInitRequest); err != nil {
 			c.logger.Error("failed to apply placement", zap.Error(err))
 			return err
 		}

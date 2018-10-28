@@ -10,14 +10,6 @@
   version = "v0.30.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:0075306d51004cbcf4e199ad92d16131c67bd83d6fdb858baa7181ef2be49ce8"
-  name = "github.com/MichaelTJones/pcg"
-  packages = ["."]
-  pruneopts = ""
-  revision = "df440c6ed7ed8897ac98a408365e5e89c7becf1a"
-
-[[projects]]
   digest = "1:8e47871087b94913898333f37af26732faaab30cdb41571136cf7aec9921dae7"
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
@@ -32,14 +24,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
-
-[[projects]]
-  digest = "1:2f60f5ae6749aeae294562cefebcc8ba9c033f74d3088bdc275d1f11b8aabc92"
-  name = "github.com/RoaringBitmap/roaring"
-  packages = ["."]
-  pruneopts = ""
-  revision = "3d677d3262197ee558b85029301eb69b8239f91a"
-  version = "v0.4.16"
 
 [[projects]]
   digest = "1:21a774cd1c70bc7b328522ad415933eb1f329ad72773f4d0112210fc0dbccc55"
@@ -59,14 +43,6 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
-  digest = "1:7bb1a80aeedb97f4eca27ffb775777c8d7be3be33067ad1f6808620f51e503ce"
-  name = "github.com/cespare/xxhash"
-  packages = ["."]
-  pruneopts = ""
-  revision = "569f7c8abf1f58d9043ab804d364483cb1c853b6"
-  version = "v1.1.0"
-
-[[projects]]
   digest = "1:4020afbd883ee40b1478eeb0dce32da62afa3f9e1a454ed06372724314816d94"
   name = "github.com/coreos/bbolt"
   packages = ["."]
@@ -74,28 +50,9 @@
   revision = "32c383e75ce054674c53b5a07e55de85332aee14"
 
 [[projects]]
-  digest = "1:600d64f7857a14d7715ce2795868c76b85e634fc13aba93b23431039fed2d9ea"
-  name = "github.com/coreos/etcd"
-  packages = [
-    "auth/authpb",
-    "clientv3",
-    "clientv3/concurrency",
-    "etcdserver/api/v3rpc/rpctypes",
-    "etcdserver/etcdserverpb",
-    "mvcc/mvccpb",
-    "pkg/types",
-  ]
-  pruneopts = ""
-  revision = "27fc7e2296f506182f58ce846e48f36b34fe6842"
-  version = "v3.3.10"
-
-[[projects]]
   digest = "1:5db9df4aeb3e89c1899affa63725ce79ae0640edbd2ea095d23dcf3c7a3f777f"
   name = "github.com/couchbase/vellum"
-  packages = [
-    "regexp",
-    "utf8",
-  ]
+  packages = ["utf8"]
   pruneopts = ""
   revision = "51c732079c882f52f8e6af889d99ac2a1611d5e4"
   source = "github.com/m3db/vellum"
@@ -126,14 +83,6 @@
   pruneopts = ""
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:7e33fce0e76a165d0ab0eaab80af044082d056686ee1abf051e40170bd931fbc"
-  name = "github.com/glycerine/go-unsnap-stream"
-  packages = ["."]
-  pruneopts = ""
-  revision = "9f0cb55181dd3a0a4c168d3dbc72d4aca4853126"
 
 [[projects]]
   digest = "1:c8052dcf3ec378a9a6bc4f00ecc10d6d5eb3cc1f8faaf6b2f70f047e8881d446"
@@ -171,10 +120,8 @@
   digest = "1:6e73003ecd35f4487a5e88270d3ca0a81bc80dc88053ac7e4dcfec5fba30d918"
   name = "github.com/gogo/protobuf"
   packages = [
-    "gogoproto",
     "jsonpb",
     "proto",
-    "protoc-gen-gogo/descriptor",
     "sortkeys",
     "types",
   ]
@@ -214,12 +161,10 @@
   digest = "1:3dd078fda7500c341bc26cfbc6c6a34614f295a2457149fc1045cab767cbcf18"
   name = "github.com/golang/protobuf"
   packages = [
-    "jsonpb",
     "proto",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/struct",
     "ptypes/timestamp",
   ]
   pruneopts = ""
@@ -228,27 +173,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2a5888946cdbc8aa360fd43301f9fc7869d663f60d5eedae7d4e6e5e4f06f2bf"
-  name = "github.com/golang/snappy"
-  packages = ["."]
-  pruneopts = ""
-  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
-
-[[projects]]
-  branch = "master"
   digest = "1:754f77e9c839b24778a4b64422236d38515301d2baeb63113aa3edc42e6af692"
   name = "github.com/google/gofuzz"
   packages = ["."]
   pruneopts = ""
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
-
-[[projects]]
-  digest = "1:5247b135b5492aa232a731acdcb52b08f32b874cb398f21ab460396eadbe866b"
-  name = "github.com/google/uuid"
-  packages = ["."]
-  pruneopts = ""
-  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
-  version = "v1.0.0"
 
 [[projects]]
   digest = "1:16b2837c8b3cf045fa2cdc82af0cf78b19582701394484ae76b2c3bc3c99ad73"
@@ -261,22 +190,6 @@
   pruneopts = ""
   revision = "7c663266750e7d82587642f65e60bc4083f1f84e"
   version = "v0.2.0"
-
-[[projects]]
-  digest = "1:dbbeb8ddb0be949954c8157ee8439c2adfd8dc1c9510eb44a6e58cb68c3dce28"
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  pruneopts = ""
-  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
-  version = "v1.1.1"
-
-[[projects]]
-  digest = "1:c2c8666b4836c81a1d247bdf21c6a6fc1ab586538ab56f74437c2e0df5c375e1"
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  pruneopts = ""
-  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
-  version = "v1.6.2"
 
 [[projects]]
   digest = "1:05334858a0cfb538622a066e065287f63f42bee26a7fda93a789674225057201"
@@ -356,70 +269,8 @@
   digest = "1:b28fd703bca428adf4bec23104a24bd274b110d37544f9c151c116b52c6d0f4c"
   name = "github.com/m3db/m3"
   packages = [
-    "src/cmd/services/m3coordinator/ingest",
-    "src/cmd/services/m3coordinator/server/m3msg",
-    "src/cmd/services/m3query/config",
-    "src/dbnode/client",
-    "src/dbnode/clock",
-    "src/dbnode/digest",
-    "src/dbnode/encoding",
-    "src/dbnode/encoding/m3tsz",
-    "src/dbnode/environment",
     "src/dbnode/generated/proto/namespace",
-    "src/dbnode/generated/thrift/rpc",
-    "src/dbnode/kvconfig",
-    "src/dbnode/network/server/tchannelthrift/convert",
-    "src/dbnode/network/server/tchannelthrift/errors",
-    "src/dbnode/network/server/tchannelthrift/node/channel",
-    "src/dbnode/persist",
-    "src/dbnode/ratelimit",
-    "src/dbnode/retention",
-    "src/dbnode/runtime",
-    "src/dbnode/sharding",
-    "src/dbnode/storage/block",
-    "src/dbnode/storage/bootstrap/result",
-    "src/dbnode/storage/errors",
-    "src/dbnode/storage/index",
-    "src/dbnode/storage/index/convert",
-    "src/dbnode/storage/namespace",
-    "src/dbnode/storage/series",
-    "src/dbnode/topology",
-    "src/dbnode/ts",
-    "src/dbnode/x/tchannel",
-    "src/dbnode/x/xio",
-    "src/dbnode/x/xpool",
-    "src/m3ninx/doc",
-    "src/m3ninx/generated/proto/querypb",
-    "src/m3ninx/idx",
-    "src/m3ninx/index",
-    "src/m3ninx/index/segment",
-    "src/m3ninx/index/segment/fst/regexp",
-    "src/m3ninx/index/segment/mem",
-    "src/m3ninx/postings",
-    "src/m3ninx/postings/roaring",
-    "src/m3ninx/search",
-    "src/m3ninx/search/executor",
-    "src/m3ninx/search/query",
-    "src/m3ninx/search/searcher",
-    "src/m3ninx/util",
-    "src/m3ninx/x",
-    "src/m3ninx/x/bytes",
-    "src/query/api/v1/handler",
-    "src/query/api/v1/handler/namespace",
-    "src/query/api/v1/handler/placement",
-    "src/query/block",
-    "src/query/errors",
     "src/query/generated/proto/admin",
-    "src/query/generated/proto/prompb",
-    "src/query/models",
-    "src/query/storage",
-    "src/query/storage/m3",
-    "src/query/stores/m3db",
-    "src/query/ts",
-    "src/query/util/logging",
-    "src/x/convert",
-    "src/x/net/http",
-    "src/x/serialize",
   ]
   pruneopts = ""
   revision = "3bc561bb15e1558a79b959cf6cbace84b02888e5"
@@ -430,25 +281,10 @@
   digest = "1:87220b5c698199f0f21d1c132c0cc053a3f5dc8fab5422ff56bfc76c7a371dd3"
   name = "github.com/m3db/m3cluster"
   packages = [
-    "client",
-    "client/etcd",
-    "etcd/watchmanager",
-    "generated/proto/metadatapb",
     "generated/proto/placementpb",
     "kv",
-    "kv/etcd",
-    "kv/mem",
     "kv/util/runtime",
     "placement",
-    "placement/algo",
-    "placement/selector",
-    "placement/service",
-    "placement/storage",
-    "services",
-    "services/heartbeat/etcd",
-    "services/leader",
-    "services/leader/campaign",
-    "services/leader/election",
     "shard",
   ]
   pruneopts = ""
@@ -456,40 +292,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:55f549c885c3c4eb499de4e808280204b6a29ae9d4f4d60dcfe9f9d400329b48"
-  name = "github.com/m3db/m3metrics"
-  packages = [
-    "aggregation",
-    "encoding/msgpack",
-    "generated/proto/aggregationpb",
-    "generated/proto/metricpb",
-    "generated/proto/pipelinepb",
-    "generated/proto/policypb",
-    "generated/proto/transformationpb",
-    "metadata",
-    "metric",
-    "metric/aggregated",
-    "metric/id",
-    "metric/unaggregated",
-    "pipeline",
-    "pipeline/applied",
-    "policy",
-    "transformation",
-    "x/bytes",
-  ]
-  pruneopts = ""
-  revision = "5c6aed344a0c209277d36334f0a824d9f3bb835b"
-
-[[projects]]
-  branch = "master"
   digest = "1:59a0bd94a90dec4cce7865682c9e054e3e338230f491b0952ae5fa3743a22eed"
   name = "github.com/m3db/m3msg"
-  packages = [
-    "consumer",
-    "generated/proto/msgpb",
-    "generated/proto/topicpb",
-    "protocol/proto",
-  ]
+  packages = ["generated/proto/topicpb"]
   pruneopts = ""
   revision = "bb2c675f58f01d487fc0a64aa6c864bc1cc541c9"
 
@@ -498,24 +303,11 @@
   digest = "1:20308e7fb8d888809e288cca00168526d9b4be36db30c573bebf77303a6ff139"
   name = "github.com/m3db/m3x"
   packages = [
-    "checked",
     "clock",
     "close",
-    "config",
-    "config/listenaddress",
-    "context",
-    "errors",
-    "ident",
     "instrument",
     "log",
-    "net",
-    "pool",
     "process",
-    "resource",
-    "retry",
-    "server",
-    "sync",
-    "time",
     "watch",
   ]
   pruneopts = ""
@@ -531,14 +323,6 @@
   pruneopts = ""
   revision = "c5b7fccd204277076155f10851dad72b76a49317"
   version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:0aa5a9565f4a5ef56d949ee80d1a185430c3b05864747ae661decf857793653d"
-  name = "github.com/m3db/stackadler32"
-  packages = ["."]
-  pruneopts = ""
-  revision = "bfebcd73ef6ffe0ee30489227f0330c39064b674"
 
 [[projects]]
   digest = "1:5e27c649b1e112804a5963fa374351f664fdc9fc3626dee5152139704e7bf6d7"
@@ -595,42 +379,6 @@
   version = "1.0.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:2b92866d98297fd59e1ae4eeac721ba59b9015bcf899e5575130481405ac0110"
-  name = "github.com/mschoch/smat"
-  packages = ["."]
-  pruneopts = ""
-  revision = "90eadee771aeab36e8bf796039b8c261bebebe4f"
-
-[[projects]]
-  digest = "1:78fb99d6011c2ae6c72f3293a83951311147b12b06a5ffa43abf750c4fab6ac5"
-  name = "github.com/opentracing/opentracing-go"
-  packages = [
-    ".",
-    "ext",
-    "log",
-  ]
-  pruneopts = ""
-  revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
-  version = "v1.0.2"
-
-[[projects]]
-  digest = "1:a5484d4fa43127138ae6e7b2299a6a52ae006c7f803d98d717f60abf3e97192e"
-  name = "github.com/pborman/uuid"
-  packages = ["."]
-  pruneopts = ""
-  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
-  version = "v1.2"
-
-[[projects]]
-  digest = "1:210286d0cb60ffe28f1ca00b664029e8943009f95d06d8f8c336301b28e1aee5"
-  name = "github.com/philhofer/fwd"
-  packages = ["."]
-  pruneopts = ""
-  revision = "bb6d471dc95d4fe11e432687f8b70ff496cf3136"
-  version = "v1.0.0"
-
-[[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
@@ -680,14 +428,6 @@
   revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
 
 [[projects]]
-  digest = "1:7f569d906bdd20d906b606415b7d794f798f91a62fcfb6a4daa6d50690fb7a3f"
-  name = "github.com/satori/go.uuid"
-  packages = ["."]
-  pruneopts = ""
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
-
-[[projects]]
   digest = "1:633b5b39909d9d794f5543baee4971890e1866f5c082cdf4694954c1ff489a18"
   name = "github.com/spaolacci/murmur3"
   packages = ["."]
@@ -715,22 +455,6 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:cae65c1f3471b1f456a9d8a160440f4824ad50c718a15da4144490fbc3b12e49"
-  name = "github.com/tinylib/msgp"
-  packages = ["msgp"]
-  pruneopts = ""
-  revision = "b2b6a672cf1e5b90748f79b8b81fc8c5cf0571a1"
-  version = "1.0.2"
-
-[[projects]]
-  digest = "1:74f86c458e82e1c4efbab95233e0cf51b7cc02dc03193be9f62cd81224e10401"
-  name = "github.com/uber-go/atomic"
-  packages = ["."]
-  pruneopts = ""
-  revision = "1ea20fb1cbb1cc08cbd0d913a96dead89aa18289"
-  version = "v1.3.2"
-
-[[projects]]
   digest = "1:ee7dcf2893e4b2d42a03c0ace5a37573bb31b437c15706a40c51bb57fab2062f"
   name = "github.com/uber-go/tally"
   packages = [
@@ -745,32 +469,6 @@
   pruneopts = ""
   revision = "ff17f3c43c065c3c2991f571e740eee43ea3a14a"
   version = "v3.3.7"
-
-[[projects]]
-  digest = "1:9efd9e56678ac59956b618332b2e3b3b98b3ec087fb3f1fbe4f34fed7ba81050"
-  name = "github.com/uber/tchannel-go"
-  packages = [
-    ".",
-    "internal/argreader",
-    "relay",
-    "thrift",
-    "thrift/gen-go/meta",
-    "tnet",
-    "tos",
-    "trand",
-    "typed",
-  ]
-  pruneopts = ""
-  revision = "7f5c12c66261f3ac3c5dde959d65eed59e3b63af"
-  version = "v1.11.0"
-
-[[projects]]
-  digest = "1:fcb101cb896bcfb60d004d9c65cdebd597489bb0a25f0ea063513029ac99487e"
-  name = "github.com/willf/bitset"
-  packages = ["."]
-  pruneopts = ""
-  revision = "e553b05586428962bf7058d1044519d87ca72d74"
-  version = "v1.1.9"
 
 [[projects]]
   digest = "1:74f86c458e82e1c4efbab95233e0cf51b7cc02dc03193be9f62cd81224e10401"
@@ -816,19 +514,12 @@
   digest = "1:547dcb6aebfb7fb17947660ebb034470c13f4d63d893def190a2f7ba3d09bc38"
   name = "golang.org/x/net"
   packages = [
-    "bpf",
     "context",
     "context/ctxhttp",
     "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
-    "internal/iana",
-    "internal/socket",
-    "internal/timeseries",
-    "ipv4",
-    "ipv6",
-    "trace",
   ]
   pruneopts = ""
   revision = "49bb7cea24b1df9410e1712aa6433dae904ff66a"
@@ -907,7 +598,6 @@
   name = "google.golang.org/appengine"
   packages = [
     ".",
-    "datastore",
     "internal",
     "internal/app_identity",
     "internal/base",
@@ -923,75 +613,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1b3b4ec811695907c4a3cb92e4f32834a4a42459bff7e02068b6b2b5344803cd"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  pruneopts = ""
-  revision = "af9cb2a35e7f169ec875002c1829c9b315cddc04"
-
-[[projects]]
-  digest = "1:15656947b87a6a240e61dcfae9e71a55a8d5677f240d12ab48f02cdbabf1e309"
-  name = "google.golang.org/grpc"
-  packages = [
-    ".",
-    "balancer",
-    "balancer/base",
-    "balancer/roundrobin",
-    "codes",
-    "connectivity",
-    "credentials",
-    "encoding",
-    "encoding/proto",
-    "grpclog",
-    "health/grpc_health_v1",
-    "internal",
-    "internal/backoff",
-    "internal/channelz",
-    "internal/envconfig",
-    "internal/grpcrand",
-    "internal/transport",
-    "keepalive",
-    "metadata",
-    "naming",
-    "peer",
-    "resolver",
-    "resolver/dns",
-    "resolver/passthrough",
-    "stats",
-    "status",
-    "tap",
-  ]
-  pruneopts = ""
-  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
-  version = "v1.15.0"
-
-[[projects]]
   digest = "1:75fb3fcfc73a8c723efde7777b40e8e8ff9babf30d8c56160d01beffea8a95a6"
   name = "gopkg.in/inf.v0"
   packages = ["."]
   pruneopts = ""
   revision = "d2d2541c53f18d2a059457998ce2876cc8e67cbf"
   version = "v0.9.1"
-
-[[projects]]
-  branch = "v2"
-  digest = "1:bf922c860f64bb6372daa82bb9c1e8ed144e97ac7587efa80d08b4e98737e9ea"
-  name = "gopkg.in/validator.v2"
-  packages = ["."]
-  pruneopts = ""
-  revision = "135c24b11c19e52befcae2ec3fca5d9b78c4e98e"
-
-[[projects]]
-  digest = "1:73e1c6c853e6e6d8aa8f7f04de048430cac006b0c8d1153775304297aca6eea7"
-  name = "gopkg.in/vmihailenco/msgpack.v2"
-  packages = [
-    ".",
-    "codes",
-  ]
-  pruneopts = ""
-  revision = "f4f8982de4ef0de18be76456617cc3f5d8d8141e"
-  version = "v2.9.1"
 
 [[projects]]
   digest = "1:f0620375dd1f6251d9973b5f2596228cc8042e887cd7f827e4220bc1ce8c30e2"
@@ -1345,8 +972,6 @@
     "github.com/kubernetes/utils/pointer",
     "github.com/m3db/bloom",
     "github.com/m3db/m3/src/dbnode/generated/proto/namespace",
-    "github.com/m3db/m3/src/query/api/v1/handler/namespace",
-    "github.com/m3db/m3/src/query/api/v1/handler/placement",
     "github.com/m3db/m3/src/query/generated/proto/admin",
     "github.com/m3db/m3cluster/generated/proto/placementpb",
     "github.com/m3db/m3cluster/placement",

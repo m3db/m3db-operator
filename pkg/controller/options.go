@@ -26,8 +26,6 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
-	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -49,8 +47,7 @@ type options struct {
 	kubeClient                 kubernetes.Interface
 	kubeInformerFactory        kubeinformers.SharedInformerFactory
 	m3dbClusterInformerFactory informers.SharedInformerFactory
-	namespaceClient            namespace.Client
-	placementClient            placement.Client
+	kubectlProxy               bool
 }
 
 type optionFn func(o *options)
@@ -108,25 +105,16 @@ func WithM3DBClusterInformerFactory(f informers.SharedInformerFactory) Option {
 	})
 }
 
-// WithNamespaceClient sets a custom m3db namespace client. If unset a default
-// in-cluster client will be created.
-func WithNamespaceClient(cl namespace.Client) Option {
+// WithKubectlProxy sets whether to use a kubectl proxy for communicating with
+// the cluster.
+func WithKubectlProxy(use bool) Option {
 	return optionFn(func(o *options) {
-		o.namespaceClient = cl
-	})
-}
-
-// WithPlacementClient sets the m3db placement client. If unset a default
-// in-cluster client will be created.
-func WithPlacementClient(cl placement.Client) Option {
-	return optionFn(func(o *options) {
-		o.placementClient = cl
+		o.kubectlProxy = true
 	})
 }
 
 // Validate ensures the configured options are valid. Specifically, if any
-// fields except the Logger, PlacementClient, and NamespaceClient are nil the
-// options will be rejected.
+// fields except the logger are nil the options will be rejected.
 func (o *options) validate() error {
 	switch {
 	case o.kclient == nil:

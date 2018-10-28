@@ -18,4 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package database
+package k8sops
+
+// Port represents a port number.
+type Port int32
+
+// Ports used by M3DB nodes and coordinator nodes.
+const (
+	PortM3DBNodeClient  Port = 9000
+	PortM3DBNodeCluster      = 9001
+	PortM3DBHTTPNode         = 9002
+	PortM3DBHTTPCluster      = 9003
+	PortM3DBDebug            = 9004
+
+	PortM3Coordinator        = 7201
+	PortM3CoordinatorMetrics = 7203
+)

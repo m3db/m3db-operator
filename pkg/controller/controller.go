@@ -34,8 +34,7 @@ import (
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
-	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
 	m3placement "github.com/m3db/m3cluster/placement"
@@ -74,22 +73,15 @@ var (
 	ErrInvalidReplicationFactor = errors.New("invalid replication factor")
 )
 
-// Cluster contains the CRD for the M3 cluster
-type Cluster struct {
-	M3DBCluster *myspec.M3DBCluster
-}
-
 // Controller object
 type Controller struct {
-	lock            *sync.Mutex
-	logger          *zap.Logger
-	clock           clock.Clock
-	scope           tally.Scope
-	k8sclient       k8sops.K8sops
-	clusters        map[string]Cluster
-	placementClient placement.Client
-	namespaceClient namespace.Client
-	doneCh          chan struct{}
+	lock        *sync.Mutex
+	logger      *zap.Logger
+	clock       clock.Clock
+	scope       tally.Scope
+	k8sclient   k8sops.K8sops
+	adminClient *multiAdminClient
+	doneCh      chan struct{}
 
 	kubeClient kubernetes.Interface
 	crdClient  clientset.Interface
@@ -129,29 +121,16 @@ func New(opts ...Option) (*Controller, error) {
 		logger = zap.NewNop()
 	}
 
-	var err error
-	plClient := options.placementClient
-	nsClient := options.namespaceClient
-	if plClient == nil {
-		// TODO(PS) Move these clients within the cluster object to ensure each
-		// cluster has it's own configured client
-		plClient, err = placement.NewClient(placement.WithLogger(logger))
-		if err != nil {
-			return nil, err
-		}
-	}
+	adminClient := m3admin.NewClient(
+		m3admin.WithLogger(logger),
+	)
 
-	if nsClient == nil {
-		nsClient, err = namespace.NewClient(namespace.WithLogger(logger))
-		if err != nil {
-			return nil, err
-		}
+	multiClient := newMultiAdminClient(adminClient, logger)
+	if options.kubectlProxy {
+		multiClient.clusterURLFn = clusterURLProxy
 	}
 
 	statefulSetInformer := kubeInformerFactory.Apps().V1().StatefulSets()
-	// TODO(schallert): we may not need the pod informer here, but we want a
-	// lister and not sure if getting lister from informer requires waiting for
-	// pod informer cache.
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1().M3DBClusters()
 
@@ -165,13 +144,13 @@ func New(opts ...Option) (*Controller, error) {
 	}
 
 	p := &Controller{
-		lock:      &sync.Mutex{},
-		logger:    logger,
-		scope:     scope,
-		clock:     clock.RealClock{},
-		k8sclient: kclient,
-		clusters:  make(map[string]Cluster),
-		doneCh:    make(chan struct{}),
+		lock:        &sync.Mutex{},
+		logger:      logger,
+		scope:       scope,
+		clock:       clock.RealClock{},
+		k8sclient:   kclient,
+		adminClient: multiClient,
+		doneCh:      make(chan struct{}),
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
@@ -182,9 +161,6 @@ func New(opts ...Option) (*Controller, error) {
 		statefulSetsSynced: statefulSetInformer.Informer().HasSynced,
 		podLister:          podInformer.Lister(),
 		podsSynced:         podInformer.Informer().HasSynced,
-
-		placementClient: plClient,
-		namespaceClient: nsClient,
 
 		workQueue: workQueue,
 		// TODO(celina): figure out if we actually need a recorder for each namespace
@@ -226,11 +202,7 @@ func New(opts ...Option) (*Controller, error) {
 
 // Init ensures all the required resources are created
 func (c *Controller) Init() error {
-	if err := c.k8sclient.CreateCRD(m3dboperator.Name); err != nil {
-		return err
-	}
-	c.logger.Info("found existing", zap.Int("clusters", len(c.clusters)))
-	return nil
+	return c.k8sclient.CreateCRD(m3dboperator.Name)
 }
 
 // Run drives the controller event loop.
@@ -429,7 +401,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	}
 
 	// TODO(schallert): per-cluster m3admin clients
-	placement, err := c.placementClient.Get()
+	placement, err := c.adminClient.placementClientForCluster(cluster).Get()
 	if err != nil {
 		return fmt.Errorf("error fetching active placement: %v", err)
 	}
@@ -520,7 +492,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
-	placement, err = c.placementClient.Get()
+	placement, err = c.adminClient.placementClientForCluster(cluster).Get()
 	if err != nil {
 		return fmt.Errorf("error fetching placement: %v", err)
 	}

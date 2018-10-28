@@ -51,7 +51,7 @@ import (
 // aren't part of the cluster spec, and create any that are present in the spec
 // but not in the cluster.
 func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
-	resp, err := c.namespaceClient.List()
+	resp, err := c.adminClient.namespaceClientForCluster(cluster).List()
 	if err != nil {
 		c.logger.Error("failed to get namespace", zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, err.Error())
@@ -83,7 +83,7 @@ func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbn
 			return fmt.Errorf("error forming request for namespace '%s': %v", ns.Name, err)
 		}
 
-		err = c.namespaceClient.Create(req)
+		err = c.adminClient.namespaceClientForCluster(cluster).Create(req)
 		if err != nil {
 			c.logger.Error("error creating namespace",
 				zap.String("namespace", ns.Name),
@@ -103,7 +103,7 @@ func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbn
 func (c *Controller) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
 	toDelete := namespacesToDelete(registry, cluster.Spec.Namespaces)
 	for _, ns := range toDelete {
-		err := c.namespaceClient.Delete(ns)
+		err := c.adminClient.namespaceClientForCluster(cluster).Delete(ns)
 		if err == nil {
 			c.logger.Info("deleted namespace", zap.String("namespace", ns))
 			c.recorder.NormalEvent(cluster, eventer.ReasonDeleting, "deleted namespace "+ns)
@@ -155,7 +155,8 @@ func namespacesToDelete(registry *dbns.Registry, specNs []myspec.Namespace) (toD
 }
 
 func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (bool, error) {
-	_, err := c.placementClient.Get()
+	plClient := c.adminClient.placementClientForCluster(cluster)
+	_, err := plClient.Get()
 	if err == nil {
 		if !cluster.Status.HasInitializedPlacement() {
 			// Placement exists but status doesn't reflect that, change it. Return
@@ -203,7 +204,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 		newPlacement.Instances = append(newPlacement.Instances, instance)
 	}
 
-	if err := c.placementClient.Init(newPlacement); err != nil {
+	if err := plClient.Init(newPlacement); err != nil {
 		return false, err
 	}
 
@@ -295,7 +296,7 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 		return err
 	}
 
-	err = c.placementClient.Add(*inst)
+	err = c.adminClient.placementClientForCluster(cluster).Add(*inst)
 	if err != nil {
 		err := fmt.Errorf("error adding pod to placement: %s", pod.Name)
 		c.logger.Error(err.Error())
@@ -360,7 +361,7 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 	}
 
 	c.logger.Info("removing pod from placement", zap.String("pod", removePod.Name))
-	return c.placementClient.Remove(removePod.Name)
+	return c.adminClient.placementClientForCluster(cluster).Remove(removePod.Name)
 }
 
 // podID encapsulates a pod and its ordinal ID to facilitate sorting a list of
