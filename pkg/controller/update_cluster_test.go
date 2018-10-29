@@ -117,21 +117,21 @@ func TestCleanupNamespaces(t *testing.T) {
 	}}
 
 	nsMock.EXPECT().Delete("foo").Return(nil)
-	err := controller.cleanupNamespaces(cluster, registry)
+	err := controller.pruneNamespaces(cluster, registry)
 	assert.NoError(t, err)
 
 	nsMock.EXPECT().Delete("foo").Return(m3admin.ErrNotFound)
-	err = controller.cleanupNamespaces(cluster, registry)
+	err = controller.pruneNamespaces(cluster, registry)
 	assert.NoError(t, err)
 
 	nsMock.EXPECT().Delete("foo").Return(errors.New("foo"))
-	err = controller.cleanupNamespaces(cluster, registry)
+	err = controller.pruneNamespaces(cluster, registry)
 	assert.Error(t, err)
 
 	registry.Namespaces["baz"] = &dbns.NamespaceOptions{}
 	nsMock.EXPECT().Delete("foo").Return(nil)
 	nsMock.EXPECT().Delete("baz").Return(nil)
-	err = controller.cleanupNamespaces(cluster, registry)
+	err = controller.pruneNamespaces(cluster, registry)
 	assert.NoError(t, err)
 }
 

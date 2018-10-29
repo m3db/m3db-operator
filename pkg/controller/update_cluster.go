@@ -58,7 +58,7 @@ func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
-	if err := c.cleanupNamespaces(cluster, resp.Registry); err != nil {
+	if err := c.pruneNamespaces(cluster, resp.Registry); err != nil {
 		return err
 	}
 
@@ -98,9 +98,9 @@ func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbn
 	return nil
 }
 
-// cleanupNamespaces will delete any namespaces in the m3db cluster that aren't
+// pruneNamespaces will delete any namespaces in the m3db cluster that aren't
 // in the spec.
-func (c *Controller) cleanupNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+func (c *Controller) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
 	toDelete := namespacesToDelete(registry, cluster.Spec.Namespaces)
 	for _, ns := range toDelete {
 		err := c.namespaceClient.Delete(ns)
