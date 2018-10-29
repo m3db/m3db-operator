@@ -37,10 +37,6 @@ func (g IsolationGroups) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
 func (g IsolationGroups) Less(i, j int) bool { return g[i].Name < g[j].Name }
 
 const (
-	// ClusterConditionNamespaceInitialized indicates the cluster has initialized
-	// its namespace.
-	ClusterConditionNamespaceInitialized ClusterConditionType = "NamespaceInitialized"
-
 	// ClusterConditionPlacementInitialized indicates an initial placement has
 	// been created for the cluster.
 	ClusterConditionPlacementInitialized ClusterConditionType = "PlacementInitialized"
@@ -99,12 +95,6 @@ func (s *M3DBStatus) hasConditionTrue(cond ClusterConditionType) bool {
 	return false
 }
 
-// HasInitializedNamespace returns true if the cluster has initialized its
-// namespace.
-func (s *M3DBStatus) HasInitializedNamespace() bool {
-	return s.hasConditionTrue(ClusterConditionNamespaceInitialized)
-}
-
 // HasInitializedPlacement returns true if the conditions indicate an initial
 // placement has been created.
 func (s *M3DBStatus) HasInitializedPlacement() bool {
@@ -144,10 +134,10 @@ func (s *M3DBStatus) UpdateCondition(newCond ClusterCondition) {
 // ClusterCondition represents various conditions the cluster can be in.
 type ClusterCondition struct {
 	// Type of cluster condition.
-	Type ClusterConditionType `json:"type"`
+	Type ClusterConditionType `json:"type,omitempty"`
 
 	// Status of the condition (True, False, Unknown).
-	Status corev1.ConditionStatus
+	Status corev1.ConditionStatus `json:"status,omitempty"`
 
 	// Last time this condition was updated.
 	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
@@ -191,6 +181,9 @@ type ClusterSpec struct {
 	// to deploy persistent volumes for data nodes
 	IsolationGroups []IsolationGroup `json:"isolationGroups" yaml:"isolationGroups"`
 
+	// Namespaces specifies the namespaces this cluster will hold.
+	Namespaces []Namespace `json:"namespaces" yaml:"namespaces"`
+
 	// Services allows the user to specify their own services that the operator
 	// will create. If non-empty, only the dbnode headless service will be created
 	// and users must specify other services they wish to create.
@@ -209,7 +202,7 @@ type ClusterSpec struct {
 
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
-	Labels map[string]string
+	Labels map[string]string `json:"labels" yaml:"labels"`
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration

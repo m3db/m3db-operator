@@ -32,8 +32,10 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	dbns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 	"github.com/m3db/m3cluster/placement"
 
@@ -45,49 +47,111 @@ import (
 	"go.uber.org/zap"
 )
 
-// Ensure a given namespace exists and update its last updated time. Returns a
-// bool which is true if the workqueue should re-enqueue the update (we do this
-// if we modify any Kube API objects), and any error encountered.
-func (c *Controller) validateNamespaceWithStatus(cluster *myspec.M3DBCluster) (bool, error) {
-	created, err := c.EnsureNamespace(cluster)
+// reconcileNamespaces will delete any namespaces currently in the cluster that
+// aren't part of the cluster spec, and create any that are present in the spec
+// but not in the cluster.
+func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
+	resp, err := c.namespaceClient.List()
 	if err != nil {
-		err = fmt.Errorf("error creating namespace: %v", err)
-		c.logger.Error(err.Error())
-		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, err.Error())
-		return false, err
+		c.logger.Error("failed to get namespace", zap.Error(err))
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, err.Error())
+		return err
 	}
 
-	if !created && cluster.Status.HasInitializedNamespace() {
-		// if we didn't have to create one and the status reflects it's created, do
-		// nothing
-		return false, nil
+	if err := c.pruneNamespaces(cluster, resp.Registry); err != nil {
+		return err
 	}
 
-	// TODO(schallert): we should use resource version + generation to not
-	// update this if not necessary
-	cluster.Status.UpdateCondition(myspec.ClusterCondition{
-		Type:           myspec.ClusterConditionNamespaceInitialized,
-		Status:         corev1.ConditionTrue,
-		LastUpdateTime: c.clock.Now().UTC().Format(time.RFC3339),
-		// TODO(schallert): probably a better reason and we should strongly type
-		// them
-		Reason:  "NamespaceCreated",
-		Message: "Created namespace",
-	})
-
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulCreate, "Namespace created")
-
-	_, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
-	if err != nil {
-		// TODO(schallert): event here as well?
-		err := fmt.Errorf("error updating cluster namespace status: %v", err)
-		c.logger.Error(err.Error())
-		runtime.HandleError(err)
-		return false, err
+	if err := c.createNamespaces(cluster, resp.Registry); err != nil {
+		return err
 	}
 
-	// We updated an API object so tell the queue to re-enqueue.
-	return true, nil
+	return nil
+}
+
+// createNamespaces will attempt to create in the cluster all namespaces which
+// are present in the spec but not the cluster.
+func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+	toCreate := namespacesToCreate(registry, cluster.Spec.Namespaces)
+	for _, ns := range toCreate {
+		req, err := namespace.RequestFromSpec(ns)
+		if err != nil {
+			c.logger.Error("error forming namespace request",
+				zap.String("namespace", ns.Name),
+				zap.Error(err))
+
+			return fmt.Errorf("error forming request for namespace '%s': %v", ns.Name, err)
+		}
+
+		err = c.namespaceClient.Create(req)
+		if err != nil {
+			c.logger.Error("error creating namespace",
+				zap.String("namespace", ns.Name),
+				zap.Error(err))
+
+			return fmt.Errorf("error creating namespace '%s': %v", ns.Name, err)
+		}
+
+		c.recorder.NormalEvent(cluster, eventer.ReasonCreating, "created namespace "+ns.Name)
+	}
+
+	return nil
+}
+
+// pruneNamespaces will delete any namespaces in the m3db cluster that aren't
+// in the spec.
+func (c *Controller) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+	toDelete := namespacesToDelete(registry, cluster.Spec.Namespaces)
+	for _, ns := range toDelete {
+		err := c.namespaceClient.Delete(ns)
+		if err == nil {
+			c.logger.Info("deleted namespace", zap.String("namespace", ns))
+			c.recorder.NormalEvent(cluster, eventer.ReasonDeleting, "deleted namespace "+ns)
+			continue
+		}
+
+		if err == m3admin.ErrNotFound {
+			c.logger.Info("namespace has already been deleted", zap.String("namespace", ns))
+			continue
+		}
+
+		c.logger.Error("error deleting namespace",
+			zap.String("namespace", ns),
+			zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+// namespacesToCreate returns an array of namespaces that are in the cluster
+// spec but not in the registry.
+func namespacesToCreate(registry *dbns.Registry, specNs []myspec.Namespace) (toCreate []myspec.Namespace) {
+	for _, ns := range specNs {
+		if _, ok := registry.Namespaces[ns.Name]; !ok {
+			toCreate = append(toCreate, ns)
+		}
+	}
+	return
+}
+
+// namespacesToDelete returns an array of namespace names that are in the
+// registry but not in the cluster spec.
+func namespacesToDelete(registry *dbns.Registry, specNs []myspec.Namespace) (toDelete []string) {
+	inSpec := make(map[string]struct{})
+	for _, ns := range specNs {
+		inSpec[ns.Name] = struct{}{}
+	}
+
+	// If any namespace is in the registry but not in the spec, we want to delete
+	// it.
+	for ns := range registry.Namespaces {
+		if _, ok := inSpec[ns]; !ok {
+			toDelete = append(toDelete, ns)
+		}
+	}
+
+	return
 }
 
 func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (bool, error) {

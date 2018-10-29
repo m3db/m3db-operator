@@ -20,6 +20,6 @@
 
 // mockgen rules for generating mocks using file mode
 //go:generate sh -c "mockgen -package=placement -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/placement_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/types.go"
-//go:generate sh -c "mockgen -package=namespace -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/namespace_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/types.go"
+//go:generate sh -c "mockgen -package=namespace -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/types.go"
 
 package mocks

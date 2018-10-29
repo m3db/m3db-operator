@@ -27,7 +27,7 @@ package namespace
 import (
 	"reflect"
 
-	"github.com/m3db/m3/src/dbnode/storage/namespace"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	"github.com/golang/mock/gomock"
 )
@@ -56,21 +56,21 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // Create mocks base method
-func (m *MockClient) Create(namespace string) error {
-	ret := m.ctrl.Call(m, "Create", namespace)
+func (m *MockClient) Create(request *admin.NamespaceAddRequest) error {
+	ret := m.ctrl.Call(m, "Create", request)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create
-func (mr *MockClientMockRecorder) Create(namespace interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), namespace)
+func (mr *MockClientMockRecorder) Create(request interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), request)
 }
 
 // List mocks base method
-func (m *MockClient) List() ([]namespace.Metadata, error) {
+func (m *MockClient) List() (*admin.NamespaceGetResponse, error) {
 	ret := m.ctrl.Call(m, "List")
-	ret0, _ := ret[0].([]namespace.Metadata)
+	ret0, _ := ret[0].(*admin.NamespaceGetResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

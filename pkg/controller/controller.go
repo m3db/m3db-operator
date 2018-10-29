@@ -396,20 +396,14 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
-	if !cluster.Status.HasInitializedNamespace() {
-		updated, err := c.validateNamespaceWithStatus(cluster)
-		if err != nil {
-			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "namespace not validated: %v", err.Error())
-			return err
-		}
+	if err := c.reconcileNamespaces(cluster); err != nil {
+		c.logger.Error("error reconciling namespaces", zap.Error(err))
+		return err
+	}
 
-		// TODO(schallert): Decide for sure what our conventions for re-enqueueing
-		// will be. EDIT: just return the cluster object from funcs and continue
-		// using that version of it.
-		if updated {
-			err = errors.New("re-enqueing cluster due to API update")
-			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, err.Error())
-		}
+	if len(cluster.Spec.Namespaces) == 0 {
+		c.logger.Warn("cluster has no namespaces defined", zap.String("cluster", cluster.Name))
+		c.recorder.WarningEvent(cluster, eventer.ReasonUnknown, "cluster %s has no namespaces", cluster.Name)
 	}
 
 	if !cluster.Status.HasInitializedPlacement() {

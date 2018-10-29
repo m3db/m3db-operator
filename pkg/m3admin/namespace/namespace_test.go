@@ -21,108 +21,124 @@
 package namespace
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/m3db/m3db-operator/pkg/m3admin"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
-	retryhttp "github.com/hashicorp/go-retryablehttp"
-	"github.com/stretchr/testify/require"
+	m3ns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// Client to avoid waiting many seconds in tests.
-func newM3adminClient() m3admin.Client {
-	retry := retryhttp.NewClient()
-	retry.RetryMax = 0
+func TestRequestFromSpec(t *testing.T) {
+	tests := []struct {
+		ns     myspec.Namespace
+		req    *admin.NamespaceAddRequest
+		expErr bool
+	}{
+		{
+			ns:     myspec.Namespace{},
+			expErr: true,
+		},
+		{
+			ns: myspec.Namespace{
+				Name: "foo",
+			},
+			expErr: true,
+		},
+		{
+			ns: myspec.Namespace{
+				Name:    "foo",
+				Preset:  "a",
+				Options: &myspec.NamespaceOptions{},
+			},
+			expErr: true,
+		},
+		{
+			ns: myspec.Namespace{
+				Name: "foo",
+				Options: &myspec.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: myspec.RetentionOptions{
+						BlockDataExpiry: true,
+					},
+					IndexOptions: myspec.IndexOptions{
+						Enabled: true,
+					},
+				},
+			},
+			req: &admin.NamespaceAddRequest{
+				Name: "foo",
+				Options: &m3ns.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: &m3ns.RetentionOptions{
+						BlockDataExpiry: true,
+					},
+					IndexOptions: &m3ns.IndexOptions{
+						Enabled: true,
+					},
+				},
+			},
+		},
+		{
+			ns: myspec.Namespace{
+				Name:   "foo",
+				Preset: "a",
+			},
+			expErr: true,
+		},
+		{
+			ns: myspec.Namespace{
+				Name:   "foo",
+				Preset: string(PresetTenSecondsTwoDaysIndexed),
+			},
+			req: &admin.NamespaceAddRequest{
+				Name:    "foo",
+				Options: requestOptsFromAPI(&presetTenSecondsTwoDaysIndexed),
+			},
+		},
+	}
 
-	return m3admin.NewClient(m3admin.WithHTTPClient(retry))
+	for _, test := range tests {
+		req, err := RequestFromSpec(test.ns)
+		if test.expErr {
+			assert.Error(t, err)
+		} else {
+			assert.Equal(t, test.req, req)
+		}
+	}
 }
 
-func newNamespaceClient(t *testing.T, url string) Client {
-	cl, err := NewClient(
-		WithURL(url),
-		WithClient(newM3adminClient()),
-	)
+func TestRetentionOptsFromAPI(t *testing.T) {
+	opts := myspec.RetentionOptions{
+		RetentionPeriod:                     time.Second,
+		BlockSize:                           2 * time.Second,
+		BufferFuture:                        3 * time.Second,
+		BufferPast:                          4 * time.Second,
+		BlockDataExpiry:                     true,
+		BlockDataExpiryAfterNotAccessPeriod: 5 * time.Second,
+	}
 
-	require.NoError(t, err)
-	require.NotNil(t, cl)
+	nsOpts := retentionOptsFromAPI(opts)
 
-	return cl
+	assert.Equal(t, int64(1000000000), nsOpts.RetentionPeriodNanos)
+	assert.Equal(t, int64(2000000000), nsOpts.BlockSizeNanos)
+	assert.Equal(t, int64(3000000000), nsOpts.BufferFutureNanos)
+	assert.Equal(t, int64(4000000000), nsOpts.BufferPastNanos)
+	assert.True(t, nsOpts.BlockDataExpiry)
+	assert.Equal(t, int64(5000000000), nsOpts.BlockDataExpiryAfterNotAccessPeriodNanos)
 }
 
-func TestCreate(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("{}"))
-	}))
+func TestIndexOptsFromAPI(t *testing.T) {
+	opts := myspec.IndexOptions{
+		Enabled:   true,
+		BlockSize: time.Second,
+	}
 
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
+	iOpts := indexOptsFromAPI(opts)
 
-	err := client.Create("test")
-	require.Nil(t, err)
-}
-
-func TestCreateErr(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
-		w.Write([]byte("{}"))
-	}))
-
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
-
-	err := client.Create("test")
-	require.NotNil(t, err)
-}
-
-func TestGet(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte(`{"registry":{"namespaces":{"default":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}},"m3db-cluster":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}}}}}`))
-	}))
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
-
-	resp, err := client.List()
-	require.NotNil(t, resp)
-	require.Nil(t, err)
-}
-
-func TestGetErr(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
-		w.Write([]byte("{}"))
-	}))
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
-
-	resp, err := client.List()
-	require.Nil(t, resp)
-	require.NotNil(t, err)
-}
-
-func TestDelete(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("{}"))
-	}))
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
-
-	err := client.Delete("default")
-	require.Nil(t, err)
-}
-
-func TestDeleteErr(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
-		w.Write([]byte("{}"))
-	}))
-	defer s.Close()
-	client := newNamespaceClient(t, s.URL)
-
-	err := client.Delete("default")
-	require.NotNil(t, err)
+	assert.True(t, iOpts.Enabled)
+	assert.Equal(t, int64(1000000000), iOpts.BlockSizeNanos)
 }

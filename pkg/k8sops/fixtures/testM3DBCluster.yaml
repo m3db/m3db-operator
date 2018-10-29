@@ -14,6 +14,9 @@ spec:
       numInstances: 1
     - name: us-fake1-c
       numInstances: 1
+  namespaces:
+    - name: metrics-10s:2d
+      preset: 10s:2d
   containerResources:
     requests:
       memory: 1Gi
