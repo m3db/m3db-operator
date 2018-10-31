@@ -25,9 +25,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/m3db/m3db-operator/pkg/k8sops"
-
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
