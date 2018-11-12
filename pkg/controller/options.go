@@ -109,7 +109,7 @@ func WithM3DBClusterInformerFactory(f informers.SharedInformerFactory) Option {
 // the cluster.
 func WithKubectlProxy(use bool) Option {
 	return optionFn(func(o *options) {
-		o.kubectlProxy = true
+		o.kubectlProxy = use
 	})
 }
 
