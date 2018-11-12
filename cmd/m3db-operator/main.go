@@ -34,9 +34,6 @@ import (
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
@@ -57,23 +54,23 @@ const (
 )
 
 var (
-	_appVersion      = "0.0.1"
-	_kubeCfgFile     string
-	_masterURL       string
-	_coordinatorAddr string
-	_operatorName    = "m3db_operator"
-	_metricsPath     = "/metrics"
-	_metricsPort     = ":8080"
-	_debugLog        bool
-	_develLog        bool
+	_appVersion   = "0.0.1"
+	_kubeCfgFile  string
+	_masterURL    string
+	_operatorName = "m3db_operator"
+	_metricsPath  = "/metrics"
+	_metricsPort  = ":8080"
+	_useProxy     bool
+	_debugLog     bool
+	_develLog     bool
 )
 
 func init() {
 	flag.StringVar(&_kubeCfgFile, "kubecfg-file", "", "Location of kubecfg file for access to kubernetes master service; --kube_master_url overrides the URL part of this; if neither this nor --kube_master_url are provided, defaults to service account tokens")
 	flag.StringVar(&_masterURL, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
-	flag.StringVar(&_coordinatorAddr, "coordinator", "", "override coordinator address if running out-of-cluster")
 	flag.BoolVar(&_debugLog, "debug", false, "enable debug logging")
 	flag.BoolVar(&_develLog, "devel", false, "enable development logging mode")
+	flag.BoolVar(&_useProxy, "proxy", false, "use kubectl proxy for cluster communication")
 	flag.Parse()
 }
 
@@ -143,11 +140,6 @@ func main() {
 
 	stopCh := make(chan struct{})
 
-	// TODO(schallert): move these to k8sops client once we're confident we want
-	// them
-	//
-	// TODO(schallert): not sure if we need podinformers as well or if
-	// abstractions of statefulsets will do
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
 	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
 
@@ -162,25 +154,8 @@ func main() {
 	}
 
 	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
-	if _coordinatorAddr != "" {
-		m3adminClient := m3admin.NewClient(m3admin.WithLogger(logger))
-		pc, err := placement.NewClient(
-			placement.WithLogger(logger),
-			placement.WithURL(_coordinatorAddr),
-			placement.WithClient(m3adminClient),
-		)
-		if err != nil {
-			logger.Fatal(err.Error())
-		}
-		nc, err := namespace.NewClient(namespace.WithLogger(logger), namespace.WithURL(_coordinatorAddr))
-		if err != nil {
-			logger.Fatal(err.Error())
-		}
-
-		opts = append(opts,
-			controller.WithPlacementClient(pc),
-			controller.WithNamespaceClient(nc),
-		)
+	if _useProxy {
+		opts = append(opts, controller.WithKubectlProxy(true))
 	}
 
 	// Create controller

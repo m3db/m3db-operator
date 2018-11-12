@@ -32,11 +32,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	// DefaultURL is the typical URL for the namespace service
-	DefaultURL = "http://m3coordinator.default:7201"
-)
-
 var (
 	// ErrNotOk indicates that HTTP status was not Ok
 	ErrNotOk = errors.New("status not ok")

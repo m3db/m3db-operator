@@ -60,23 +60,23 @@ var (
 
 type m3dbPort struct {
 	name     string
-	port     int32
+	port     Port
 	protocol v1.Protocol
 }
 
 var baseM3DBPorts = [...]m3dbPort{
-	{"client", 9000, v1.ProtocolTCP},
-	{"cluster", 9001, v1.ProtocolTCP},
-	{"http-node", 9002, v1.ProtocolTCP},
-	{"http-cluster", 9003, v1.ProtocolTCP},
-	{"debug", 9004, v1.ProtocolTCP},
-	{"coordinator", 7201, v1.ProtocolTCP},
-	{"coord-metrics", 7203, v1.ProtocolTCP},
+	{"client", PortM3DBNodeClient, v1.ProtocolTCP},
+	{"cluster", PortM3DBNodeCluster, v1.ProtocolTCP},
+	{"http-node", PortM3DBHTTPNode, v1.ProtocolTCP},
+	{"http-cluster", PortM3DBHTTPCluster, v1.ProtocolTCP},
+	{"debug", PortM3DBDebug, v1.ProtocolTCP},
+	{"coordinator", PortM3Coordinator, v1.ProtocolTCP},
+	{"coord-metrics", PortM3CoordinatorMetrics, v1.ProtocolTCP},
 }
 
 var baseCoordinatorPorts = [...]m3dbPort{
-	{"coordinator", 7201, v1.ProtocolTCP},
-	{"coord-metrics", 7203, v1.ProtocolTCP},
+	{"coordinator", PortM3Coordinator, v1.ProtocolTCP},
+	{"coord-metrics", PortM3CoordinatorMetrics, v1.ProtocolTCP},
 }
 
 // GenerateCRD generates the crd object needed for the M3DBCluster
@@ -222,7 +222,7 @@ func buildServicePorts(ports []m3dbPort) []v1.ServicePort {
 	for _, p := range ports {
 		newPortMapping := v1.ServicePort{
 			Name:     p.name,
-			Port:     p.port,
+			Port:     int32(p.port),
 			Protocol: p.protocol,
 		}
 		svcPorts = append(svcPorts, newPortMapping)
@@ -244,7 +244,7 @@ func generateContainerPorts() []v1.ContainerPort {
 	for _, v := range baseM3DBPorts {
 		newPortMapping := v1.ContainerPort{
 			Name:          v.name,
-			ContainerPort: v.port,
+			ContainerPort: int32(v.port),
 			Protocol:      v.protocol,
 		}
 		cntPorts = append(cntPorts, newPortMapping)

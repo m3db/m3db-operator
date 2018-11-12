@@ -133,6 +133,10 @@ func TestGetErr(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.String() != "/api/v1/namespace/default" || r.Method != "DELETE" {
+			w.WriteHeader(404)
+			return
+		}
 		w.WriteHeader(200)
 		w.Write([]byte("{}"))
 	}))

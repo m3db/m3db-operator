@@ -30,11 +30,15 @@ import (
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
-	nsh "github.com/m3db/m3/src/query/api/v1/handler/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
+)
+
+const (
+	namespaceBaseURL   = "/api/v1/namespace"
+	namespaceDeleteFmt = namespaceBaseURL + "/%s"
 )
 
 type namespaceClient struct {
@@ -88,7 +92,6 @@ func NewClient(opts ...Option) (Client, error) {
 	ns := &namespaceClient{
 		client: m3admin.NewClient(),
 		logger: logger,
-		url:    m3admin.DefaultURL,
 	}
 	for _, o := range opts {
 		if err := o.execute(ns); err != nil {
@@ -100,7 +103,7 @@ func NewClient(opts ...Option) (Client, error) {
 
 // Create will create a namespace
 func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
-	url := fmt.Sprintf("%s%s", n.url, nsh.AddURL)
+	url := n.url + namespaceBaseURL
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
@@ -115,7 +118,7 @@ func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
 
 // List will retrieve all namespaces
 func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
-	url := fmt.Sprintf("%s%s", n.url, nsh.GetURL)
+	url := n.url + namespaceBaseURL
 	resp, err := n.client.DoHTTPRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -140,7 +143,7 @@ func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 
 // Delete will delete a namespace
 func (n *namespaceClient) Delete(namespace string) error {
-	url := fmt.Sprintf("%s%s/%s", n.url, nsh.AddURL, namespace)
+	url := fmt.Sprintf(n.url+namespaceDeleteFmt, namespace)
 	_, err := n.client.DoHTTPRequest("DELETE", url, nil)
 	if err != nil {
 		return err

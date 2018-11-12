@@ -55,7 +55,6 @@ func NewClient(opts ...Option) (Client, error) {
 	pl := &placementClient{
 		client: m3admin.NewClient(),
 		logger: logger,
-		url:    m3admin.DefaultURL,
 	}
 
 	for _, o := range opts {
