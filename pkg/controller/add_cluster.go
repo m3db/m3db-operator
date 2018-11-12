@@ -29,8 +29,8 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
 	corev1 "k8s.io/api/core/v1"
 

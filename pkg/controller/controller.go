@@ -37,7 +37,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
-	m3placement "github.com/m3db/m3cluster/placement"
+	m3placement "github.com/m3db/m3/src/cluster/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"

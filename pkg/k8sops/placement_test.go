@@ -26,7 +26,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

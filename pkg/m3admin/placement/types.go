@@ -21,9 +21,9 @@
 package placement
 
 import (
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3/src/cluster/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	m3placement "github.com/m3db/m3cluster/placement"
 )
 
 // Client provides the interface to interact with the placement API
@@ -38,4 +38,6 @@ type Client interface {
 	Add(instance placementpb.Instance) error
 	// Remove removes a given instance with the given ID from the placement.
 	Remove(id string) error
+	// Replace replaces one instance with another.
+	Replace(leavingID string, newInstance placementpb.Instance) error
 }

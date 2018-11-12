@@ -73,7 +73,8 @@
 
  [[constraint]]
   name = "github.com/m3db/m3"
-  version = "v0.4.7"
+  # TODO(schallert): remove once replace PR lands in monorepo
+  revision = "85841a3ff2b11b69549e6ae2f19cfa750408c850"
 
  [[override]]
   name = "github.com/apache/thrift"

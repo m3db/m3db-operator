@@ -26,21 +26,23 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3/src/cluster/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	m3placement "github.com/m3db/m3cluster/placement"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
 )
 
 const (
-	placementBaseURL   = "/api/v1/services/m3db/placement"
-	placementInitURL   = placementBaseURL + "/init"
-	placementRemoveFmt = placementBaseURL + "/%s"
+	placementBaseURL    = "/api/v1/services/m3db/placement"
+	placementInitURL    = placementBaseURL + "/init"
+	placementReplaceURL = placementBaseURL + "/replace"
+	placementRemoveFmt  = placementBaseURL + "/%s"
 )
 
 type placementClient struct {
@@ -72,7 +74,7 @@ func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 	if err != nil {
 		return err
 	}
-	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 // Delete will delete all current placements
 func (p *placementClient) Delete() error {
 	url := p.url + placementBaseURL
-	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
+	_, err := p.client.DoHTTPRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return err
 	}
@@ -94,7 +96,7 @@ func (p *placementClient) Delete() error {
 // Get will get current placement
 func (p *placementClient) Get() (m3placement.Placement, error) {
 	url := p.url + placementBaseURL
-	resp, err := p.client.DoHTTPRequest("GET", url, nil)
+	resp, err := p.client.DoHTTPRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +125,7 @@ func (p *placementClient) Add(instance placementpb.Instance) error {
 	if err != nil {
 		return err
 	}
-	_, err = p.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
+	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -133,6 +135,23 @@ func (p *placementClient) Add(instance placementpb.Instance) error {
 
 func (p *placementClient) Remove(id string) error {
 	url := fmt.Sprintf(p.url+placementRemoveFmt, id)
-	_, err := p.client.DoHTTPRequest("DELETE", url, nil)
+	_, err := p.client.DoHTTPRequest(http.MethodDelete, url, nil)
+	return err
+}
+
+func (p *placementClient) Replace(leaving string, newInst placementpb.Instance) error {
+	url := p.url + placementReplaceURL
+
+	req := &admin.PlacementReplaceRequest{
+		LeavingInstanceIDs: []string{leaving},
+		Candidates:         []*placementpb.Instance{&newInst},
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
 	return err
 }

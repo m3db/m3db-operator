@@ -27,9 +27,9 @@ package placement
 import (
 	"reflect"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	"github.com/m3db/m3/src/cluster/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	"github.com/m3db/m3cluster/placement"
 
 	"github.com/golang/mock/gomock"
 )
@@ -116,4 +116,16 @@ func (m *MockClient) Remove(id string) error {
 // Remove indicates an expected call of Remove
 func (mr *MockClientMockRecorder) Remove(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockClient)(nil).Remove), id)
+}
+
+// Replace mocks base method
+func (m *MockClient) Replace(leavingID string, newInstance placementpb.Instance) error {
+	ret := m.ctrl.Call(m, "Replace", leavingID, newInstance)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Replace indicates an expected call of Replace
+func (mr *MockClientMockRecorder) Replace(leavingID, newInstance interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replace", reflect.TypeOf((*MockClient)(nil).Replace), leavingID, newInstance)
 }
