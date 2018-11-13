@@ -266,7 +266,8 @@
   revision = "47fe1193cdb900de7193d1f3d26ea9b2cbf6fb31"
 
 [[projects]]
-  digest = "1:e991492c3733edb373a9f70a1163ec49d83491809b89c234d237fc5c092ff78d"
+  branch = "master"
+  digest = "1:c2484f70243efc7517df00523731b810b07981910797e9111b681e5238e671e1"
   name = "github.com/m3db/m3"
   packages = [
     "src/cluster/generated/proto/placementpb",
@@ -279,11 +280,11 @@
     "src/query/generated/proto/admin",
   ]
   pruneopts = ""
-  revision = "85841a3ff2b11b69549e6ae2f19cfa750408c850"
+  revision = "8fa049d7aacb77dfa286ecae41a9db90bdf6ba4d"
 
 [[projects]]
   branch = "master"
-  digest = "1:a6fd4f6c6fd482cf04d395564907fd0fa1647dda01bcd92f0fedf235d2e292a8"
+  digest = "1:b797610f97780b8a3209f49b72e840b8213ee024fafd24f131542757cd89e4bd"
   name = "github.com/m3db/m3x"
   packages = [
     "clock",
@@ -294,7 +295,7 @@
     "watch",
   ]
   pruneopts = ""
-  revision = "943173a151c8a6b2da1f93f814c27c4e4a1e2050"
+  revision = "4f657299af578e9aa28c557075c7307d4b756378"
 
 [[projects]]
   digest = "1:4142d94383572e74b42352273652c62afec5b23f325222ed09198f46009022d1"
@@ -390,7 +391,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8d5f99141af5ad3730178547fb2a616fabf1e8cc31c6998c106e88778a0d13fe"
+  digest = "1:d522feb599bd02a4b76d3ad20b91668c87028a6b5fd19a1bed994e26f6cd3c6d"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -398,7 +399,7 @@
     "model",
   ]
   pruneopts = ""
-  revision = "a04bd04888af6ea6f64ed14244d9bcf2b739ebd6"
+  revision = "41aa239b4cce3c56ab88fc366ae8b0a6423fa239"
 
 [[projects]]
   branch = "master"
@@ -497,7 +498,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3b86e1cf4059ba6c2cf189f60655a16a8e32d221ed23c4137ac6b2adeaeccc52"
+  digest = "1:fbc2896199a45d32325e24ceb56624c7db49f9cfb068f739ee53339a8fb183b3"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -508,7 +509,7 @@
     "idna",
   ]
   pruneopts = ""
-  revision = "03003ca0c849e57b6ea29a4bab8d3cb6e4d568fe"
+  revision = "88d92db4c548972d942ac2a3531a8a9a34c82ca6"
 
 [[projects]]
   branch = "master"
@@ -569,7 +570,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9002b2d918ce1b9ec9880660650e5705da78ceffcce2e24f5d22cde886977d10"
+  digest = "1:2ffbc49f24009cefaf06ecc67681a6e27a3d88a18d93ac5a0f5e0468c868865b"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -578,7 +579,7 @@
     "internal/gopathwalk",
   ]
   pruneopts = ""
-  revision = "c3404317771e23bb54e22f9afec8cadd7ca6c940"
+  revision = "ea84011da2848032433bb8841abc1a9e5d5e2bb0"
 
 [[projects]]
   digest = "1:77d3cff3a451d50be4b52db9c7766c0d8570ba47593f0c9dc72173adb208e788"
@@ -915,7 +916,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eb911c9466754b366bbb8ffb24170ab3c71a293cc788bd3d61d9f2ff0db49545"
+  digest = "1:0cc7d194e005097afad585545a3049ac7b5d1e3a1bfa86aa6bf6f2fb0e0a5063"
   name = "k8s.io/gengo"
   packages = [
     "args",
@@ -928,7 +929,7 @@
     "types",
   ]
   pruneopts = ""
-  revision = "7765d7f4899dc5c529e16c90791a600b0914c2a0"
+  revision = "fd15ee9cc2f77baa4f31e59e6acbf21146455073"
 
 [[projects]]
   branch = "master"
