@@ -28,8 +28,8 @@ import (
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"
@@ -183,5 +183,21 @@ func TestRemove(t *testing.T) {
 
 	client := newPlacementClient(t, s.URL)
 	err := client.Remove("instFoo")
+	assert.NoError(t, err)
+}
+
+func TestReplace(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.String() != "/api/v1/services/m3db/placement/replace" || r.Method != http.MethodPost {
+			w.WriteHeader(404)
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(`{"placement": {}}`))
+	}))
+	defer s.Close()
+
+	cl := newPlacementClient(t, s.URL)
+	err := cl.Replace("A", placementpb.Instance{})
 	assert.NoError(t, err)
 }

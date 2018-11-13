@@ -31,9 +31,9 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	m3placement "github.com/m3db/m3/src/cluster/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-	"github.com/m3db/m3cluster/generated/proto/placementpb"
-	m3placement "github.com/m3db/m3cluster/placement"
 
 	"go.uber.org/zap"
 )
@@ -214,10 +214,14 @@ func (c errorPlacementClient) Delete() error {
 	return c.err
 }
 
-func (c errorPlacementClient) Add(instance placementpb.Instance) error {
+func (c errorPlacementClient) Add(placementpb.Instance) error {
 	return c.err
 }
 
-func (c errorPlacementClient) Remove(id string) error {
+func (c errorPlacementClient) Remove(string) error {
+	return c.err
+}
+
+func (c errorPlacementClient) Replace(string, placementpb.Instance) error {
 	return c.err
 }
