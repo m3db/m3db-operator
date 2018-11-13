@@ -214,14 +214,14 @@ func (c errorPlacementClient) Delete() error {
 	return c.err
 }
 
-func (c errorPlacementClient) Add(instance placementpb.Instance) error {
+func (c errorPlacementClient) Add(placementpb.Instance) error {
 	return c.err
 }
 
-func (c errorPlacementClient) Remove(id string) error {
+func (c errorPlacementClient) Remove(string) error {
 	return c.err
 }
 
-func (c errorPlacementClient) Replace(_ string, _ placementpb.Instance) error {
+func (c errorPlacementClient) Replace(string, placementpb.Instance) error {
 	return c.err
 }

@@ -139,11 +139,11 @@ func (p *placementClient) Remove(id string) error {
 	return err
 }
 
-func (p *placementClient) Replace(leaving string, newInst placementpb.Instance) error {
+func (p *placementClient) Replace(leavingInstanceID string, newInst placementpb.Instance) error {
 	url := p.url + placementReplaceURL
 
 	req := &admin.PlacementReplaceRequest{
-		LeavingInstanceIDs: []string{leaving},
+		LeavingInstanceIDs: []string{leavingInstanceID},
 		Candidates:         []*placementpb.Instance{&newInst},
 	}
 

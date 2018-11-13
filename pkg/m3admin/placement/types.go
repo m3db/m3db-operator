@@ -39,5 +39,5 @@ type Client interface {
 	// Remove removes a given instance with the given ID from the placement.
 	Remove(id string) error
 	// Replace replaces one instance with another.
-	Replace(leavingID string, newInstance placementpb.Instance) error
+	Replace(leavingInstanceID string, newInstance placementpb.Instance) error
 }
