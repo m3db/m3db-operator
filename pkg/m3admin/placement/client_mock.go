@@ -119,13 +119,13 @@ func (mr *MockClientMockRecorder) Remove(id interface{}) *gomock.Call {
 }
 
 // Replace mocks base method
-func (m *MockClient) Replace(leavingID string, newInstance placementpb.Instance) error {
-	ret := m.ctrl.Call(m, "Replace", leavingID, newInstance)
+func (m *MockClient) Replace(leavingInstanceID string, newInstance placementpb.Instance) error {
+	ret := m.ctrl.Call(m, "Replace", leavingInstanceID, newInstance)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Replace indicates an expected call of Replace
-func (mr *MockClientMockRecorder) Replace(leavingID, newInstance interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replace", reflect.TypeOf((*MockClient)(nil).Replace), leavingID, newInstance)
+func (mr *MockClientMockRecorder) Replace(leavingInstanceID, newInstance interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replace", reflect.TypeOf((*MockClient)(nil).Replace), leavingInstanceID, newInstance)
 }
