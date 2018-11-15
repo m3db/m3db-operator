@@ -63,6 +63,11 @@ test: test-base
 	@echo "--- $@"
 	gocov convert $(coverfile) | gocov report
 
+.PHONY: test-e2e
+test-e2e:
+	@echo "--- $@"
+	go test -v -tags integration ./integration/e2e
+
 .PHONY: testhtml
 testhtml: test-base
 	@echo "--- $@"
@@ -120,7 +125,7 @@ mock-gen: install-ci-tools mock-gen-no-deps
 .PHONY: license-gen
 license-gen:
 	@echo "--- :apache: $@"
-	@find $(SELF_DIR)/pkg/$(SUBDIR) -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
+	@find $(SELF_DIR)/pkg/$(SUBDIR) $(SELF_DIR)/integration -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
 
 .PHONY: mock-gen-no-deps
 mock-gen-no-deps:
