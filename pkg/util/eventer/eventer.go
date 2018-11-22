@@ -58,8 +58,8 @@ const (
 
 	// Sync events
 	ReasonSyncing     = "Syncing"
-	ReasonSuccessSync = "FailedToSync"
-	ReasonFailSync    = "SuccessfulSync"
+	ReasonFailSync    = "FailedToSync"
+	ReasonSuccessSync = "SuccessfulSync"
 
 	// Misc events
 	ReasonLongerThanUsual = "TimeLongerThanUsual"

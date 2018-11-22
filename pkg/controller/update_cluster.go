@@ -279,7 +279,7 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 		"BootstrapComplete", "no bootstraps in progress")
 }
 
-func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
+func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
 	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
 	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod)
 	if err != nil {
@@ -304,6 +304,36 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	}
 
 	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
+	return nil
+}
+
+// If the pod in the placement is unhealthy, replace it by creating an appropriate one
+func (c *Controller) replacePodInPlacement(cluster *myspec.M3DBCluster, leavingPod *corev1.Pod) error {
+	c.logger.Info("replacing pod in placement", zap.String("pod", leavingPod.Name))
+
+	// we want the replacement instance to have the same specs as the previous
+	inst, err := k8sops.PlacementInstanceFromPod(cluster, leavingPod)
+	if err != nil {
+		err := fmt.Errorf("error creating instance for replacement pod %s", leavingPod.Name)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	reason := fmt.Sprintf("replacing %s pod in placement", leavingPod.Name)
+	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
+	if err != nil {
+		err := fmt.Errorf("error setting replacement pod bootstrapping status: %v", err)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	err = c.adminClient.placementClientForCluster(cluster).Replace(leavingPod.Name, *inst)
+	if err != nil {
+		err := fmt.Errorf("error replacing pod in placement: %s", leavingPod.Name)
+		c.logger.Error(err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -336,7 +366,7 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 	for _, pod := range pods {
 		_, ok := placement.Instance(pod.Name)
 		if !ok {
-			return c.addPodToPlacement(cluster, pod, placement)
+			return c.addPodToPlacement(cluster, pod)
 		}
 	}
 
