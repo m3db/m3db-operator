@@ -18,57 +18,48 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package controller
 
 import (
 	"testing"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
-	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
-	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeinformers "k8s.io/client-go/informers"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
 )
 
-func TestPlacementInstanceFromPod(t *testing.T) {
+func TestOptions(t *testing.T) {
 	mc := gomock.NewController(t)
 	defer mc.Finish()
 
-	cluster := &myspec.M3DBCluster{}
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{},
-		},
+	opts := &options{}
+
+	kubeClient := kubefake.NewSimpleClientset()
+	crdClient := clientsetfake.NewSimpleClientset()
+	client := k8sops.NewMockK8sops(mc)
+	provider := podidentity.NewMockProvider(mc)
+	for _, o := range []Option{
+		WithScope(tally.NoopScope),
+		WithLogger(zap.NewNop()),
+		WithKClient(client),
+		WithCRDClient(crdClient),
+		WithKubeClient(kubeClient),
+		WithPodIdentityProvider(provider),
+		WithKubeInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
+		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
+	} {
+		assert.NotNil(t, o)
+		o.execute(opts)
 	}
 
-	idProvider := podidentity.NewMockProvider(mc)
-	podID := &myspec.PodIdentity{Name: "pod-a"}
-	idProvider.EXPECT().Identity(pod, cluster).Return(podID, nil)
-
-	_, err := PlacementInstanceFromPod(cluster, pod, idProvider)
-	assert.Error(t, err)
-
-	cluster.ObjectMeta.Name = "cluster-a"
-	pod.ObjectMeta.Labels[labels.IsolationGroup] = "zone-a"
-	pod.ObjectMeta.Name = "pod-a"
-
-	expInst := &placementpb.Instance{
-		Id:             `{"name":"pod-a"}`,
-		IsolationGroup: "zone-a",
-		Zone:           "embedded",
-		Weight:         100,
-		Hostname:       "pod-a.m3dbnode-cluster-a",
-		Endpoint:       "pod-a.m3dbnode-cluster-a:9000",
-		Port:           9000,
-	}
-
-	inst, err := PlacementInstanceFromPod(cluster, pod, idProvider)
-	assert.NoError(t, err)
-	assert.Equal(t, expInst, inst)
+	assert.NoError(t, opts.validate())
 }

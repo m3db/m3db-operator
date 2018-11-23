@@ -36,7 +36,10 @@ data:
       debugListenAddress: 0.0.0.0:9004
 
       hostID:
-        resolver: hostname
+        resolver: file
+        file:
+          path: /etc/m3db/pod-identity/identity
+          timeout: 5m
 
       client:
         writeConsistencyLevel: majority
@@ -218,11 +221,11 @@ spec:
   numberOfShards: 256
   isolationGroups:
     - name: us-east1-b
-      numInstances: 3
+      numInstances: 1
     - name: us-east1-c
-      numInstances: 3
+      numInstances: 1
     - name: us-east1-d
-      numInstances: 3
+      numInstances: 1
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
@@ -233,15 +236,3 @@ spec:
     limits:
       memory: 12Gi
       cpu: '4'
-  volumeClaimTemplates:
-    - metadata:
-        name: m3db-data
-      spec:
-        accessModes:
-        - ReadWriteOnce
-        storageClassName: m3db-sc
-        resources:
-          requests:
-            storage: 2Gi
-          limits:
-            storage: 2Gi

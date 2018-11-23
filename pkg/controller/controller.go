@@ -34,6 +34,7 @@ import (
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
@@ -80,6 +81,7 @@ type Controller struct {
 	clock       clock.Clock
 	scope       tally.Scope
 	k8sclient   k8sops.K8sops
+	idProvider  podidentity.Provider
 	adminClient *multiAdminClient
 	doneCh      chan struct{}
 
@@ -149,6 +151,7 @@ func New(opts ...Option) (*Controller, error) {
 		scope:       scope,
 		clock:       clock.RealClock{},
 		k8sclient:   kclient,
+		idProvider:  options.idProvider,
 		adminClient: multiClient,
 		doneCh:      make(chan struct{}),
 

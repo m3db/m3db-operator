@@ -29,9 +29,8 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
-	pkgnamespace "github.com/m3db/m3db-operator/pkg/m3admin/namespace"
-	pkgplacement "github.com/m3db/m3db-operator/pkg/m3admin/placement"
 
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	"github.com/m3db/m3/src/cluster/placement"
@@ -65,15 +64,10 @@ func (namespaceMatcher) String() string {
 func TestReconcileNamespaces(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
-	nsMock := pkgnamespace.NewMockClient(mc)
-
 	deps := newTestDeps(t, &testOpts{
-		crdObjects:      []runtime.Object{cluster},
-		namespaceClient: nsMock,
+		crdObjects: []runtime.Object{cluster},
 	})
+	nsMock := deps.namespaceClient
 
 	controller := deps.newController()
 	defer deps.cleanup()
@@ -99,15 +93,10 @@ func TestCleanupNamespaces(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	cluster.Spec.Namespaces = []myspec.Namespace{}
 
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
-	nsMock := pkgnamespace.NewMockClient(mc)
-
 	deps := newTestDeps(t, &testOpts{
-		crdObjects:      []runtime.Object{cluster},
-		namespaceClient: nsMock,
+		crdObjects: []runtime.Object{cluster},
 	})
+	nsMock := deps.namespaceClient
 
 	controller := deps.newController()
 	defer deps.cleanup()
@@ -142,15 +131,10 @@ func TestCreateNamespaces(t *testing.T) {
 		Preset: "10s:2d",
 	})
 
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
-	nsMock := pkgnamespace.NewMockClient(mc)
-
 	deps := newTestDeps(t, &testOpts{
-		crdObjects:      []runtime.Object{cluster},
-		namespaceClient: nsMock,
+		crdObjects: []runtime.Object{cluster},
 	})
+	nsMock := deps.namespaceClient
 
 	controller := deps.newController()
 	defer deps.cleanup()
@@ -339,15 +323,10 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 }
 
 func TestAddPodToPlacement(t *testing.T) {
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
 	cluster := getFixture("cluster-simple.yaml", t)
 
-	placementMock := pkgplacement.NewMockClient(mc)
 	deps := newTestDeps(t, &testOpts{
-		crdObjects:      []runtime.Object{cluster},
-		placementClient: placementMock,
+		crdObjects: []runtime.Object{cluster},
 	})
 	controller := deps.newController()
 	defer deps.cleanup()
@@ -363,8 +342,10 @@ func TestAddPodToPlacement(t *testing.T) {
 		},
 	}
 
+	deps.idProvider.EXPECT().Identity(pod, cluster).Return(&myspec.PodIdentity{}, nil)
+
 	expInstance := placementpb.Instance{
-		Id:             "pod-a",
+		Id:             "{}",
 		IsolationGroup: "zone-a",
 		Zone:           "embedded",
 		Endpoint:       "pod-a.m3dbnode-cluster-simple:9000",
@@ -373,7 +354,7 @@ func TestAddPodToPlacement(t *testing.T) {
 		Weight:         100,
 	}
 
-	placementMock.EXPECT().Add(expInstance)
+	deps.placementClient.EXPECT().Add(expInstance)
 
 	err := controller.addPodToPlacement(cluster, pod, pl)
 	assert.NoError(t, err)
@@ -411,10 +392,10 @@ func objectsFromPods(pods ...*corev1.Pod) []runtime.Object {
 	return arr
 }
 
-func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1.Pod) placement.Placement {
+func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1.Pod, idProvider podidentity.Provider) placement.Placement {
 	insts := make([]placement.Instance, len(pods))
 	for i, pod := range pods {
-		instPb, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+		instPb, err := k8sops.PlacementInstanceFromPod(cluster, pod, idProvider)
 		require.NoError(t, err)
 		inst, err := placement.NewInstanceFromProto(instPb)
 		require.NoError(t, err)
@@ -423,10 +404,29 @@ func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1
 	return placement.NewPlacement().SetInstances(insts)
 }
 
-func TestExpandPlacementForSet(t *testing.T) {
-	mc := gomock.NewController(t)
-	defer mc.Finish()
+func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
+	return &myspec.PodIdentity{
+		Name: pod.Name,
+	}
+}
 
+type podNameMatcher struct {
+	name string
+}
+
+func (p podNameMatcher) String() string {
+	return "matches pods by name"
+}
+
+func (p podNameMatcher) Matches(x interface{}) bool {
+	return x.(*corev1.Pod).Name == p.name
+}
+
+func newPodNameMatcher(name string) gomock.Matcher {
+	return podNameMatcher{name: name}
+}
+
+func TestExpandPlacementForSet(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
 
 	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
@@ -434,22 +434,27 @@ func TestExpandPlacementForSet(t *testing.T) {
 	set.Status.ReadyReplicas = 3
 
 	pods := podsForClusterSet(cluster, set, 3)
-	pl := placementFromPods(t, cluster, pods[0:2])
-	group := cluster.Spec.IsolationGroups[0]
-
-	placementMock := pkgplacement.NewMockClient(mc)
 	deps := newTestDeps(t, &testOpts{
-		kubeObjects:     append(objectsFromPods(pods...)),
-		crdObjects:      []runtime.Object{cluster},
-		placementClient: placementMock,
+		kubeObjects: append(objectsFromPods(pods...)),
+		crdObjects:  []runtime.Object{cluster},
 	})
+	placementMock := deps.placementClient
+	idProvider := deps.idProvider
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	instPb, err := k8sops.PlacementInstanceFromPod(cluster, pods[2])
-	require.NoError(t, err)
-	placementMock.EXPECT().Add(*instPb)
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
 
+	pl := placementFromPods(t, cluster, pods[0:2], idProvider)
+	group := cluster.Spec.IsolationGroups[0]
+
+	instPb, err := k8sops.PlacementInstanceFromPod(cluster, pods[2], idProvider)
+	require.NoError(t, err)
+
+	placementMock.EXPECT().Add(*instPb)
 	err = controller.expandPlacementForSet(cluster, set, group, pl)
 	assert.NoError(t, err)
 
@@ -459,24 +464,23 @@ func TestExpandPlacementForSet(t *testing.T) {
 }
 
 func TestExpandPlacementForSet_Nop(t *testing.T) {
-	mc := gomock.NewController(t)
-	defer mc.Finish()
+	deps := newTestDeps(t, &testOpts{})
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
 
 	cluster := getFixture("cluster-3-zones.yaml", t)
-
 	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 3)
-	pl := placementFromPods(t, cluster, pods)
-	group := cluster.Spec.IsolationGroups[0]
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
 
-	placementMock := pkgplacement.NewMockClient(mc)
-	deps := newTestDeps(t, &testOpts{
-		placementClient: placementMock,
-	})
-	controller := deps.newController()
-	defer deps.cleanup()
+	pl := placementFromPods(t, cluster, pods, idProvider)
+	group := cluster.Spec.IsolationGroups[0]
 
 	err = controller.expandPlacementForSet(cluster, set, group, pl)
 	// We know this was a noop because the mock expects no calls.
@@ -484,34 +488,29 @@ func TestExpandPlacementForSet_Nop(t *testing.T) {
 }
 
 func TestExpandPlacementForSet_Err(t *testing.T) {
-	mc := gomock.NewController(t)
-	defer mc.Finish()
+	deps := newTestDeps(t, &testOpts{})
+	idProvider := deps.idProvider
+	controller := deps.newController()
+	defer deps.cleanup()
 
 	cluster := getFixture("cluster-3-zones.yaml", t)
-
 	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 2)
-	pl := placementFromPods(t, cluster, pods)
 	group := cluster.Spec.IsolationGroups[0]
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
 
-	placementMock := pkgplacement.NewMockClient(mc)
-	deps := newTestDeps(t, &testOpts{
-		placementClient: placementMock,
-	})
-	controller := deps.newController()
-	defer deps.cleanup()
-
+	pl := placementFromPods(t, cluster, pods, idProvider)
 	const expErr = "cannot expand set 'cluster-zones-rep0', not yet ready"
 	err = controller.expandPlacementForSet(cluster, set, group, pl)
 	assert.Equal(t, expErr, err.Error())
 }
 
 func TestShrinkPlacementForSet(t *testing.T) {
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
 	cluster := getFixture("cluster-3-zones.yaml", t)
 
 	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
@@ -519,15 +518,15 @@ func TestShrinkPlacementForSet(t *testing.T) {
 
 	pods := podsForClusterSet(cluster, set, 3)
 
-	placementMock := pkgplacement.NewMockClient(mc)
 	deps := newTestDeps(t, &testOpts{
-		kubeObjects:     objectsFromPods(pods...),
-		placementClient: placementMock,
+		kubeObjects: objectsFromPods(pods...),
 	})
+	placementMock := deps.placementClient
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	placementMock.EXPECT().Remove(pods[2].Name)
+	deps.idProvider.EXPECT().Identity(newPodNameMatcher(pods[2].Name), cluster).Return(identityForPod(pods[2]), nil)
+	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2"}`)
 	err = controller.shrinkPlacementForSet(cluster, set)
 	assert.NoError(t, err)
 }

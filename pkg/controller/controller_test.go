@@ -26,6 +26,10 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
 
@@ -33,8 +37,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubeinformers "k8s.io/client-go/informers"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
 )
 
 func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {
@@ -43,6 +52,30 @@ func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {
 		Labels:    labels,
 		Namespace: "namespace",
 	}
+}
+
+func TestNew(t *testing.T) {
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	kubeClient := kubefake.NewSimpleClientset()
+	crdClient := clientsetfake.NewSimpleClientset()
+	client := k8sops.NewMockK8sops(mc)
+	idProvider := podidentity.NewMockProvider(mc)
+	testOpts := []Option{
+		WithScope(tally.NoopScope),
+		WithLogger(zap.NewNop()),
+		WithKClient(client),
+		WithPodIdentityProvider(idProvider),
+		WithCRDClient(crdClient),
+		WithKubeClient(kubeClient),
+		WithKubeInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
+		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
+	}
+
+	controller, err := New(testOpts...)
+	assert.NoError(t, err)
+	assert.NotNil(t, controller)
 }
 
 func TestGetChildStatefulSets(t *testing.T) {

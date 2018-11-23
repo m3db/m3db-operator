@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package controller
+package podidentitycontroller
 
 import (
 	"errors"
@@ -44,11 +44,11 @@ type options struct {
 	logger                     *zap.Logger
 	scope                      tally.Scope
 	kclient                    k8sops.K8sops
-	idProvider                 podidentity.Provider
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
 	kubeInformerFactory        kubeinformers.SharedInformerFactory
 	m3dbClusterInformerFactory informers.SharedInformerFactory
+	idProvider                 podidentity.Provider
 	kubectlProxy               bool
 }
 

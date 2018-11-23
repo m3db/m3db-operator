@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package controller
+package podidentitycontroller
 
 import (
 	"sync/atomic"
@@ -29,11 +29,9 @@ import (
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	kubeinformers "k8s.io/client-go/informers"
@@ -61,27 +59,19 @@ type testDeps struct {
 	statefulSetLister appsv1listers.StatefulSetLister
 	podLister         corev1listers.PodLister
 	crdLister         crdlisters.M3DBClusterLister
-	placementClient   *placement.MockClient
-	namespaceClient   *namespace.MockClient
 	clock             clock.Clock
 	mockController    *gomock.Controller
 	stopCh            chan struct{}
 	closed            int32
 }
 
+// TODO(schallert): create issue to reduce test harness duplication across
+// controller packages.
 func (deps *testDeps) newController() *Controller {
-	m := newMultiAdminClient(m3admin.NewClient(), zap.NewNop())
-	m.nsClientFn = func(...namespace.Option) (namespace.Client, error) {
-		return deps.namespaceClient, nil
-	}
-	m.plClientFn = func(...placement.Option) (placement.Client, error) {
-		return deps.placementClient, nil
-	}
 	return &Controller{
-		logger:      zap.NewNop(),
-		scope:       tally.NoopScope,
-		clock:       deps.clock,
-		adminClient: m,
+		logger: zap.NewNop(),
+		scope:  tally.NoopScope,
+		clock:  deps.clock,
 
 		kubeClient: deps.kubeClient,
 		crdClient:  deps.crdClient,
@@ -102,6 +92,14 @@ func (deps *testDeps) cleanup() {
 	}
 }
 
+func newObjectMeta(name string, labels map[string]string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      name,
+		Labels:    labels,
+		Namespace: "namespace",
+	}
+}
+
 func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 	deps := &testDeps{
 		kubeClient:     kubefake.NewSimpleClientset(opts.kubeObjects...),
@@ -110,9 +108,6 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 		stopCh:         make(chan struct{}),
 		mockController: gomock.NewController(t),
 	}
-
-	deps.placementClient = placement.NewMockClient(deps.mockController)
-	deps.namespaceClient = namespace.NewMockClient(deps.mockController)
 	deps.idProvider = podidentity.NewMockProvider(deps.mockController)
 
 	if deps.clock == nil {

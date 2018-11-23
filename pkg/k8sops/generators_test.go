@@ -192,6 +192,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 									Name:      "cache",
 									MountPath: "/var/lib/m3kv/",
 								},
+								v1.VolumeMount{
+									Name:      "pod-identity",
+									MountPath: "/etc/m3db/pod-identity",
+								},
 							},
 							Resources: v1.ResourceRequirements{
 								Limits: v1.ResourceList{
@@ -224,6 +228,21 @@ func TestGenerateStatefulSet(t *testing.T) {
 								ConfigMap: &v1.ConfigMapVolumeSource{
 									LocalObjectReference: v1.LocalObjectReference{
 										Name: _configurationName,
+									},
+								},
+							},
+						},
+						v1.Volume{
+							Name: "pod-identity",
+							VolumeSource: v1.VolumeSource{
+								DownwardAPI: &v1.DownwardAPIVolumeSource{
+									Items: []v1.DownwardAPIVolumeFile{
+										{
+											Path: "identity",
+											FieldRef: &v1.ObjectFieldSelector{
+												FieldPath: "metadata.annotations['operator.m3db.io/pod-identity']",
+											},
+										},
 									},
 								},
 							},
