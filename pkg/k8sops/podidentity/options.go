@@ -21,6 +21,10 @@
 package podidentity
 
 import (
+	"errors"
+
+	corelisters "k8s.io/client-go/listers/core/v1"
+
 	"go.uber.org/zap"
 )
 
@@ -30,7 +34,8 @@ type Option interface {
 }
 
 type options struct {
-	logger *zap.Logger
+	logger     *zap.Logger
+	nodeLister corelisters.NodeLister
 }
 
 type optionFn func(o *options)
@@ -46,6 +51,17 @@ func WithLogger(l *zap.Logger) Option {
 	})
 }
 
+// WithNodeLister configures the node lister.
+func WithNodeLister(n corelisters.NodeLister) Option {
+	return optionFn(func(o *options) {
+		o.nodeLister = n
+	})
+}
+
 func (o *options) validate() error {
+	switch {
+	case o.nodeLister == nil:
+		return errors.New("ID provider node informer cannot be empty")
+	}
 	return nil
 }

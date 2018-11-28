@@ -23,6 +23,10 @@
     {
       "Repository": "github.com/m3db/build-tools/linters/importorder",
       "Commit": "edd1bdd1df8ac1a71d4783178fce9791fa363dfa"
+    },
+    {
+      "Repository": "github.com/rakyll/statik",
+      "Commit": "79258177a57a85a8ab2eca7ce0936aad80307f4e"
     }
   ],
   "RetoolVersion": "1.3.7"

@@ -60,29 +60,21 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ConfigMapName != nil {
+		in, out := &in.ConfigMapName, &out.ConfigMapName
+		*out = new(string)
+		**out = **in
+	}
 	if in.PodIdentityConfig != nil {
 		in, out := &in.PodIdentityConfig, &out.PodIdentityConfig
 		*out = new(PodIdentityConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Services != nil {
-		in, out := &in.Services, &out.Services
-		*out = make([]*corev1.Service, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(corev1.Service)
-				(*in).DeepCopyInto(*out)
-			}
-		}
-	}
 	in.ContainerResources.DeepCopyInto(&out.ContainerResources)
-	if in.VolumeClaimTemplates != nil {
-		in, out := &in.VolumeClaimTemplates, &out.VolumeClaimTemplates
-		*out = make([]corev1.PersistentVolumeClaim, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
+	if in.DataDirVolumeClaimTemplate != nil {
+		in, out := &in.DataDirVolumeClaimTemplate, &out.DataDirVolumeClaimTemplate
+		*out = new(corev1.PersistentVolumeClaim)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels

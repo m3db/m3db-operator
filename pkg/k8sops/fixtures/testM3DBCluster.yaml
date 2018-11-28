@@ -24,15 +24,15 @@ spec:
     limits:
       memory: 2Gi
       cpu: '2'
-  volumeClaimTemplates:
-    - metadata:
-        name: fake-data
-      spec:
-        accessModes:
-        - ReadWriteOnce
-        storageClassName: fake-sc
-        resources:
-          requests:
-            storage: 1Gi
-          limits:
-            storage: 1Gi
+  dataDirVolumeClaimTemplate:
+    metadata:
+      name: fake-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: fake-sc
+      resources:
+        requests:
+          storage: 1Gi
+        limits:
+          storage: 1Gi

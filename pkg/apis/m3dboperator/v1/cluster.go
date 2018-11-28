@@ -169,55 +169,54 @@ const (
 // ClusterSpec defines the desired state for a M3 cluster to be converge to.
 type ClusterSpec struct {
 	// Image specifies which docker image to use with the cluster
-	Image string `json:"image" yaml:"image"`
+	Image string `json:"image,omitempty" yaml:"image"`
 
 	// ReplicationFactor defines how many replicas
-	ReplicationFactor int32 `json:"replicationFactor" yaml:"replicationFactor"`
+	ReplicationFactor int32 `json:"replicationFactor,omitempty" yaml:"replicationFactor"`
 
 	// NumberOfShards defines how many shards in total
-	NumberOfShards int32 `json:"numberOfShards" yaml:"numberOfShards"`
+	NumberOfShards int32 `json:"numberOfShards,omitempty" yaml:"numberOfShards"`
 
 	// IsolationGroups specifies a map of key-value pairs. Defines which isolation groups
 	// to deploy persistent volumes for data nodes
-	IsolationGroups []IsolationGroup `json:"isolationGroups" yaml:"isolationGroups"`
+	IsolationGroups []IsolationGroup `json:"isolationGroups,omitempty" yaml:"isolationGroups"`
 
 	// Namespaces specifies the namespaces this cluster will hold.
-	Namespaces []Namespace `json:"namespaces" yaml:"namespaces"`
+	Namespaces []Namespace `json:"namespaces,omitempty" yaml:"namespaces"`
+
+	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
+	// sane default will be used.
+	// +optional
+	ConfigMapName *string `json:"configMapName,omitempty", yaml:"podIdentityConfig"`
 
 	// PodIdentityConfig sets the configuration for pod identity. If unset only
 	// pod name and UID will be used.
 	// +optional
-	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig" yaml:"podIdentityConfig"`
-
-	// Services allows the user to specify their own services that the operator
-	// will create. If non-empty, only the dbnode headless service will be created
-	// and users must specify other services they wish to create.
-	// +optional
-	Services []*corev1.Service `json:"services" yaml:"services"`
+	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig,omitempty" yaml:"podIdentityConfig"`
 
 	// Resources defines memory / cpu constraints for each container in the
 	// cluster.
 	// +optional
-	ContainerResources corev1.ResourceRequirements `json:"containerResources" yaml:"containerResources"`
+	ContainerResources corev1.ResourceRequirements `json:"containerResources,omitempty" yaml:"containerResources"`
 
-	// VolumeClaimTemplates are created with predefined volumeClaimTemplates.
-	// They claim PersistentVolumes for cluster storage, volumes are dynamically
-	// provisioned by when the StorageClass is defined.
-	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates" yaml:"volumeClaimTemplates"`
+	// DataDirVolumeClaimTemplate is the volume claim template for an M3DB
+	// instance's data. It claims PersistentVolumes for cluster storage, volumes
+	// are dynamically provisioned by when the StorageClass is defined.
+	// +optional
+	DataDirVolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"dataDirVolumeClaimTemplate,omitempty" yaml:"dataDirVolumeClaimTemplate"`
 
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
-	Labels map[string]string `json:"labels" yaml:"labels"`
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels"`
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
-// TODO(PS) Should this belong within the service configurations?
 type IsolationGroup struct {
 	// Name
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name,omitempty" yaml:"name"`
 
 	// NumInstances defines the number of instances
-	NumInstances int32 `json:"numInstances" yaml:"numInstances"`
+	NumInstances int32 `json:"numInstances,omitempty" yaml:"numInstances"`
 }
 
 // GetByName fetches an IsolationGroup by name.

@@ -33,6 +33,7 @@ import (
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"go.uber.org/zap"
 )
@@ -41,6 +42,10 @@ const (
 	// defaults for placement init request
 	_defaultM3DBPort = 9000
 	_defaultZone     = "embedded"
+)
+
+var (
+	errEmptyConfigMap = errors.New("ConfigMapName cannot be empty if non-nil")
 )
 
 // EnsurePlacement ensures that a placement exists otherwise create one
@@ -82,24 +87,9 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 }
 
 func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
-	if cluster == nil {
-		return errors.New("cluster cannot be nil")
-	}
-
-	// TODO(schallert): support updating service spec, not sure if this only
-	// handles creation.
-
-	services := []*corev1.Service{}
-	if len(cluster.Spec.Services) != 0 {
-		services = cluster.Spec.Services
-	} else {
-		coordSvc, err := k8sops.GenerateCoordinatorService(cluster)
-		if err != nil {
-			return err
-		}
-		services = append(services,
-			coordSvc,
-		)
+	coordSvc, err := k8sops.GenerateCoordinatorService(cluster)
+	if err != nil {
+		return err
 	}
 
 	m3dbSvc, err := k8sops.GenerateM3DBService(cluster)
@@ -107,7 +97,10 @@ func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
-	services = append(services, m3dbSvc)
+	services := []*corev1.Service{
+		coordSvc,
+		m3dbSvc,
+	}
 
 	for _, svc := range services {
 		err = c.k8sclient.EnsureService(cluster, svc)
@@ -119,4 +112,27 @@ func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 	}
 
 	return nil
+}
+
+// ensureConfigMap creates the default configmap for the cluster if none is
+// specified in the cluster spec.
+func (c *Controller) ensureConfigMap(cluster *myspec.M3DBCluster) error {
+	if cluster.Spec.ConfigMapName != nil {
+		if *cluster.Spec.ConfigMapName == "" {
+			return errEmptyConfigMap
+		}
+		// Nothing to do if user specified config map.
+		return nil
+	}
+
+	cm, err := k8sops.GenerateDefaultConfigMap(cluster)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).Create(cm)
+	if kerrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
 }

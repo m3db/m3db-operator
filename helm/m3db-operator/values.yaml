@@ -1,7 +1,7 @@
 operator:
   name: m3db-operator
-  namespace: operator
-image: 
+  namespace: m3db-operator
+image:
   repository: quay.io/m3db/m3db-operator
   tag: latest
 environment: production

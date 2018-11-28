@@ -36,7 +36,10 @@ data:
       debugListenAddress: 0.0.0.0:9004
 
       hostID:
-        resolver: hostname
+        resolver: file
+        file:
+          path: /etc/m3db/pod-identity/identity
+          timeout: 5m
 
       client:
         writeConsistencyLevel: majority
@@ -207,42 +210,3 @@ data:
               - http://etcd-0.etcd:2379
               - http://etcd-1.etcd:2379
               - http://etcd-2.etcd:2379
----
-apiVersion: operator.m3db.io/v1
-kind: M3DBCluster
-metadata:
-  name: m3db-cluster
-spec:
-  image: quay.io/m3/m3dbnode:latest
-  replicationFactor: 3
-  numberOfShards: 256
-  isolationGroups:
-    - name: us-east1-b
-      numInstances: 3
-    - name: us-east1-c
-      numInstances: 3
-    - name: us-east1-d
-      numInstances: 3
-  services:
-  - kind: Service
-    apiVersion: v1
-    metadata:
-      name: m3db-lb
-      annotations:
-        cloud.google.com/load-balancer-type: "Internal"
-    spec:
-      selector:
-        app: m3db
-        cluster: m3db-cluster
-      ports:
-      - protocol: TCP
-        port: 1234
-        targetPort: 7201
-      type: LoadBalancer
-  resources:
-    requests:
-      memory: 4Gi
-      cpu: '1'
-    limits:
-      memory: 12Gi
-      cpu: '4'

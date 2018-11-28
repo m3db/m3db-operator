@@ -56,6 +56,8 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 	switch ns.Preset {
 	case string(PresetTenSecondsTwoDaysIndexed):
 		opts = presetTenSecondsTwoDaysIndexed
+	case string(PresetOneMinuteFourtyDaysIndexed):
+		opts = presetOneMinuteFourtyDaysIndexed
 	default:
 		return nil, fmt.Errorf("preset '%s' not found", ns.Preset)
 	}
