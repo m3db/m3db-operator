@@ -63,10 +63,19 @@ test: test-base
 	@echo "--- $@"
 	gocov convert $(coverfile) | gocov report
 
+kill-proxy:
+	kubectl proxy &
+	pkill -f 'kubectl proxy'
+
 .PHONY: test-e2e
 test-e2e:
 	@echo "--- $@"
+	@which kubectl > /dev/null || (echo "error: need kubectl installed" && exit 1)
+	kubectl delete ns m3db-e2e-test-1 || true
+	kubectl proxy &
+	go clean -testcache
 	go test -v -tags integration ./integration/e2e
+	pkill -f 'kubectl proxy'
 
 .PHONY: testhtml
 testhtml: test-base

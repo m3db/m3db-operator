@@ -60,7 +60,10 @@ func (h *Harness) installOperator() error {
 
 	h.Logger.Info("creating serviceaccount", zap.String("serviceaccount", sa.Name))
 	if _, err := h.KubeClient.CoreV1().ServiceAccounts(h.Namespace).Create(sa); err != nil {
-		return err
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		h.Logger.Info("found existing serviceaccount")
 	}
 
 	rc := h.KubeClient.RbacV1()
@@ -68,7 +71,7 @@ func (h *Harness) installOperator() error {
 	if !h.Flags.SkipCreateRBAC {
 		h.Logger.Info("creating clusterrole", zap.String("role", role.Name))
 		if _, err := rc.ClusterRoles().Create(role); err != nil {
-			if err != nil && !errors.IsAlreadyExists(err) {
+			if !errors.IsAlreadyExists(err) {
 				return err
 			}
 			h.Logger.Info("found existing clusterrole")
@@ -76,7 +79,7 @@ func (h *Harness) installOperator() error {
 
 		h.Logger.Info("creating rolebinding", zap.String("rolebinding", rb.Name))
 		if _, err := rc.ClusterRoleBindings().Create(rb); err != nil {
-			if err != nil && !errors.IsAlreadyExists(err) {
+			if !errors.IsAlreadyExists(err) {
 				return err
 			}
 			h.Logger.Info("found existing clusterrolebinding")

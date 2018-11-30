@@ -20,12 +20,12 @@ Scripts are included for creating clusters on GKE which would be safe to test ag
 
 ## Running the tests
 
-**NOTE** It is generally a good idea to run the tests with `GOCACHE=off`, otherwise running the tests with the same test
-code may cause cached tests to run.
+**NOTE** It is generally a good idea to run the tests a clean go test cache, otherwise running the tests with the same
+test code may cause cached tests to run. The make target accomplishes this by running `go clean -testcache` first.
 
 ```
 # With a working Kubernetes cluster and a correctly configured current kubectl context:
-$ go clean -testcache && make test-e2e
+$ make test-e2e
 --- test-e2e
 go test -v -tags integration ./integration/e2e
 2018-11-22T15:36:41.370-0500    INFO    setting up test suite
