@@ -3,3 +3,4 @@ vendor/
 _tools/
 zz_generated.deepcopy.go
 pkg/client/
+integration/
