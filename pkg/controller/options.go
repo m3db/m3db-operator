@@ -44,7 +44,7 @@ type options struct {
 	logger                     *zap.Logger
 	scope                      tally.Scope
 	kclient                    k8sops.K8sops
-	idProvider                 podidentity.Provider
+	podIDProvider              podidentity.Provider
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
 	kubeInformerFactory        kubeinformers.SharedInformerFactory
@@ -118,7 +118,7 @@ func WithKubectlProxy(use bool) Option {
 // WithPodIdentityProvider sets the pod identity provider.
 func WithPodIdentityProvider(p podidentity.Provider) Option {
 	return optionFn(func(o *options) {
-		o.idProvider = p
+		o.podIDProvider = p
 	})
 }
 
@@ -136,7 +136,7 @@ func (o *options) validate() error {
 		return errors.New("kubeInformerFactory cannot be nil")
 	case o.m3dbClusterInformerFactory == nil:
 		return errors.New("m3dbClusterInformerFactory cannot be nil")
-	case o.idProvider == nil:
+	case o.podIDProvider == nil:
 		return errors.New("pod ID provider cannot be nil")
 	}
 

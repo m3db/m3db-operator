@@ -151,7 +151,7 @@ func New(opts ...Option) (*Controller, error) {
 		scope:       scope,
 		clock:       clock.RealClock{},
 		k8sclient:   kclient,
-		idProvider:  options.idProvider,
+		idProvider:  options.podIDProvider,
 		adminClient: multiClient,
 		doneCh:      make(chan struct{}),
 

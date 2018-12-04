@@ -20,7 +20,7 @@
 
 package v1
 
-// PodIdentitySource indicates a method of deriving pod identity.
+// PodIdentitySource indicates a pre-defined source for deriving pod identity.
 type PodIdentitySource string
 
 const (
