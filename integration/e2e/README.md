@@ -20,8 +20,16 @@ Scripts are included for creating clusters on GKE which would be safe to test ag
 
 ## Running the tests
 
-**NOTE** It is generally a good idea to run the tests a clean go test cache, otherwise running the tests with the same
-test code may cause cached tests to run. The make target accomplishes this by running `go clean -testcache` first.
+**NOTE**: If you are running on a platform such as GKE you may need to grant your user the ability to create roles. From
+the [GKE
+docs](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#prerequisites_for_using_role-based_access_control):
+```
+kubectl create clusterrolebinding cluster-admin-binding \
+  --clusterrole cluster-admin --user $USER_ACCOUNT
+```
+
+It is generally a good idea to run the tests a clean go test cache, otherwise running the tests with the same test code
+may cause cached tests to run. The make target accomplishes this by running `go clean -testcache` first.
 
 ```
 # With a working Kubernetes cluster and a correctly configured current kubectl context:
