@@ -34,6 +34,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
 	kubeinformers "k8s.io/client-go/informers"
@@ -83,9 +84,9 @@ func (deps *testDeps) newController() *Controller {
 		clock:       deps.clock,
 		adminClient: m,
 
-		kubeClient: deps.kubeClient,
-		crdClient:  deps.crdClient,
-		idProvider: deps.idProvider,
+		kubeClient:    deps.kubeClient,
+		crdClient:     deps.crdClient,
+		podIDProvider: deps.idProvider,
 
 		clusterLister:     deps.crdLister,
 		statefulSetLister: deps.statefulSetLister,
@@ -150,4 +151,12 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 	}
 
 	return deps
+}
+
+func newObjectMeta(name string, labels map[string]string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      name,
+		Labels:    labels,
+		Namespace: "namespace",
+	}
 }

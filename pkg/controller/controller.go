@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
@@ -41,12 +40,12 @@ import (
 	m3placement "github.com/m3db/m3/src/cluster/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	appslisters "k8s.io/client-go/listers/apps/v1"
@@ -60,8 +59,9 @@ import (
 )
 
 const (
-	_controllerName = "m3db-controller"
-	_workQueueName  = "M3DBClusters"
+	controllerName       = "m3db-controller"
+	clusterWorkQueueName = "M3DBClusters"
+	podWorkQueueName     = "pods"
 )
 
 var (
@@ -72,18 +72,20 @@ var (
 	// ErrInvalidReplicationFactor indicates that the replication factor within
 	// the spec is missing
 	ErrInvalidReplicationFactor = errors.New("invalid replication factor")
+
+	errOrphanedPod = errors.New("pod does not belong to an m3db cluster")
 )
 
 // Controller object
 type Controller struct {
-	lock        *sync.Mutex
-	logger      *zap.Logger
-	clock       clock.Clock
-	scope       tally.Scope
-	k8sclient   k8sops.K8sops
-	idProvider  podidentity.Provider
-	adminClient *multiAdminClient
-	doneCh      chan struct{}
+	lock          *sync.Mutex
+	logger        *zap.Logger
+	clock         clock.Clock
+	scope         tally.Scope
+	k8sclient     k8sops.K8sops
+	podIDProvider podidentity.Provider
+	adminClient   *multiAdminClient
+	doneCh        chan struct{}
 
 	kubeClient kubernetes.Interface
 	crdClient  clientset.Interface
@@ -95,8 +97,9 @@ type Controller struct {
 	podLister          corelisters.PodLister
 	podsSynced         cache.InformerSynced
 
-	workQueue workqueue.RateLimitingInterface
-	recorder  eventer.Poster
+	clusterWorkQueue workqueue.RateLimitingInterface
+	podWorkQueue     workqueue.RateLimitingInterface
+	recorder         eventer.Poster
 }
 
 // New creates new instance of Controller
@@ -138,22 +141,23 @@ func New(opts ...Option) (*Controller, error) {
 
 	samplescheme.AddToScheme(scheme.Scheme)
 
-	workQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), _workQueueName)
+	clusterWorkQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName)
+	podWorkQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName)
 
-	r, err := eventer.NewEventRecorder(eventer.WithClient(kubeClient), eventer.WithLogger(logger), eventer.WithComponent(_controllerName))
+	r, err := eventer.NewEventRecorder(eventer.WithClient(kubeClient), eventer.WithLogger(logger), eventer.WithComponent(controllerName))
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Controller{
-		lock:        &sync.Mutex{},
-		logger:      logger,
-		scope:       scope,
-		clock:       clock.RealClock{},
-		k8sclient:   kclient,
-		idProvider:  options.podIDProvider,
-		adminClient: multiClient,
-		doneCh:      make(chan struct{}),
+		lock:          &sync.Mutex{},
+		logger:        logger,
+		scope:         scope,
+		clock:         clock.RealClock{},
+		k8sclient:     kclient,
+		podIDProvider: options.podIDProvider,
+		adminClient:   multiClient,
+		doneCh:        make(chan struct{}),
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
@@ -165,7 +169,8 @@ func New(opts ...Option) (*Controller, error) {
 		podLister:          podInformer.Lister(),
 		podsSynced:         podInformer.Informer().HasSynced,
 
-		workQueue: workQueue,
+		clusterWorkQueue: clusterWorkQueue,
+		podWorkQueue:     podWorkQueue,
 		// TODO(celina): figure out if we actually need a recorder for each namespace
 		recorder: r,
 	}
@@ -200,6 +205,16 @@ func New(opts ...Option) (*Controller, error) {
 		DeleteFunc: p.handleStatefulSetUpdate,
 	})
 
+	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: p.enqueuePod,
+		UpdateFunc: func(old, new interface{}) {
+			p.enqueuePod(new)
+		},
+		DeleteFunc: func(obj interface{}) {
+			// No-op
+		},
+	})
+
 	return p, nil
 }
 
@@ -211,7 +226,7 @@ func (c *Controller) Init() error {
 // Run drives the controller event loop.
 func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
-	defer c.workQueue.ShutDown()
+	defer c.clusterWorkQueue.ShutDown()
 
 	c.logger.Info("starting Operator controller")
 
@@ -222,7 +237,8 @@ func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
 
 	c.logger.Info("starting workers")
 	for i := 0; i < nWorkers; i++ {
-		go wait.Until(c.runLoop, time.Second, stopCh)
+		go c.runClusterLoop()
+		go c.runPodLoop()
 	}
 
 	c.logger.Info("workers started")
@@ -239,17 +255,17 @@ func (c *Controller) enqueueCluster(obj interface{}) {
 		runtime.HandleError(err)
 		return
 	}
-	c.workQueue.AddRateLimited(key)
+	c.clusterWorkQueue.AddRateLimited(key)
 	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
-func (c *Controller) runLoop() {
-	for c.processItem() {
+func (c *Controller) runClusterLoop() {
+	for c.processClusterQueueItem() {
 	}
 }
 
-func (c *Controller) processItem() bool {
-	obj, shutdown := c.workQueue.Get()
+func (c *Controller) processClusterQueueItem() bool {
+	obj, shutdown := c.clusterWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
 		return false
@@ -257,12 +273,12 @@ func (c *Controller) processItem() bool {
 
 	// Closure so we can defer workQueue.Done.
 	err := func(obj interface{}) error {
-		defer c.workQueue.Done(obj)
+		defer c.clusterWorkQueue.Done(obj)
 
 		var key string
 		var ok bool
 		if key, ok = obj.(string); !ok {
-			c.workQueue.Forget(obj)
+			c.clusterWorkQueue.Forget(obj)
 			runtime.HandleError(fmt.Errorf("expected string from queue, got %#v", obj))
 			return nil
 		}
@@ -271,7 +287,7 @@ func (c *Controller) processItem() bool {
 			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
 		}
 
-		c.workQueue.Forget(obj)
+		c.clusterWorkQueue.Forget(obj)
 		c.logger.Info("successfully synced item", zap.String("key", key))
 
 		return nil
@@ -579,4 +595,161 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 
 	// enqueue the cluster for processing
 	c.enqueueCluster(cluster)
+}
+
+func (c *Controller) enqueuePod(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		c.logger.Error("error splitting pod cache key", zap.Error(err))
+		return
+	}
+	c.podWorkQueue.AddRateLimited(key)
+	c.scope.Counter("enqueued_event").Inc(int64(1))
+}
+
+func (c *Controller) runPodLoop() {
+	for c.proccessPodQueueItem() {
+	}
+}
+
+func (c *Controller) proccessPodQueueItem() bool {
+	obj, shutdown := c.podWorkQueue.Get()
+	c.scope.Counter("dequeued_event").Inc(int64(1))
+	if shutdown {
+		return false
+	}
+
+	// Closure so we can defer workQueue.Done.
+	err := func(obj interface{}) error {
+		defer c.podWorkQueue.Done(obj)
+
+		var key string
+		var ok bool
+		if key, ok = obj.(string); !ok {
+			c.podWorkQueue.Forget(obj)
+			runtime.HandleError(fmt.Errorf("expected string from queue, got %#v", obj))
+			return nil
+		}
+
+		if err := c.handlePodEvent(key); err != nil {
+			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
+		}
+
+		c.podWorkQueue.Forget(obj)
+		c.logger.Debug("successfully synced item", zap.String("key", key))
+
+		return nil
+	}(obj)
+
+	if err != nil {
+		runtime.HandleError(err)
+	}
+
+	return true
+}
+
+func (c *Controller) handlePodEvent(key string) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		c.logger.Error("invalid resource key", zap.Error(err))
+		return nil
+	}
+
+	pod, err := c.podLister.Pods(namespace).Get(name)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			c.logger.Error("pod no longer exists", zap.String("pod", name))
+			return nil
+		}
+
+		return err
+	}
+
+	if pod == nil {
+		return errors.New("got nil pod for key " + key)
+	}
+
+	return c.handlePodUpdate(pod)
+}
+
+func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
+	// We only process pods that are members of m3db clusters.
+	if _, found := getClusterValue(pod); !found {
+		return nil
+	}
+
+	pod = pod.DeepCopy()
+
+	podLogger := c.logger.With(zap.String("pod", pod.Name))
+
+	podLogger.Info("processing pod")
+
+	cluster, err := c.getParentCluster(pod)
+	if err != nil {
+		podLogger.Error("error getting parent cluster", zap.Error(err))
+		return err
+	}
+
+	id, err := c.podIDProvider.Identity(pod, cluster)
+	if err != nil {
+		podLogger.Error("error getting pod ID", zap.Error(err))
+		return err
+	}
+
+	idStr, err := podidentity.IdentityJSON(id)
+	if err != nil {
+		podLogger.Error("error marshaling pod ID", zap.Error(err))
+		return err
+	}
+
+	podLogger.Info("pod ID", zap.Any("id", id))
+
+	currentID, ok := pod.Annotations[podidentity.AnnotationKeyPodIdentity]
+	if ok {
+		if currentID != idStr {
+			podLogger.Warn("pod ID mismatch",
+				zap.String("currentID", currentID),
+				zap.String("newID", idStr))
+		}
+
+		// TODO(schallert): decide how to enforce updated pod identity (need to
+		// determine ramnifications of changing).
+		return nil
+	}
+
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations[podidentity.AnnotationKeyPodIdentity] = idStr
+	_, err = c.kubeClient.CoreV1().Pods(pod.Namespace).Update(pod)
+	if err != nil {
+		podLogger.Error("error updating pod annotation", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func getClusterValue(pod *corev1.Pod) (string, bool) {
+	cluster, ok := pod.Labels[labels.Cluster]
+	if !ok {
+		return "", false
+	}
+
+	return cluster, true
+}
+
+func (c *Controller) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster, error) {
+	clusterName, found := getClusterValue(pod)
+	if !found {
+		return nil, errOrphanedPod
+	}
+
+	cluster, err := c.clusterLister.M3DBClusters(pod.Namespace).Get(clusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
 }

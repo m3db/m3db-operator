@@ -35,7 +35,6 @@ import (
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
-	"github.com/m3db/m3db-operator/pkg/podidentitycontroller"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
@@ -146,7 +145,6 @@ func main() {
 	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
 
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
-	podLogger := logger.With(zap.String("controller", "m3db-podidentity-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
 	idProvider, err := podidentity.NewProvider(podidentity.WithLogger(idLogger))
 	if err != nil {
@@ -164,32 +162,15 @@ func main() {
 		controller.WithScope(scope),
 	}
 
-	podControllerOpts := []podidentitycontroller.Option{
-		podidentitycontroller.WithKubeInformerFactory(kubeInformerFactory),
-		podidentitycontroller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
-		podidentitycontroller.WithPodIdentityProvider(idProvider),
-		podidentitycontroller.WithLogger(podLogger),
-		podidentitycontroller.WithKClient(k8sclient),
-		podidentitycontroller.WithCRDClient(crdClient),
-		podidentitycontroller.WithKubeClient(kubeClient),
-		podidentitycontroller.WithScope(scope),
-	}
-
 	// Override coordinator addr (i.e. running out-of-cluster and port-forwarding)
 	if _useProxy {
 		opts = append(opts, controller.WithKubectlProxy(true))
-		podControllerOpts = append(podControllerOpts, podidentitycontroller.WithKubectlProxy(true))
 	}
 
 	// Create controller
 	controller, err := controller.New(opts...)
 	if err != nil {
 		logger.Fatal("failed to create controller", zap.Error(err))
-	}
-
-	podController, err := podidentitycontroller.New(podControllerOpts...)
-	if err != nil {
-		logger.Fatal("failed to create pod controller", zap.Error(err))
 	}
 
 	go kubeInformerFactory.Start(stopCh)
@@ -210,12 +191,6 @@ func main() {
 		<-signalChan
 		logger.Warn("received second signal, exiting immediately")
 		os.Exit(1)
-	}()
-
-	go func() {
-		if err := podController.Run(2, stopCh); err != nil {
-			logger.Fatal("error running pod controller", zap.Error(err))
-		}
 	}()
 
 	if err := controller.Run(2, stopCh); err != nil {

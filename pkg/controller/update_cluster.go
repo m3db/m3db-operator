@@ -197,7 +197,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 	}
 
 	for _, pod := range pods {
-		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.idProvider)
+		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 		if err != nil {
 			return false, err
 		}
@@ -282,7 +282,7 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 
 func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
 	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
-	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.idProvider)
+	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 	if err != nil {
 		err := fmt.Errorf("error creating instance for pod %s", pod.Name)
 		c.logger.Error(err.Error())
@@ -335,7 +335,7 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 	}
 
 	for _, pod := range pods {
-		id, err := c.idProvider.Identity(pod, cluster)
+		id, err := c.podIDProvider.Identity(pod, cluster)
 		if err != nil {
 			return err
 		}
@@ -369,7 +369,7 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 		return err
 	}
 
-	removePodID, err := c.idProvider.Identity(removePod, cluster)
+	removePodID, err := c.podIDProvider.Identity(removePod, cluster)
 	if err != nil {
 		return err
 	}
