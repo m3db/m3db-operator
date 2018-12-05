@@ -1,6 +1,5 @@
 operator:
   name: m3db-operator
-  namespace: m3db-operator
 image:
   repository: quay.io/m3db/m3db-operator
   tag: latest

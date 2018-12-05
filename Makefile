@@ -1,7 +1,6 @@
 PROJECT_NAME := m3db-operator
-REPO_PATH    := github.com/m3db/m3db-operator
-BUILD_PATH   := $(REPO_PATH)/cmd/$(PROJECT_NAME)
 OUTPUT_DIR   := out
+DOCS_OUT_DIR := site
 DEP_VERSION  := v0.5.0
 BUILD_SETTINGS := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 ifeq ($(shell uname), Darwin)
@@ -62,6 +61,32 @@ GOMETALINT_VERSION   := v2.0.5
 
 LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
+CMDS :=        		\
+	docgen       		\
+	m3db-operator 	\
+
+## Binary rules
+
+out:
+	@mkdir -p $$(pwd)/$(OUTPUT_DIR)
+
+define CMD_RULES
+
+.PHONY: $(CMD)
+$(CMD)-no-deps:
+	@echo "--- $(CMD)"
+	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
+
+$(CMD): dep-ensure $(CMD)-no-deps
+
+endef
+
+$(foreach CMD,$(CMDS),$(eval $(CMD_RULES)))
+
+.PHONY: bins bins-no-deps
+bins: $(CMDS)
+bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
+
 .PHONY: lint
 lint: install-codegen-tools
 	@echo "--- $@"
@@ -79,6 +104,10 @@ test-xml: test-base
 	gocov convert $(coverfile) | gocov-xml > $(coverage_xml)
 	@$(convert-test-data) $(coverage_xml)
 	@rm $(coverfile) &> /dev/null
+
+.PHONY: test-all
+test-all: clean-all install-ci-tools verify-gen lint metalint test-all-gen bins test
+	@echo "--- $@"
 
 .PHONY: test
 test: test-base
@@ -163,7 +192,7 @@ asset-gen:
 	PATH=$(retool_bin_path):$(PATH) statik -src $(SELF_DIR)/assets -dest $(SELF_DIR)/pkg/ -p assets -f -m -c "$$LICENSE_HEADER"
 
 .PHONY: all-gen
-all-gen: mock-gen kubernetes-gen license-gen asset-gen
+all-gen: mock-gen kubernetes-gen license-gen asset-gen helm-bundle docs-api-gen
 
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
@@ -186,7 +215,7 @@ clean-all: clean ## Clean-all cleans all build dependencies.
 	@rm -rf _tools/
 
 .PHONY: all
-all: clean-all kubernetes-gen lint metalint test-ci-unit
+all: clean-all kubernetes-gen lint metalint test-ci-unit bins
 	@echo "$@ successfully finished"
 
 .PHONY: dep-ensure
@@ -203,25 +232,43 @@ kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 verify-gen: dep-ensure ## Ensure all codegen is up to date
 	@./hack/verify-generated.sh
 
-.PHONY: build-bin
-build-bin: out dep-ensure build-bin-no-deps
-	@echo "--- $@"
-
-.PHONY: build-bin-no-deps
-build-bin-no-deps: ## Build m3db-operator binary
-	@echo "--- $@"
-	@echo "building $(PROJECT_NAME)..."
-	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
-
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
 	@echo "--- $@"
 	@./build/build-docker.sh
+
+.PHONE: helm-bundle
+helm-bundle:
+	@echo "--- $@"
+	@helm template helm/m3db-operator > bundle.yaml
 
 .PHONY: publish-helm-charts
 publish-helm-charts: ## pushes a new version of the helm chart
 	@echo "+ $@"
 	./build/package-helm-charts.sh
 
-out:
-	@mkdir -p $$(pwd)/$(OUTPUT_DIR)
+## Documentation
+
+.PHONY: docs-clean
+docs-clean:
+	mkdir -p $(DOCS_OUT_DIR)
+	rm -rf $(DOCS_OUT_DIR)/*
+
+.PHONY: docs-container
+docs-container:
+	docker build -t m3db-docs -f docs/Dockerfile docs
+
+.PHONY: docs-build
+docs-build: docs-clean docs-container
+	docker run -v $(PWD):/m3db --rm m3db-docs "mkdocs build -e docs/theme -t material"
+
+.PHONY: docs-serve
+docs-serve: docs-clean docs-container
+	docker run -v $(PWD):/m3db -p 8000:8000 -it --rm m3db-docs "mkdocs serve -e docs/theme -t material -a 0.0.0.0:8000"
+
+.PHONY: docs-api-gen-no-deps
+docs-api-gen-no-deps:
+	$(SELF_DIR)/out/docgen api pkg/apis/m3dboperator/v1alpha1/cluster.go pkg/apis/m3dboperator/v1alpha1/namespace.go pkg/apis/m3dboperator/v1alpha1/pod_identity.go > $(SELF_DIR)/docs/api.md
+
+.PHONY: docs-api-gen
+docs-api-gen: docgen docs-api-gen-no-deps

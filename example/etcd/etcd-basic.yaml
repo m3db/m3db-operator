@@ -82,3 +82,5 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: ETCDCTL_API
+          value: "3"

@@ -1,0 +1,18 @@
+apiVersion: operator.m3db.io/v1alpha1
+kind: M3DBCluster
+metadata:
+  name: simple-cluster
+spec:
+  image: quay.io/m3db/m3dbnode:latest
+  replicationFactor: 3
+  numberOfShards: 256
+  isolationGroups:
+    - name: us-east1-b
+      numInstances: 1
+    - name: us-east1-c
+      numInstances: 1
+    - name: us-east1-d
+      numInstances: 1
+  namespaces:
+    - name: metrics-10s:2d
+      preset: 10s:2d

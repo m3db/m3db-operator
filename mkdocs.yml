@@ -1,0 +1,46 @@
+site_name: M3DB Operator Documentation
+
+theme:
+  # Provide source
+  name: null
+  custom_dir: docs/theme
+
+  # 404 page
+  static_templates:
+    - 404.html
+
+  # Don't include MkDocs' JavaScript
+  include_search_page: false
+  search_index_only: true
+
+  # Do not use tabs for navigation
+  feature:
+    tabs: false
+
+  # Default values, taken from mkdocs_theme.yml
+  language: en
+  palette:
+    primary: indigo
+    accent: indigo
+  font:
+    text: Roboto
+    code: Roboto Mono
+  favicon: assets/images/favicon.png
+  logo:
+    icon: "\uE80C"
+
+edit_uri: edit/master/docs/
+
+repo_name: m3db/m3db-operator
+repo_url: https://github.com/m3db/m3db-operator
+
+pages:
+  - "Introduction": "index.md"
+  - "Getting Started":
+    - "Requirements": "getting_started/requirements.md"
+    - "Installation": "getting_started/installation.md"
+    - "Creating a Cluster": "getting_started/create_cluster.md"
+  - "Configuration":
+    - "Pod Identity": "configuration/pod_identity.md"
+    - "Namespaces": "configuration/namespaces.md"
+  - "API": "api.md"

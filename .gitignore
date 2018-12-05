@@ -21,6 +21,7 @@ vendor/
 
 # Ignore build artifacts
 out/**/*
+site/
 
 # ci artifacts
 .ci/
@@ -29,3 +30,6 @@ profile.cov
 
 # helm binaries
 linux-amd64/
+
+# Helm packages
+helm/**/*.tgz

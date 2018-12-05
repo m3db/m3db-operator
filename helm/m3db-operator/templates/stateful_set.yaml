@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Values.operator.name }}
-  namespace: {{ .Values.operator.namespace }}
 spec:
   serviceName: {{ .Values.operator.name }}
   replicas: 1
@@ -22,5 +21,5 @@ spec:
           imagePullPolicy: Always
           env:
             - name: ENVIRONMENT
-              value: {{ .Values.environment }} 
+              value: {{ .Values.environment }}
       serviceAccount: {{ .Values.operator.name }}
