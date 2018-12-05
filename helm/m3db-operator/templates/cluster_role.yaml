@@ -20,7 +20,7 @@ rules:
   verbs: ["create", "get", "deletecollection", "delete"]
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["list", "get", "watch"]
+  verbs: ["list", "get", "watch", "update"]
 - apiGroups: ["apps"]
   resources: ["statefulsets", "deployments"]
   verbs: ["*"]

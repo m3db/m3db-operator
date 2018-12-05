@@ -34,6 +34,7 @@ import (
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
@@ -143,10 +144,18 @@ func main() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
 	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
 
+	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
+	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
+	idProvider, err := podidentity.NewProvider(podidentity.WithLogger(idLogger))
+	if err != nil {
+		logger.Fatal("failed to create ID provider", zap.Error(err))
+	}
+
 	opts := []controller.Option{
 		controller.WithKubeInformerFactory(kubeInformerFactory),
 		controller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
-		controller.WithLogger(logger),
+		controller.WithPodIdentityProvider(idProvider),
+		controller.WithLogger(clusterLogger),
 		controller.WithKClient(k8sclient),
 		controller.WithCRDClient(crdClient),
 		controller.WithKubeClient(kubeClient),

@@ -184,6 +184,11 @@ type ClusterSpec struct {
 	// Namespaces specifies the namespaces this cluster will hold.
 	Namespaces []Namespace `json:"namespaces" yaml:"namespaces"`
 
+	// PodIdentityConfig sets the configuration for pod identity. If unset only
+	// pod name and UID will be used.
+	// +optional
+	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig" yaml:"podIdentityConfig"`
+
 	// Services allows the user to specify their own services that the operator
 	// will create. If non-empty, only the dbnode headless service will be created
 	// and users must specify other services they wish to create.
