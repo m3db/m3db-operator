@@ -60,8 +60,8 @@ import (
 
 const (
 	controllerName       = "m3db-controller"
-	clusterWorkQueueName = "M3DBClusters"
-	podWorkQueueName     = "pods"
+	clusterWorkQueueName = "m3dbcluster-work-queue"
+	podWorkQueueName     = "pods-work-queue"
 )
 
 var (
@@ -609,11 +609,11 @@ func (c *Controller) enqueuePod(obj interface{}) {
 }
 
 func (c *Controller) runPodLoop() {
-	for c.proccessPodQueueItem() {
+	for c.processPodQueueItem() {
 	}
 }
 
-func (c *Controller) proccessPodQueueItem() bool {
+func (c *Controller) processPodQueueItem() bool {
 	obj, shutdown := c.podWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
