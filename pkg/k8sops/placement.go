@@ -25,6 +25,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 
@@ -37,10 +38,20 @@ const (
 
 // PlacementInstanceFromPod creates a new m3cluster placement instance given a
 // pod spec.
-func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod) (*placementpb.Instance, error) {
+func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod, idProvider podidentity.Provider) (*placementpb.Instance, error) {
 	isoGroup, ok := pod.ObjectMeta.Labels[labels.IsolationGroup]
 	if !ok {
 		return nil, fmt.Errorf("could not find label %s in %v", labels.IsolationGroup, pod.ObjectMeta.Labels)
+	}
+
+	id, err := idProvider.Identity(pod, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	idStr, err := podidentity.IdentityJSON(id)
+	if err != nil {
+		return nil, err
 	}
 
 	setService := HeadlessServiceName(cluster.Name)
@@ -48,7 +59,7 @@ func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod) (*pl
 
 	// TODO(schallert): dynamic zone, portname consts
 	instance := &placementpb.Instance{
-		Id:             pod.Name,
+		Id:             idStr,
 		IsolationGroup: isoGroup,
 		Zone:           _zoneEmbedded,
 		Weight:         100,

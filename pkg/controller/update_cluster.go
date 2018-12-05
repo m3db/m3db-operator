@@ -31,6 +31,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
@@ -196,7 +197,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 	}
 
 	for _, pod := range pods {
-		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 		if err != nil {
 			return false, err
 		}
@@ -281,7 +282,7 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 
 func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
 	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
-	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod)
+	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 	if err != nil {
 		err := fmt.Errorf("error creating instance for pod %s", pod.Name)
 		c.logger.Error(err.Error())
@@ -364,7 +365,15 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 	}
 
 	for _, pod := range pods {
-		_, ok := placement.Instance(pod.Name)
+		id, err := c.podIDProvider.Identity(pod, cluster)
+		if err != nil {
+			return err
+		}
+		idStr, err := podidentity.IdentityJSON(id)
+		if err != nil {
+			return err
+		}
+		_, ok := placement.Instance(idStr)
 		if !ok {
 			return c.addPodToPlacement(cluster, pod)
 		}
@@ -390,8 +399,18 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 		return err
 	}
 
+	removePodID, err := c.podIDProvider.Identity(removePod, cluster)
+	if err != nil {
+		return err
+	}
+
+	idStr, err := podidentity.IdentityJSON(removePodID)
+	if err != nil {
+		return err
+	}
+
 	c.logger.Info("removing pod from placement", zap.String("pod", removePod.Name))
-	return c.adminClient.placementClientForCluster(cluster).Remove(removePod.Name)
+	return c.adminClient.placementClientForCluster(cluster).Remove(idStr)
 }
 
 // podID encapsulates a pod and its ordinal ID to facilitate sorting a list of

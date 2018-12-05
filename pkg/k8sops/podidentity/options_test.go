@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,11 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// mockgen rules for generating mocks using file mode
-//go:generate sh -c "mockgen -package=placement -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/types.go"
-//go:generate sh -c "mockgen -package=namespace -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/types.go"
-//go:generate sh -c "mockgen -package=m3admin -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/client.go"
-//go:generate sh -c "mockgen -package=k8sops -destination=$GOPATH/src/$PACKAGE/pkg/k8sops/k8sops_mock.go -source=$GOPATH/src/$PACKAGE/pkg/k8sops/types.go"
-//go:generate sh -c "mockgen -package=podidentity -destination=$GOPATH/src/$PACKAGE/pkg/k8sops/podidentity/provider_mock.go -source=$GOPATH/src/$PACKAGE/pkg/k8sops/podidentity/provider.go"
+package podidentity
 
-package mocks
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+)
+
+func TestOptions(t *testing.T) {
+	opts := &options{}
+
+	logger := zap.NewNop()
+	for _, o := range []Option{
+		WithLogger(logger),
+	} {
+		o.execute(opts)
+	}
+
+	assert.Equal(t, logger, opts.logger)
+	err := opts.validate()
+	assert.NoError(t, err)
+}

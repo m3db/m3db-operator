@@ -36,7 +36,10 @@ data:
       debugListenAddress: 0.0.0.0:9004
 
       hostID:
-        resolver: hostname
+        resolver: file
+        file:
+          path: /etc/m3db/pod-identity/identity
+          timeout: 5m
 
       client:
         writeConsistencyLevel: majority

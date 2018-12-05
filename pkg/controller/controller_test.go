@@ -26,15 +26,26 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
+	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubeinformers "k8s.io/client-go/informers"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
 )
 
 func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {
@@ -43,6 +54,30 @@ func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {
 		Labels:    labels,
 		Namespace: "namespace",
 	}
+}
+
+func TestNew(t *testing.T) {
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	kubeClient := kubefake.NewSimpleClientset()
+	crdClient := clientsetfake.NewSimpleClientset()
+	client := k8sops.NewMockK8sops(mc)
+	idProvider := podidentity.NewMockProvider(mc)
+	testOpts := []Option{
+		WithScope(tally.NoopScope),
+		WithLogger(zap.NewNop()),
+		WithKClient(client),
+		WithPodIdentityProvider(idProvider),
+		WithCRDClient(crdClient),
+		WithKubeClient(kubeClient),
+		WithKubeInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
+		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
+	}
+
+	controller, err := New(testOpts...)
+	assert.NoError(t, err)
+	assert.NotNil(t, controller)
 }
 
 func TestGetChildStatefulSets(t *testing.T) {
@@ -158,4 +193,92 @@ func TestInstancesInIsoGroup(t *testing.T) {
 	insts = instancesInIsoGroup(pl, "g2")
 	exp = []placement.Instance{i3}
 	assert.Equal(t, exp, insts)
+}
+
+func TestGetClusterValue(t *testing.T) {
+	pod := &corev1.Pod{}
+	cluster, ok := getClusterValue(pod)
+	assert.False(t, ok)
+	assert.Equal(t, "", cluster)
+
+	pod.Labels = map[string]string{
+		"operator.m3db.io/cluster": "foo",
+	}
+
+	cluster, ok = getClusterValue(pod)
+	assert.True(t, ok)
+	assert.Equal(t, "foo", cluster)
+}
+
+func TestGetParentCluster(t *testing.T) {
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: newObjectMeta("foo", nil),
+	}
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{
+			cluster,
+		},
+	})
+	defer deps.cleanup()
+
+	c := deps.newController()
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "namespace",
+		},
+	}
+	_, err := c.getParentCluster(pod)
+	assert.Equal(t, errOrphanedPod, err)
+
+	pod.Labels = map[string]string{
+		"operator.m3db.io/cluster": "foo",
+	}
+
+	parentCluster, err := c.getParentCluster(pod)
+	assert.NoError(t, err)
+	assert.Equal(t, cluster, parentCluster)
+}
+
+func TestHandlePodUpdate(t *testing.T) {
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: newObjectMeta("foo", nil),
+	}
+
+	pod1 := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod1",
+			Namespace: "namespace",
+			Labels: map[string]string{
+				"operator.m3db.io/cluster": "foo",
+			},
+		},
+	}
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects:  []runtime.Object{cluster},
+		kubeObjects: []runtime.Object{pod1},
+	})
+	defer deps.cleanup()
+
+	c := deps.newController()
+
+	mockID := &myspec.PodIdentity{
+		Name: "pod1",
+		UID:  "foo",
+	}
+
+	deps.idProvider.EXPECT().Identity(pod1, cluster).Return(mockID, nil)
+
+	err := c.handlePodUpdate(pod1)
+	require.NoError(t, err)
+
+	newPod, err := deps.kubeClient.CoreV1().Pods("namespace").Get("pod1", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	annotatedID, ok := newPod.Annotations["operator.m3db.io/pod-identity"]
+	require.True(t, ok, "new pod must have annotated ID")
+	expID := `{"name":"pod1","uid":"foo"}`
+	assert.Equal(t, expID, annotatedID)
 }

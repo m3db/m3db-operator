@@ -26,6 +26,7 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -43,6 +44,7 @@ type options struct {
 	logger                     *zap.Logger
 	scope                      tally.Scope
 	kclient                    k8sops.K8sops
+	podIDProvider              podidentity.Provider
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
 	kubeInformerFactory        kubeinformers.SharedInformerFactory
@@ -113,6 +115,13 @@ func WithKubectlProxy(use bool) Option {
 	})
 }
 
+// WithPodIdentityProvider sets the pod identity provider.
+func WithPodIdentityProvider(p podidentity.Provider) Option {
+	return optionFn(func(o *options) {
+		o.podIDProvider = p
+	})
+}
+
 // Validate ensures the configured options are valid. Specifically, if any
 // fields except the logger are nil the options will be rejected.
 func (o *options) validate() error {
@@ -127,6 +136,8 @@ func (o *options) validate() error {
 		return errors.New("kubeInformerFactory cannot be nil")
 	case o.m3dbClusterInformerFactory == nil:
 		return errors.New("m3dbClusterInformerFactory cannot be nil")
+	case o.podIDProvider == nil:
+		return errors.New("pod ID provider cannot be nil")
 	}
 
 	return nil

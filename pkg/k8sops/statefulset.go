@@ -28,6 +28,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -42,6 +43,9 @@ import (
 const (
 	// FailureDomainZoneKey is the standard Kubernetes node label for a zone.
 	FailureDomainZoneKey = "failure-domain.beta.kubernetes.io/zone"
+
+	podIdentityVolumePath = "/etc/m3db/pod-identity"
+	podIdentityVolumeName = "pod-identity"
 )
 
 // MultiLabelSelector provides a ListOptions with a LabelSelector
@@ -281,6 +285,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 									Name:      "cache",
 									MountPath: "/var/lib/m3kv/",
 								},
+								generateDownwardAPIVolumeMount(),
 							},
 						},
 					},
@@ -307,11 +312,38 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 								},
 							},
 						},
+						generateDownwardAPIVolume(),
 					},
 				},
 			},
 			VolumeClaimTemplates: cluster.Spec.VolumeClaimTemplates,
 		},
+	}
+}
+
+func generateDownwardAPIVolume() v1.Volume {
+	return v1.Volume{
+		Name: podIdentityVolumeName,
+		VolumeSource: v1.VolumeSource{
+			DownwardAPI: &v1.DownwardAPIVolumeSource{
+				Items: []v1.DownwardAPIVolumeFile{
+					{
+						Path: "identity",
+						FieldRef: &v1.ObjectFieldSelector{
+							FieldPath: fmt.Sprintf("metadata.annotations['%s']", podidentity.AnnotationKeyPodIdentity),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateDownwardAPIVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      podIdentityVolumeName,
+		MountPath: podIdentityVolumePath,
+		ReadOnly:  false,
 	}
 }
 

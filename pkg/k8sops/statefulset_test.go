@@ -23,6 +23,9 @@ package k8sops
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,4 +45,35 @@ func TestStatefulSet(t *testing.T) {
 	require.NotNil(t, err)
 	err = k.DeleteStatefulSets(fixture, k.LabelSelector("fake", "fake"))
 	require.NotNil(t, err)
+}
+
+func TestGenerateDownwardAPIVolume(t *testing.T) {
+	vf := generateDownwardAPIVolume()
+	exp := corev1.Volume{
+		Name: "pod-identity",
+		VolumeSource: corev1.VolumeSource{
+			DownwardAPI: &corev1.DownwardAPIVolumeSource{
+				Items: []corev1.DownwardAPIVolumeFile{
+					{
+						Path: "identity",
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.annotations['operator.m3db.io/pod-identity']",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, exp, vf)
+}
+
+func TestGenerateDownwardAPIVolumePath(t *testing.T) {
+	vm := generateDownwardAPIVolumeMount()
+	exp := corev1.VolumeMount{
+		Name:      "pod-identity",
+		MountPath: "/etc/m3db/pod-identity",
+		ReadOnly:  false,
+	}
+
+	assert.Equal(t, exp, vm)
 }
