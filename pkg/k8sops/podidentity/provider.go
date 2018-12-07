@@ -70,6 +70,7 @@ type provider struct {
 	logger *zap.Logger
 }
 
+// Identity returns a pod's identity.
 func (p *provider) Identity(pod *corev1.Pod, cluster *myspec.M3DBCluster) (*myspec.PodIdentity, error) {
 	config := cluster.Spec.PodIdentityConfig
 	if config == nil {

@@ -47,6 +47,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/types"
+	"strconv"
 )
 
 type namespaceMatcher struct {
@@ -363,63 +365,6 @@ func TestAddPodToPlacement(t *testing.T) {
 	assert.True(t, cluster.Status.HasPodBootstrapping())
 }
 
-func TestReplacePodInPlacement(t *testing.T) {
-
-	mc := gomock.NewController(t)
-	defer mc.Finish()
-
-	cluster := getFixture("cluster-3-zones.yaml", t)
-
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
-	require.NoError(t, err)
-	set.Status.ReadyReplicas = 3
-
-	pods := podsForClusterSet(cluster, set, 3)
-	//pl := placementFromPods(t, cluster, pods[0:2])
-	//group := cluster.Spec.IsolationGroups[0]
-
-	placementMock := pkgplacement.NewMockClient(mc)
-	deps := newTestDeps(t, &testOpts{
-		kubeObjects:     append(objectsFromPods(pods...)),
-		crdObjects:      []runtime.Object{cluster},
-		placementClient: placementMock,
-	})
-	controller := deps.newController()
-	defer deps.cleanup()
-
-	// TODO: make sure new pod ID is different than leaving pod ID, even tho names might be the same
-
-	// arbitrarily pick which pod to replace, that is already in the placement
-	// here it's going to be the first pod, 0
-	// maybe in the future create a mock unhealthy pod
-	/*	testLeavingInst := pl.Instances()[0]
-
-		replacementInstance := placementpb.Instance{
-			Id:             "pod-a",
-			IsolationGroup: "zone-a",
-			Zone:           "embedded",
-			Endpoint:       "pod-a.m3dbnode-cluster-simple:9000",
-			Hostname:       "pod-a.m3dbnode-cluster-simple",
-			Port:           9000,
-			Weight:         100,
-		}*/
-
-	//TODO: y dis no work...also what even is this EXPECT stuff...hard 2 read output
-	// (pls add documentation or comments in Mock code)
-	placementMock.EXPECT().Replace(pods[0], pods[0])
-
-	err = controller.replacePodInPlacement(cluster, pods[0])
-	assert.NoError(t, err)
-
-	cluster, err = controller.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-
-	assert.True(t, cluster.Status.HasPodBootstrapping())
-
-	//TODO: 1) assure new pod is in placement cluster by checking the pl.   2) make sure names are same, but UIDs are different
-
-}
-
 func podsForClusterSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, numPods int) []*corev1.Pod {
 	pods := make([]*corev1.Pod, numPods)
 	for i := 0; i < numPods; i++ {
@@ -427,6 +372,7 @@ func podsForClusterSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, num
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
+				UID:       types.UID(strconv.Itoa(i)),
 				Namespace: cluster.Namespace,
 				Labels:    map[string]string{},
 			},
@@ -462,6 +408,7 @@ func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1
 func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
 	return &myspec.PodIdentity{
 		Name: pod.Name,
+		UID:  string(pod.UID),
 	}
 }
 
@@ -612,6 +559,51 @@ func TestSortPodID(t *testing.T) {
 		sort.Sort(byPodID(podIDs))
 		assert.Equal(t, test.exp, podIDs)
 	}
+}
+
+func TestReplacePodInPlacement(t *testing.T) {
+	deps := newTestDeps(t, &testOpts{})
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	pods := podsForClusterSet(cluster, set, 3)
+
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
+
+	pl := placementFromPods(t, cluster, pods, idProvider)
+	fmt.Println("set labels : ", set.Labels)
+
+	// this will be the new replacement pod
+	pods = append(pods, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: pods[0].Name,
+			UID:  types.UID("ABC"),
+			Labels: map[string]string{
+				"operator.m3db.io/isolation-group": "zone-a",
+			},
+		},
+	})
+
+	testleavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, pods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testleavingInstanceID, pods[0].Name)
+	require.NotNil(t, testNewPod)
+
+	//deps.placementClient.EXPECT().Replace(testleavingInstanceID, testNewPod)
+
+	// TODO(celina): figure out why below returns an error
+	err = controller.replacePodInPlacement(cluster, pl, testleavingInstanceID, testNewPod)
+	require.NoError(t, err)
+
 }
 
 func TestFindPodToRemove(t *testing.T) {
