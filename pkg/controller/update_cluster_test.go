@@ -529,7 +529,7 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	defer deps.cleanup()
 
 	deps.idProvider.EXPECT().Identity(newPodNameMatcher(pods[2].Name), cluster).Return(identityForPod(pods[2]), nil)
-	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2"}`)
+	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2","uid":"2"}`)
 	err = controller.shrinkPlacementForSet(cluster, set)
 	assert.NoError(t, err)
 }
