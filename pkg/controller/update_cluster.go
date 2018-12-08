@@ -290,8 +290,6 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 		return err
 	}
 
-	fmt.Println("[add pod]: ", pod)
-
 	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
 	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
 	if err != nil {
