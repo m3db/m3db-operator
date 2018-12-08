@@ -414,6 +414,7 @@ func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
 
 type podNameMatcher struct {
 	name string
+	uid  string
 }
 
 func (p podNameMatcher) String() string {
@@ -562,35 +563,39 @@ func TestSortPodID(t *testing.T) {
 }
 
 func TestReplacePodInPlacement(t *testing.T) {
-	deps := newTestDeps(t, &testOpts{})
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	// crd objects: add stuff
 	controller := deps.newController()
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
-	cluster := getFixture("cluster-3-zones.yaml", t)
 	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
-	pods := podsForClusterSet(cluster, set, 3)
+	podsForPlacement := podsForClusterSet(cluster, set, 3)
 
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
-	}
-
-	pl := placementFromPods(t, cluster, pods, idProvider)
-	fmt.Println("set labels : ", set.Labels)
-
-	// this will be the new replacement pod
-	pods = append(pods, &corev1.Pod{
+	// this will be the new replacement pod, so it's not in the placement
+	pods := append(podsForPlacement, &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pods[0].Name,
+			Name: podsForPlacement[0].Name,
 			UID:  types.UID("ABC"),
 			Labels: map[string]string{
 				"operator.m3db.io/isolation-group": "zone-a",
+				"operator.m3db.io/cluster":         "cluster-zones",
 			},
 		},
 	})
+
+	for _, pod := range pods {
+		pod := pod
+		fmt.Println("Pod: ", identityForPod(pod))
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
+
+	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
 	testleavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, pods, pl)
 
@@ -598,9 +603,19 @@ func TestReplacePodInPlacement(t *testing.T) {
 	require.Contains(t, testleavingInstanceID, pods[0].Name)
 	require.NotNil(t, testNewPod)
 
-	//deps.placementClient.EXPECT().Replace(testleavingInstanceID, testNewPod)
+	expInstance := placementpb.Instance{
+		Id:             "{\"name\":\"cluster-zones-rep0-0\",\"uid\":\"ABC\"}",
+		IsolationGroup: "zone-a",
+		Zone:           "embedded",
+		Endpoint:       "cluster-zones-rep0-0.m3dbnode-cluster-zones:9000",
+		Hostname:       "cluster-zones-rep0-0.m3dbnode-cluster-zones",
+		Port:           9000,
+		Weight:         100,
+	}
+	fmt.Println("test leaving ID: ", testleavingInstanceID)
 
-	// TODO(celina): figure out why below returns an error
+	deps.placementClient.EXPECT().Replace(testleavingInstanceID, expInstance)
+
 	err = controller.replacePodInPlacement(cluster, pl, testleavingInstanceID, testNewPod)
 	require.NoError(t, err)
 

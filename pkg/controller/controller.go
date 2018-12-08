@@ -441,17 +441,15 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
-	//TODO: replacement thing here (celina)
-	// get all pods
-	// find pod that is not in the placement
-	// this will be the replacement pod
-
 	// Determine if any sets aren't at their desired replica count. Maybe we can
 	// reuse the set objects from above but being paranoid for now.
 	childrenSets, err = c.getChildStatefulSets(cluster)
 	if err != nil {
 		return err
 	}
+
+	// check if any pods inside the cluster
+	c.checkPodsForReplacement(cluster, pods, placement)
 
 	for _, set := range childrenSets {
 		zone, ok := set.Labels[labels.IsolationGroup]

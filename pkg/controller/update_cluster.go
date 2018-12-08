@@ -290,6 +290,8 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 		return err
 	}
 
+	fmt.Println("[add pod]: ", pod)
+
 	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
 	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
 	if err != nil {
@@ -326,12 +328,10 @@ func (c *Controller) checkPodsForReplacement(
 
 	for _, pod := range sortedPods {
 
-		// TODO(celina): fix bug in Identity method that assigns wrong UID to pod of same name
-		// then replace pod.pod.UID with pod ID provider
-		/*		clusterPodId, err := c.podIDProvider.Identity(pod.pod, cluster)
-				if err != nil {
-					return "", nil, err
-				}*/
+		clusterPodId, err := c.podIDProvider.Identity(pod.pod, cluster)
+		if err != nil {
+			return "", nil, err
+		}
 
 		for _, inst := range insts {
 			if strings.EqualFold(strings.Split(inst.Hostname(), ".")[0], pod.pod.Name) {
@@ -339,7 +339,7 @@ func (c *Controller) checkPodsForReplacement(
 					return "", nil, err
 				}
 
-				if !strings.EqualFold(string(pod.pod.UID), instancePodID.UID) {
+				if !strings.EqualFold(string(clusterPodId.UID), instancePodID.UID) {
 					return inst.ID(), pod.pod, nil
 
 				} else {
