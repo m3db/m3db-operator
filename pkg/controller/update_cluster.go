@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -45,7 +46,6 @@ import (
 	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	"encoding/json"
 	"go.uber.org/zap"
 )
 
@@ -326,7 +326,7 @@ func (c *Controller) checkPodsForReplacement(
 
 	for _, pod := range sortedPods {
 
-		clusterPodId, err := c.podIDProvider.Identity(pod.pod, cluster)
+		clusterPodID, err := c.podIDProvider.Identity(pod.pod, cluster)
 		if err != nil {
 			return "", nil, err
 		}
@@ -337,11 +337,9 @@ func (c *Controller) checkPodsForReplacement(
 					return "", nil, err
 				}
 
-				if !strings.EqualFold(string(clusterPodId.UID), instancePodID.UID) {
+				if !strings.EqualFold(clusterPodID.UID, instancePodID.UID) {
 					return inst.ID(), pod.pod, nil
 
-				} else {
-					continue
 				}
 			}
 		}

@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -42,13 +43,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/types"
-	"strconv"
 )
 
 type namespaceMatcher struct {
@@ -414,7 +414,6 @@ func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
 
 type podNameMatcher struct {
 	name string
-	uid  string
 }
 
 func (p podNameMatcher) String() string {
