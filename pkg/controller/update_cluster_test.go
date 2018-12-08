@@ -592,7 +592,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 	for _, pod := range pods {
 		pod := pod
 		fmt.Println("Pod: ", identityForPod(pod))
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
 	}
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
