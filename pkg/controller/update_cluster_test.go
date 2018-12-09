@@ -566,7 +566,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
-	// crd objects: add stuff
+
 	controller := deps.newController()
 	idProvider := deps.idProvider
 	defer deps.cleanup()
@@ -590,16 +590,15 @@ func TestReplacePodInPlacement(t *testing.T) {
 
 	for _, pod := range pods {
 		pod := pod
-		fmt.Println("Pod: ", identityForPod(pod))
 		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
 	}
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
-	testleavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, pods, pl)
+	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, pods, pl)
 
 	require.NoError(t, err)
-	require.Contains(t, testleavingInstanceID, pods[0].Name)
+	require.Contains(t, testLeavingInstanceID, pods[0].Name)
 	require.NotNil(t, testNewPod)
 
 	expInstance := placementpb.Instance{
@@ -611,11 +610,10 @@ func TestReplacePodInPlacement(t *testing.T) {
 		Port:           9000,
 		Weight:         100,
 	}
-	fmt.Println("test leaving ID: ", testleavingInstanceID)
 
-	deps.placementClient.EXPECT().Replace(testleavingInstanceID, expInstance)
+	deps.placementClient.EXPECT().Replace(testLeavingInstanceID, expInstance)
 
-	err = controller.replacePodInPlacement(cluster, pl, testleavingInstanceID, testNewPod)
+	err = controller.replacePodInPlacement(cluster, pl, testLeavingInstanceID, testNewPod)
 	require.NoError(t, err)
 
 }

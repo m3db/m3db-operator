@@ -291,7 +291,7 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	}
 
 	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
-	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
+	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
 	if err != nil {
 		err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
 		c.logger.Error(err.Error())
@@ -314,8 +314,6 @@ func (c *Controller) checkPodsForReplacement(
 	pods []*corev1.Pod,
 	pl placement.Placement) (string, *corev1.Pod, error) {
 
-	var instancePodID myspec.PodIdentity
-
 	insts := pl.Instances()
 	sort.Sort(placement.ByIDAscending(insts))
 
@@ -332,6 +330,8 @@ func (c *Controller) checkPodsForReplacement(
 		}
 
 		for _, inst := range insts {
+			var instancePodID myspec.PodIdentity
+
 			if strings.EqualFold(strings.Split(inst.Hostname(), ".")[0], pod.pod.Name) {
 				if err = json.Unmarshal([]byte(inst.ID()), &instancePodID); err != nil {
 					return "", nil, err

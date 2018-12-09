@@ -449,7 +449,19 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	}
 
 	// check if any pods inside the cluster need to be swapped in
-	c.checkPodsForReplacement(cluster, pods, placement)
+	leavingInstanceID, podToReplace, err := c.checkPodsForReplacement(cluster, pods, placement)
+	if err != nil {
+		return err
+	}
+
+	if podToReplace != nil {
+		err = c.replacePodInPlacement(cluster, placement, leavingInstanceID, podToReplace)
+		if err != nil {
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: " + leavingInstanceID)
+			return err
+		}
+		c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "successfully replaced instance: " + leavingInstanceID)
+	}
 
 	for _, set := range childrenSets {
 		zone, ok := set.Labels[labels.IsolationGroup]
