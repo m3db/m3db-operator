@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -337,7 +338,7 @@ func (c *Controller) checkPodsForReplacement(
 					return "", nil, err
 				}
 
-				if !strings.EqualFold(clusterPodID.UID, instancePodID.UID) {
+				if !reflect.DeepEqual(*clusterPodID, instancePodID) {
 					return inst.ID(), pod.pod, nil
 
 				}

@@ -561,6 +561,60 @@ func TestSortPodID(t *testing.T) {
 	}
 }
 
+func TestCheckPodsForReplacement(t *testing.T) {
+
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	// normal pods in the placement
+	podsForPlacement := podsForClusterSet(cluster, set, 3)
+
+	// there should not be a replacement here
+	noReplacePods := append(podsForPlacement, podsForPlacement[0])
+
+	for _, pod := range noReplacePods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
+	}
+
+	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
+
+	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, noReplacePods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testLeavingInstanceID, "")
+	require.Nil(t, testNewPod)
+
+	// there should be a replace here
+	replacePods := append(podsForPlacement, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: podsForPlacement[1].Name,
+			UID:  types.UID("321"),
+			Labels: map[string]string{
+				"different": "label",
+			},
+		}})
+
+	idProvider.EXPECT().Identity(newPodNameMatcher(replacePods[len(replacePods)-1].Name),
+		gomock.Any()).Return(identityForPod(replacePods[len(replacePods)-1]), nil).MaxTimes(5)
+
+	testLeavingInstanceID, testNewPod, err = controller.checkPodsForReplacement(cluster, replacePods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testLeavingInstanceID, podsForPlacement[1].Name)
+	require.NotNil(t, testNewPod)
+
+}
+
 func TestReplacePodInPlacement(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
 	deps := newTestDeps(t, &testOpts{
