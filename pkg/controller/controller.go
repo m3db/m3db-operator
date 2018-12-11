@@ -328,7 +328,7 @@ func (c *Controller) handleClusterEvent(key string) error {
 // We are guaranteed by handleClusterEvent that we will never be passed a nil
 // cluster here.
 func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
-	// MUST create a deep copy of the cluster or risk corruping cache! Technically
+	// MUST create a deep copy of the cluster or risk corrupting cache! Technically
 	// only need if we modify, but we frequently do that so let's deep copy to
 	// start and remove unnecessary calls later to optimize if we want.
 	cluster = cluster.DeepCopy()
@@ -432,10 +432,12 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		if !inst.IsAvailable() {
 			unavailInsts = append(unavailInsts, inst.ID())
 		}
+
 	}
 
 	if len(unavailInsts) > 0 {
 		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
+		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", unavailInsts)
 		return nil
 	}
 
@@ -444,6 +446,21 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	childrenSets, err = c.getChildStatefulSets(cluster)
 	if err != nil {
 		return err
+	}
+
+	// check if any pods inside the cluster need to be swapped in
+	leavingInstanceID, podToReplace, err := c.checkPodsForReplacement(cluster, pods, placement)
+	if err != nil {
+		return err
+	}
+
+	if podToReplace != nil {
+		err = c.replacePodInPlacement(cluster, placement, leavingInstanceID, podToReplace)
+		if err != nil {
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: " + leavingInstanceID)
+			return err
+		}
+		c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "successfully replaced instance: " + leavingInstanceID)
 	}
 
 	for _, set := range childrenSets {
@@ -516,6 +533,8 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return fmt.Errorf("error fetching placement: %v", err)
 	}
 
+	// TODO(celina): possibly do a replacement check here
+
 	// See if we need to clean up the pod bootstrapping status.
 	cluster, err = c.reconcileBootstrappingStatus(cluster, placement)
 	if err != nil {
@@ -528,6 +547,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
+	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "cluster updated and synced")
 	return nil
 }
 

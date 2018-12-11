@@ -21,8 +21,10 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -280,7 +282,7 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 		"BootstrapComplete", "no bootstraps in progress")
 }
 
-func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod, placement placement.Placement) error {
+func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
 	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
 	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 	if err != nil {
@@ -305,6 +307,78 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	}
 
 	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
+	return nil
+}
+
+func (c *Controller) checkPodsForReplacement(
+	cluster *myspec.M3DBCluster,
+	pods []*corev1.Pod,
+	pl placement.Placement) (string, *corev1.Pod, error) {
+
+	insts := pl.Instances()
+	sort.Sort(placement.ByIDAscending(insts))
+
+	sortedPods, err := sortPods(pods)
+	if err != nil {
+		return "", nil, fmt.Errorf("cannot sort pods: %v", err)
+	}
+
+	for _, pod := range sortedPods {
+
+		clusterPodID, err := c.podIDProvider.Identity(pod.pod, cluster)
+		if err != nil {
+			return "", nil, err
+		}
+
+		for _, inst := range insts {
+			var instancePodID myspec.PodIdentity
+
+			if strings.EqualFold(strings.Split(inst.Hostname(), ".")[0], pod.pod.Name) {
+				if err = json.Unmarshal([]byte(inst.ID()), &instancePodID); err != nil {
+					return "", nil, err
+				}
+
+				if !reflect.DeepEqual(*clusterPodID, instancePodID) {
+					return inst.ID(), pod.pod, nil
+
+				}
+			}
+		}
+	}
+	return "", nil, nil
+
+}
+
+func (c *Controller) replacePodInPlacement(
+	cluster *myspec.M3DBCluster,
+	pl placement.Placement,
+	leavingInstanceID string,
+	newPod *corev1.Pod) error {
+
+	c.logger.Info("replacing pod in placement", zap.String("pod", leavingInstanceID))
+
+	newInst, err := k8sops.PlacementInstanceFromPod(cluster, newPod, c.podIDProvider)
+	if err != nil {
+		err := fmt.Errorf("error creating instance from replacement pod %s: %v", newPod.Name, err)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	reason := fmt.Sprintf("replacing %s pod in placement", newPod.Name)
+	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
+	if err != nil {
+		err := fmt.Errorf("error setting replacement pod bootstrapping status: %v", err)
+		c.logger.Error(err.Error())
+		return err
+	}
+
+	err = c.adminClient.placementClientForCluster(cluster).Replace(leavingInstanceID, *newInst)
+	if err != nil {
+		err := fmt.Errorf("error replacing pod in placement: %s", leavingInstanceID)
+		c.logger.Error(err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -345,7 +419,7 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 		}
 		_, ok := placement.Instance(idStr)
 		if !ok {
-			return c.addPodToPlacement(cluster, pod, placement)
+			return c.addPodToPlacement(cluster, pod)
 		}
 	}
 
@@ -383,20 +457,6 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 	return c.adminClient.placementClientForCluster(cluster).Remove(idStr)
 }
 
-// podID encapsulates a pod and its ordinal ID to facilitate sorting a list of
-// pod names by ID and easily keeping a reference to the original pod.
-type podID struct {
-	pod *corev1.Pod
-	id  int
-}
-
-// byPodID supports sorting a list of statefulset pods by their ordinal ID.
-type byPodID []podID
-
-func (names byPodID) Len() int           { return len(names) }
-func (names byPodID) Swap(i, j int)      { names[i], names[j] = names[j], names[i] }
-func (names byPodID) Less(i, j int) bool { return names[i].id < names[j].id }
-
 // findPodToRemove returns the pod name with the highest ordinal number in the
 // stateful set so that we remove from the placement the pod that will be
 // deleted when the set size is scaled down.
@@ -405,11 +465,26 @@ func findPodToRemove(pods []*corev1.Pod) (*corev1.Pod, error) {
 		return nil, errors.New("cannot find removal candidate in empty list")
 	}
 
+	podIDs, err := sortPods(pods)
+	if err != nil {
+		return nil, fmt.Errorf("cannot sort pods: %v", err)
+	}
+
+	lastPod := podIDs[len(podIDs)-1].pod
+
+	return lastPod, nil
+}
+
+func sortPods(pods []*corev1.Pod) ([]podID, error) {
+	if pods == nil {
+		return nil, fmt.Errorf("no pods to sort")
+	}
+
 	podIDs := make([]podID, len(pods))
 	for i, pod := range pods {
 		parts := strings.Split(pod.Name, "-")
 		if len(parts) == 0 {
-			return nil, fmt.Errorf("invalid pod name '%s'", pod.Name)
+			return nil, fmt.Errorf("invalid pod name: '%s'", pod.Name)
 		}
 
 		id := parts[len(parts)-1]
@@ -425,7 +500,19 @@ func findPodToRemove(pods []*corev1.Pod) (*corev1.Pod, error) {
 	}
 
 	sort.Sort(byPodID(podIDs))
-	lastPod := podIDs[len(podIDs)-1].pod
-
-	return lastPod, nil
+	return podIDs, nil
 }
+
+// podID encapsulates a pod and its ordinal ID to facilitate sorting a list of
+// pod names by ID and easily keeping a reference to the original pod.
+type podID struct {
+	pod *corev1.Pod
+	id  int
+}
+
+// byPodID supports sorting a list of statefulset pods by their ordinal ID.
+type byPodID []podID
+
+func (names byPodID) Len() int           { return len(names) }
+func (names byPodID) Swap(i, j int)      { names[i], names[j] = names[j], names[i] }
+func (names byPodID) Less(i, j int) bool { return names[i].id < names[j].id }

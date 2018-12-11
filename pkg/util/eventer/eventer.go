@@ -58,8 +58,8 @@ const (
 
 	// Sync events
 	ReasonSyncing     = "Syncing"
-	ReasonSuccessSync = "FailedToSync"
-	ReasonFailSync    = "SuccessfulSync"
+	ReasonFailSync    = "FailedToSync"
+	ReasonSuccessSync = "SuccessfulSync"
 
 	// Misc events
 	ReasonLongerThanUsual = "TimeLongerThanUsual"
@@ -126,7 +126,7 @@ func (e *eventer) NormalEvent(object runtime.Object, reason, message string, arg
 		args...)
 }
 
-// WarningEvent post an event of type errors or unexpectled possibly unhealthy behavior
+// WarningEvent post an event of type errors or unexpected possibly unhealthy behavior
 func (e *eventer) WarningEvent(object runtime.Object, reason, message string, args ...interface{}) {
 	e.recorder.Eventf(object,
 		corev1.EventTypeWarning,

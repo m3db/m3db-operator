@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -42,6 +43,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/golang/mock/gomock"
@@ -331,8 +333,6 @@ func TestAddPodToPlacement(t *testing.T) {
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	pl := placement.NewPlacement().SetReplicaFactor(1).SetMaxShardSetID(1)
-
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod-a",
@@ -356,7 +356,7 @@ func TestAddPodToPlacement(t *testing.T) {
 
 	deps.placementClient.EXPECT().Add(expInstance)
 
-	err := controller.addPodToPlacement(cluster, pod, pl)
+	err := controller.addPodToPlacement(cluster, pod)
 	assert.NoError(t, err)
 
 	cluster, err = controller.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
@@ -372,6 +372,7 @@ func podsForClusterSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, num
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      podName,
+				UID:       types.UID(strconv.Itoa(i)),
 				Namespace: cluster.Namespace,
 				Labels:    map[string]string{},
 			},
@@ -407,6 +408,7 @@ func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1
 func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
 	return &myspec.PodIdentity{
 		Name: pod.Name,
+		UID:  string(pod.UID),
 	}
 }
 
@@ -526,7 +528,7 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	defer deps.cleanup()
 
 	deps.idProvider.EXPECT().Identity(newPodNameMatcher(pods[2].Name), cluster).Return(identityForPod(pods[2]), nil)
-	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2"}`)
+	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2","uid":"2"}`)
 	err = controller.shrinkPlacementForSet(cluster, set)
 	assert.NoError(t, err)
 }
@@ -537,6 +539,28 @@ func podWithName(name string) *corev1.Pod {
 			Name: name,
 		},
 	}
+}
+
+func TestValidatePlacementWithStatus(t *testing.T) {
+
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	placementMock := deps.placementClient
+	defer deps.cleanup()
+
+	controller := deps.newController()
+	//idProvider := deps.idProvider
+
+	placementMock.EXPECT().Get().AnyTimes()
+
+	testBool, err := controller.validatePlacementWithStatus(cluster)
+
+	require.NoError(t, err)
+	require.True(t, testBool)
+
 }
 
 func TestSortPodID(t *testing.T) {
@@ -557,6 +581,176 @@ func TestSortPodID(t *testing.T) {
 		sort.Sort(byPodID(podIDs))
 		assert.Equal(t, test.exp, podIDs)
 	}
+
+	var noPodIDs []*corev1.Pod
+	noPods, err := sortPods(noPodIDs)
+	require.Nil(t, noPods)
+	require.Error(t, err)
+
+}
+
+func TestCheckPodsForReplacement(t *testing.T) {
+
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	// normal pods in the placement
+	podsForPlacement := podsForClusterSet(cluster, set, 3)
+
+	// there should not be a replacement here
+	noReplacePods := append(podsForPlacement, podsForPlacement[0])
+
+	for _, pod := range noReplacePods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
+	}
+
+	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
+
+	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, noReplacePods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testLeavingInstanceID, "")
+	require.Nil(t, testNewPod)
+
+	// there should be a replace here
+	replacePods := append(podsForPlacement, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: podsForPlacement[1].Name,
+			UID:  types.UID("321"),
+			Labels: map[string]string{
+				"different": "label",
+			},
+		}})
+
+	idProvider.EXPECT().Identity(newPodNameMatcher(replacePods[len(replacePods)-1].Name),
+		gomock.Any()).Return(identityForPod(replacePods[len(replacePods)-1]), nil).MaxTimes(5)
+
+	testLeavingInstanceID, testNewPod, err = controller.checkPodsForReplacement(cluster, replacePods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testLeavingInstanceID, podsForPlacement[1].Name)
+	require.NotNil(t, testNewPod)
+
+}
+
+func TestReplacePodInPlacement(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	podsForPlacement := podsForClusterSet(cluster, set, 3)
+
+	// this will be the new replacement pod, so it's not in the placement
+	pods := append(podsForPlacement, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: podsForPlacement[0].Name,
+			UID:  types.UID("ABC"),
+			Labels: map[string]string{
+				"operator.m3db.io/isolation-group": "zone-a",
+				"operator.m3db.io/cluster":         "cluster-zones",
+			},
+		},
+	})
+
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
+	}
+
+	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
+
+	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, pods, pl)
+
+	require.NoError(t, err)
+	require.Contains(t, testLeavingInstanceID, pods[0].Name)
+	require.NotNil(t, testNewPod)
+
+	expInstance := placementpb.Instance{
+		Id:             "{\"name\":\"cluster-zones-rep0-0\",\"uid\":\"ABC\"}",
+		IsolationGroup: "zone-a",
+		Zone:           "embedded",
+		Endpoint:       "cluster-zones-rep0-0.m3dbnode-cluster-zones:9000",
+		Hostname:       "cluster-zones-rep0-0.m3dbnode-cluster-zones",
+		Port:           9000,
+		Weight:         100,
+	}
+
+	deps.placementClient.EXPECT().Replace(testLeavingInstanceID, expInstance)
+
+	err = controller.replacePodInPlacement(cluster, pl, testLeavingInstanceID, testNewPod)
+	require.NoError(t, err)
+
+}
+
+func TestReplacePodInPlacementWithError(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	podsForPlacement := podsForClusterSet(cluster, set, 3)
+
+	for _, pod := range podsForPlacement {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
+	}
+
+	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
+
+	// error creating instance
+	var badPod = &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: podsForPlacement[0].Name,
+			UID:  types.UID("ABC"),
+			Labels: map[string]string{
+				"bad": "labels",
+			},
+		},
+	}
+
+	err = controller.replacePodInPlacement(cluster, pl, "dummy-id", badPod)
+	require.Error(t, err)
+
+	// error setting bootstrapping
+	okPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"operator.m3db.io/isolation-group": "beep beep",
+			},
+		},
+	}
+
+	badCluster := getFixture("cluster-simple.yaml", t)
+
+	idProvider.EXPECT().Identity(newPodNameMatcher(okPod.Name), gomock.Any()).Return(identityForPod(okPod), nil).MaxTimes(2)
+
+	err = controller.replacePodInPlacement(badCluster, pl, "dummy-id", okPod)
+	require.Error(t, err)
 }
 
 func TestFindPodToRemove(t *testing.T) {
