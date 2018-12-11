@@ -581,6 +581,12 @@ func TestSortPodID(t *testing.T) {
 		sort.Sort(byPodID(podIDs))
 		assert.Equal(t, test.exp, podIDs)
 	}
+
+	var noPodIDs []*corev1.Pod
+	noPods, err := sortPods(noPodIDs)
+	require.Nil(t, noPods)
+	require.Error(t, err)
+
 }
 
 func TestCheckPodsForReplacement(t *testing.T) {
@@ -709,25 +715,14 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 
 	podsForPlacement := podsForClusterSet(cluster, set, 3)
 
-	// this will be the new replacement pod, so it's not in the placement
-	pods := append(podsForPlacement, &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: podsForPlacement[0].Name,
-			UID:  types.UID("ABC"),
-			Labels: map[string]string{
-				"operator.m3db.io/isolation-group": "zone-a",
-				"operator.m3db.io/cluster":         "cluster-zones",
-			},
-		},
-	})
-
-	for _, pod := range pods {
+	for _, pod := range podsForPlacement {
 		pod := pod
 		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
 	}
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
+	// error creating instance
 	var badPod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: podsForPlacement[0].Name,
@@ -739,6 +734,22 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 	}
 
 	err = controller.replacePodInPlacement(cluster, pl, "dummy-id", badPod)
+	require.Error(t, err)
+
+	// error setting bootstrapping
+	okPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"operator.m3db.io/isolation-group": "beep beep",
+			},
+		},
+	}
+
+	badCluster := getFixture("cluster-simple.yaml", t)
+
+	idProvider.EXPECT().Identity(newPodNameMatcher(okPod.Name), gomock.Any()).Return(identityForPod(okPod), nil).MaxTimes(2)
+
+	err = controller.replacePodInPlacement(badCluster, pl, "dummy-id", okPod)
 	require.Error(t, err)
 }
 

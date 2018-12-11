@@ -476,6 +476,10 @@ func findPodToRemove(pods []*corev1.Pod) (*corev1.Pod, error) {
 }
 
 func sortPods(pods []*corev1.Pod) ([]podID, error) {
+	if pods == nil {
+		return nil, fmt.Errorf("no pods to sort")
+	}
+
 	podIDs := make([]podID, len(pods))
 	for i, pod := range pods {
 		parts := strings.Split(pod.Name, "-")
