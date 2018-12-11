@@ -541,6 +541,27 @@ func podWithName(name string) *corev1.Pod {
 	}
 }
 
+func TestValidatePlacementWithStatus(t *testing.T) {
+
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	placementMock := deps.placementClient
+	defer deps.cleanup()
+
+	controller := deps.newController()
+
+	placementMock.EXPECT().Get().AnyTimes()
+
+	testBool, err := controller.validatePlacementWithStatus(cluster)
+
+	require.NoError(t, err)
+	require.True(t, testBool)
+
+}
+
 func TestSortPodID(t *testing.T) {
 	for _, test := range []struct {
 		podIDs []podID
