@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
       - name: etcd
-        image: quay.io/coreos/etcd:v3.3.3
+        image: quay.io/coreos/etcd:v3.3.10
         command:
         - "etcd"
         - "--name"
@@ -73,9 +73,6 @@ spec:
           name: client
         - containerPort: 2380
           name: peer
-        volumeMounts:
-        - name: etcd-data
-          mountPath: /var/lib/etcd
         env:
         - name: MY_IP
           valueFrom:
@@ -85,14 +82,3 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-  volumeClaimTemplates:
-    - metadata:
-        name: etcd-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 2Gi
-          limits:
-            storage: 2Gi

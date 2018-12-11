@@ -21,11 +21,39 @@
 package controller
 
 import (
+	"archive/zip"
+	"strings"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kubernetes/utils/pointer"
+	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func registerValidConfigMap() error {
+	sw := &strings.Builder{}
+	zw := zip.NewWriter(sw)
+
+	// Build a zip fs containing our test config map
+	fw, err := zw.Create("default-config.yaml")
+	if err != nil {
+		return err
+	}
+	_, err = fw.Write([]byte("my_config_data"))
+	if err != nil {
+		return err
+	}
+	err = zw.Close()
+	if err != nil {
+		return err
+	}
+
+	fs.Register(sw.String())
+	return nil
+}
 
 func TestEnsureService_Base(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
@@ -35,9 +63,6 @@ func TestEnsureService_Base(t *testing.T) {
 	c := &Controller{
 		k8sclient: k8sops,
 	}
-
-	err = c.ensureServices(nil)
-	assert.Error(t, err)
 
 	err = c.ensureServices(cluster)
 	assert.NoError(t, err)
@@ -49,24 +74,26 @@ func TestEnsureService_Base(t *testing.T) {
 	}
 }
 
-func TestEnsureService_Custom(t *testing.T) {
-	cluster := getFixture("cluster-services.yaml", t)
-	k8sops, err := newFakeK8sops()
-	require.NoError(t, err)
+func TestEnsureConfigMap(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	deps := newTestDeps(t, &testOpts{})
+	defer deps.cleanup()
 
-	c := &Controller{
-		k8sclient: k8sops,
-	}
+	require.NoError(t, registerValidConfigMap())
 
-	err = c.ensureServices(cluster)
+	controller := deps.newController()
+
+	err := controller.ensureConfigMap(cluster)
 	assert.NoError(t, err)
 
-	for _, svcName := range []string{"m3dbnode-cluster-services", "custom-svc"} {
-		svc, err := k8sops.GetService(cluster, svcName)
-		assert.NoError(t, err)
-		assert.NotNil(t, svc)
-	}
+	cms, err := controller.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, cluster.Name, cms.Items[0].OwnerReferences[0].Name)
 
-	_, err = k8sops.GetService(cluster, "m3coordinator-cluster-services")
-	assert.Error(t, err)
+	err = controller.ensureConfigMap(cluster)
+	assert.NoError(t, err)
+
+	cluster.Spec.ConfigMapName = pointer.StringPtr("")
+	err = controller.ensureConfigMap(cluster)
+	assert.Equal(t, errEmptyConfigMap, err)
 }

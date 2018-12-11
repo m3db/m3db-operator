@@ -274,12 +274,8 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 							Ports: nil,
 							VolumeMounts: []v1.VolumeMount{
 								v1.VolumeMount{
-									Name:      "storage",
+									Name:      _dataVolumeName,
 									MountPath: _dataDirectory,
-								},
-								v1.VolumeMount{
-									Name:      _configurationName,
-									MountPath: _configurationDirectory,
 								},
 								v1.VolumeMount{
 									Name:      "cache",
@@ -291,32 +287,15 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					},
 					Volumes: []v1.Volume{
 						v1.Volume{
-							Name: "storage",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
 							Name: "cache",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: _configurationName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: _configurationName,
-									},
-								},
 							},
 						},
 						generateDownwardAPIVolume(),
 					},
 				},
 			},
-			VolumeClaimTemplates: cluster.Spec.VolumeClaimTemplates,
 		},
 	}
 }

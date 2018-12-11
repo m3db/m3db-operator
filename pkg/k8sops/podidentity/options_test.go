@@ -23,6 +23,9 @@ package podidentity
 import (
 	"testing"
 
+	kubeinformers "k8s.io/client-go/informers"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -30,14 +33,21 @@ import (
 func TestOptions(t *testing.T) {
 	opts := &options{}
 
+	assert.Error(t, opts.validate())
+
+	kubeInformer := kubeinformers.NewSharedInformerFactory(kubefake.NewSimpleClientset(), 0)
+	nodeLister := kubeInformer.Core().V1().Nodes().Lister()
+
 	logger := zap.NewNop()
 	for _, o := range []Option{
 		WithLogger(logger),
+		WithNodeLister(nodeLister),
 	} {
 		o.execute(opts)
 	}
 
 	assert.Equal(t, logger, opts.logger)
+	assert.Equal(t, nodeLister, opts.nodeLister)
 	err := opts.validate()
 	assert.NoError(t, err)
 }

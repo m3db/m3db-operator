@@ -28,6 +28,7 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 
 	"go.uber.org/zap"
 )
@@ -38,8 +39,10 @@ const (
 )
 
 var (
-	errEmptyPodSourceName = errors.New("pod name cannot by empty with id source == name")
-	errEmptyPodSourceUID  = errors.New("pod UID cannot be empty with id source == UID")
+	errEmptyPodSourceName  = errors.New("pod name cannot by empty with id source == name")
+	errEmptyPodSourceUID   = errors.New("pod UID cannot be empty with id source == UID")
+	errEmptyNodeExternalID = errors.New("node external ID cannot be empty with source == externalID")
+	errEmptyNodeProviderID = errors.New("node provider ID cannot be empty with source == prodiverID")
 )
 
 // Provider creates a pod's cluster identity given required info.
@@ -62,12 +65,14 @@ func NewProvider(opts ...Option) (Provider, error) {
 	}
 
 	return &provider{
-		logger: pOpts.logger,
+		logger:     pOpts.logger,
+		nodeLister: pOpts.nodeLister,
 	}, nil
 }
 
 type provider struct {
-	logger *zap.Logger
+	logger     *zap.Logger
+	nodeLister corelisters.NodeLister
 }
 
 // Identity returns a pod's identity.
@@ -76,31 +81,75 @@ func (p *provider) Identity(pod *corev1.Pod, cluster *myspec.M3DBCluster) (*mysp
 	if config == nil {
 		config = &myspec.PodIdentityConfig{
 			Sources: []myspec.PodIdentitySource{
-				myspec.PodIdentitySourcePodName,
 				myspec.PodIdentitySourcePodUID,
 			},
 		}
 	}
 
-	id := &myspec.PodIdentity{}
+	if pod.Name == "" {
+		return nil, errEmptyPodSourceName
+	}
+
+	// Identity always includes pod name, as we depend on this when replacing
+	// instances.
+	id := &myspec.PodIdentity{
+		Name: pod.Name,
+	}
+
 	for _, source := range config.Sources {
 		switch source {
-		case myspec.PodIdentitySourcePodName:
-			if pod.Name == "" {
-				return nil, errEmptyPodSourceName
-			}
-			id.Name = pod.Name
 		case myspec.PodIdentitySourcePodUID:
 			if pod.UID == "" {
 				return nil, errEmptyPodSourceUID
 			}
 			id.UID = string(pod.UID)
+		case myspec.PodIdentitySourceNodeSpecExternalID:
+			node, err := p.nodeForPod(pod)
+			if err != nil {
+				return nil, err
+			}
+			if node.Spec.ExternalID == "" {
+				return nil, errEmptyNodeExternalID
+			}
+			id.NodeExternalID = node.Spec.ExternalID
+		case myspec.PodIdentitySourceNodeSpecProviderID:
+			node, err := p.nodeForPod(pod)
+			if err != nil {
+				return nil, err
+			}
+			if node.Spec.ProviderID == "" {
+				return nil, errEmptyNodeProviderID
+			}
+			id.NodeProviderID = node.Spec.ProviderID
+		case myspec.PodIdentitySourceNodeName:
+			node, err := p.nodeForPod(pod)
+			if err != nil {
+				return nil, err
+			}
+			// We don't check for empty node name because we assume objects were
+			// validated by the Kubernetes API.
+			id.NodeName = node.Name
 		default:
 			return nil, fmt.Errorf("unrecognized pod identity source %s", source)
 		}
 	}
 
 	return id, nil
+}
+
+func (p *provider) nodeForPod(pod *corev1.Pod) (*corev1.Node, error) {
+	podNode := pod.Spec.NodeName
+	if podNode == "" {
+		p.logger.Warn("pod not yet scheduled", zap.String("pod", pod.Name))
+		return nil, fmt.Errorf("pod %s not yet scheduled", pod.Name)
+	}
+
+	node, err := p.nodeLister.Get(podNode)
+	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
 }
 
 // IdentityJSON returns a pod's identity in JSON form as a string.

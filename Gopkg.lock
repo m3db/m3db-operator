@@ -415,6 +415,14 @@
   revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
 
 [[projects]]
+  digest = "1:2ba054ffd0e1bd13f2e6fa0b2203df5d9f04ff354f71bbb08168926c6b74b756"
+  name = "github.com/rakyll/statik"
+  packages = ["fs"]
+  pruneopts = ""
+  revision = "1355192d24db2566a83c3914e187e2a7e7679832"
+  version = "v0.1.5"
+
+[[projects]]
   digest = "1:633b5b39909d9d794f5543baee4971890e1866f5c082cdf4694954c1ff489a18"
   name = "github.com/spaolacci/murmur3"
   packages = ["."]
@@ -975,6 +983,7 @@
     "github.com/m3db/stackmurmur3",
     "github.com/m3db/vellum/regexp",
     "github.com/m3db/vellum/utf8",
+    "github.com/rakyll/statik/fs",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/uber-go/tally",

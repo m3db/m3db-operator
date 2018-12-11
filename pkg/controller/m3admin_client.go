@@ -21,7 +21,6 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -49,7 +48,7 @@ type multiAdminClient struct {
 	plClientFn func(...placement.Option) (placement.Client, error)
 
 	clusterKeyFn func(*myspec.M3DBCluster, string) string
-	clusterURLFn func(*myspec.M3DBCluster) (string, error)
+	clusterURLFn func(*myspec.M3DBCluster) string
 
 	adminClient m3admin.Client
 	logger      *zap.Logger
@@ -61,25 +60,20 @@ func clusterKey(cluster *myspec.M3DBCluster, url string) string {
 }
 
 // clusterURL returns the URL to hit
-func clusterURL(cluster *myspec.M3DBCluster) (string, error) {
-	if len(cluster.Spec.Services) > 0 {
-		return "", errors.New("custom services not supported")
-	}
-
+func clusterURL(cluster *myspec.M3DBCluster) string {
 	serviceName := k8sops.CoordinatorServiceName(cluster.Name)
 	urlFmt := "http://%s.%s:%d"
 	url := fmt.Sprintf(urlFmt, serviceName, cluster.Namespace, k8sops.PortM3Coordinator)
-
-	return url, nil
+	return url
 }
 
 // clusterURLProxy returns a URL for communicating with a cluster via an
 // intermediary kubectl proxy.
-func clusterURLProxy(cluster *myspec.M3DBCluster) (string, error) {
+func clusterURLProxy(cluster *myspec.M3DBCluster) string {
 	serviceName := k8sops.CoordinatorServiceName(cluster.Name)
 	urlFmt := "http://localhost:8001/api/v1/namespaces/%s/services/%s:coordinator/proxy"
 	url := fmt.Sprintf(urlFmt, cluster.Namespace, serviceName)
-	return url, nil
+	return url
 }
 
 func newMultiAdminClient(m3adminClient m3admin.Client, logger *zap.Logger) *multiAdminClient {
@@ -96,11 +90,7 @@ func newMultiAdminClient(m3adminClient m3admin.Client, logger *zap.Logger) *mult
 }
 
 func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster) namespace.Client {
-	url, err := m.clusterURLFn(cluster)
-	if err != nil {
-		return newErrorNamespaceClient(err)
-	}
-
+	url := m.clusterURLFn(cluster)
 	key := m.clusterKeyFn(cluster, url)
 
 	m.mu.RLock()
@@ -110,7 +100,7 @@ func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster
 		return client
 	}
 
-	client, err = m.nsClientFn(
+	client, err := m.nsClientFn(
 		namespace.WithClient(m.adminClient),
 		namespace.WithLogger(m.logger),
 		namespace.WithURL(url),
@@ -133,11 +123,7 @@ func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster
 }
 
 func (m *multiAdminClient) placementClientForCluster(cluster *myspec.M3DBCluster) placement.Client {
-	url, err := m.clusterURLFn(cluster)
-	if err != nil {
-		return newErrorPlacementClient(err)
-	}
-
+	url := m.clusterURLFn(cluster)
 	key := m.clusterKeyFn(cluster, url)
 
 	m.mu.RLock()
@@ -147,7 +133,7 @@ func (m *multiAdminClient) placementClientForCluster(cluster *myspec.M3DBCluster
 		return client
 	}
 
-	client, err = m.plClientFn(
+	client, err := m.plClientFn(
 		placement.WithClient(m.adminClient),
 		placement.WithLogger(m.logger),
 		placement.WithURL(url),

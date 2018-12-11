@@ -333,7 +333,14 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// start and remove unnecessary calls later to optimize if we want.
 	cluster = cluster.DeepCopy()
 
-	// TODO(schallert): propagate whether services were created back up to client
+	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
+
+	if err := c.ensureConfigMap(cluster); err != nil {
+		clusterLogger.Error("failed to ensure configmap", zap.Error(err))
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, "failed to ensure configmap: %s", err.Error())
+		return err
+	}
+
 	// Per https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#statefulsetspec-v1-apps,
 	// headless service MUST exist before statefulset.
 	if err := c.ensureServices(cluster); err != nil {
@@ -419,7 +426,6 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return fmt.Errorf("error listing pods: %v", err)
 	}
 
-	// TODO(schallert): per-cluster m3admin clients
 	placement, err := c.adminClient.placementClientForCluster(cluster).Get()
 	if err != nil {
 		return fmt.Errorf("error fetching active placement: %v", err)

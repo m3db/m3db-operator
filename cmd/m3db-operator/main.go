@@ -30,6 +30,8 @@ import (
 	"syscall"
 	"time"
 
+	// No-op import to register assets.
+	_ "github.com/m3db/m3db-operator/pkg/assets"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
@@ -108,6 +110,7 @@ func main() {
 	tags := map[string]string{
 		"environment": env,
 	}
+
 	r := promreporter.NewReporter(promreporter.Options{})
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
 		Prefix:         _operatorName,
@@ -142,11 +145,15 @@ func main() {
 	stopCh := make(chan struct{})
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
+	nodeLister := kubeInformerFactory.Core().V1().Nodes().Lister()
 	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
 
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
-	idProvider, err := podidentity.NewProvider(podidentity.WithLogger(idLogger))
+	idProvider, err := podidentity.NewProvider(
+		podidentity.WithLogger(idLogger),
+		podidentity.WithNodeLister(nodeLister),
+	)
 	if err != nil {
 		logger.Fatal("failed to create ID provider", zap.Error(err))
 	}

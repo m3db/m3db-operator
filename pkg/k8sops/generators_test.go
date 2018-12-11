@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/kubernetes/utils/pointer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,7 +106,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 		"operator.m3db.io/isolation-group": "us-fake1-a",
 	}
 
-	ss := &appsv1.StatefulSet{
+	baseSS := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   ssName,
 			Labels: labels,
@@ -181,12 +182,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 							Ports: generateContainerPorts(),
 							VolumeMounts: []v1.VolumeMount{
 								v1.VolumeMount{
-									Name:      "storage",
+									Name:      _dataVolumeName,
 									MountPath: _dataDirectory,
-								},
-								v1.VolumeMount{
-									Name:      _configurationName,
-									MountPath: _configurationDirectory,
 								},
 								v1.VolumeMount{
 									Name:      "cache",
@@ -195,6 +192,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 								v1.VolumeMount{
 									Name:      "pod-identity",
 									MountPath: "/etc/m3db/pod-identity",
+								},
+								v1.VolumeMount{
+									Name:      _configurationName,
+									MountPath: _configurationDirectory,
 								},
 							},
 							Resources: v1.ResourceRequirements{
@@ -211,25 +212,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 					},
 					Volumes: []v1.Volume{
 						v1.Volume{
-							Name: "storage",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
 							Name: "cache",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						v1.Volume{
-							Name: _configurationName,
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: _configurationName,
-									},
-								},
 							},
 						},
 						v1.Volume{
@@ -247,18 +232,74 @@ func TestGenerateStatefulSet(t *testing.T) {
 								},
 							},
 						},
+						v1.Volume{
+							Name: _configurationName,
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: "m3db-config-map-m3db-cluster",
+									},
+								},
+							},
+						},
 					},
 				},
 			},
-			VolumeClaimTemplates: clusterSpec.VolumeClaimTemplates,
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: _dataVolumeName,
+					},
+					Spec: v1.PersistentVolumeClaimSpec{
+						AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+						StorageClassName: pointer.StringPtr("fake-sc"),
+						Resources: v1.ResourceRequirements{
+							Limits: v1.ResourceList{
+								"storage": resource.MustParse("1Gi"),
+							},
+							Requests: v1.ResourceList{
+								"storage": resource.MustParse("1Gi"),
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
+	// Base config stateful set
+	ss := baseSS.DeepCopy()
 	newSS, err := GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
-	require.Nil(t, err)
-	require.NotNil(t, newSS)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
 
-	require.Equal(t, ss, newSS)
+	// Reset spec and fixture, test custom config map
+	ss = baseSS.DeepCopy()
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.ConfigMapName = pointer.StringPtr("mymap")
+	ss.Spec.Template.Spec.Volumes[2].VolumeSource.ConfigMap.Name = "mymap"
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
+
+	// Reset spec and fixture, test custom volume claims
+	ss = baseSS.DeepCopy()
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.DataDirVolumeClaimTemplate = nil
+	ss.Spec.VolumeClaimTemplates = nil
+	ss.Spec.Template.Spec.Volumes = append(ss.Spec.Template.Spec.Volumes, v1.Volume{
+		Name: _dataVolumeName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	})
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
 }
 
 func TestGenerateM3DBService(t *testing.T) {

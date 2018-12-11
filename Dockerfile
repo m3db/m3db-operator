@@ -26,6 +26,6 @@ RUN cd /go/src/github.com/m3db/m3db-operator/ && \
 FROM alpine:latest
 LABEL maintainer="The m3db-operator Authors <m3db@googlegroups.com>"
 
-COPY --from=builder /go/src/github.com/m3db/m3db-operator/out/m3db-operator /usr/local/bin/m3db-operator
+COPY --from=builder /go/src/github.com/m3db/m3db-operator/out/m3db-operator /bin/m3db-operator
 
-CMD ["/bin/sh", "-c", "/usr/local/bin/m3db-operator"]
+ENTRYPOINT [ "/bin/m3db-operator" ]

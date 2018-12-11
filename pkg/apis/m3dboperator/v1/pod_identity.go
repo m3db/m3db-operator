@@ -26,20 +26,36 @@ type PodIdentitySource string
 const (
 	// PodIdentitySourcePodUID derives identity from UID of the pod.
 	PodIdentitySourcePodUID PodIdentitySource = "PodUID"
-	// PodIdentitySourcePodName derives identity from the name of the pod.
-	PodIdentitySourcePodName PodIdentitySource = "PodName"
+
+	// PodIdentitySourceNodeSpecExternalID derives identity from the 'externalID'
+	// spec field of the node. Note this field was deprecated after Kubernetes
+	// 1.11.
+	PodIdentitySourceNodeSpecExternalID PodIdentitySource = "NodeSpecExternalID"
+
+	// PodIdentitySourceNodeSpecProviderID derives identity from the 'providerID'
+	// spec field of the node.
+	PodIdentitySourceNodeSpecProviderID PodIdentitySource = "NodeSpecProviderID"
+
+	// PodIdentitySourceNodeName derives identity from the node's name.
+	PodIdentitySourceNodeName PodIdentitySource = "NodeName"
 )
 
 // PodIdentity contains all the fields that may be used to identify a pod's
 // identity in the M3DB placement. Any non-empty fields will be used to identity
 // uniqueness of a pod for the purpose of M3DB replace operations.
 type PodIdentity struct {
-	Name string `json:"name,omitempty"`
-	UID  string `json:"uid,omitempty"`
+	Name           string `json:"name,omitempty"`
+	UID            string `json:"uid,omitempty"`
+	NodeName       string `json:"nodeName,omitempty"`
+	NodeExternalID string `json:"nodeExternalID,omitempty"`
+	NodeProviderID string `json:"nodeProviderID,omitempty"`
 }
 
 // PodIdentityConfig contains cluster-level configuration for deriving pod
 // identity.
 type PodIdentityConfig struct {
+	// Sources enumerates the sources from which to derive pod identity. Note that
+	// a pod's name will always be used. If empty, defaults to pod name and
+	// UID.
 	Sources []PodIdentitySource `json:"sources"`
 }

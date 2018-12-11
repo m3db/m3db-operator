@@ -44,6 +44,7 @@
    "github.com/golang/mock/gomock",
    "github.com/golang/mock/mockgen",
    "github.com/kubernetes/utils/pointer",
+   "github.com/rakyll/statik/fs",
  ]
 
  [[constraint]]
@@ -99,3 +100,7 @@
  [[override]]
    name = "k8s.io/client-go"
    branch = "release-7.0"
+
+[[constraint]]
+  name = "github.com/rakyll/statik"
+  version = "0.1.5"

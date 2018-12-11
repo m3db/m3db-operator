@@ -14,6 +14,28 @@ include $(SELF_DIR)/.ci/common.mk
 
 SHELL=/bin/bash -o pipefail
 
+define LICENSE_HEADER
+Copyright (c) 2017 Uber Technologies, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+endef
+
 process_coverfile    := .ci/codecov.sh
 html_report          := coverage.html
 test                 := .ci/test-cover.sh
@@ -133,8 +155,15 @@ mock-gen-no-deps:
 	@echo generating mocks
 	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
+export LICENSE_HEADER
+.PHONY: asset-gen
+asset-gen:
+	@echo "--- $@"
+	@echo generating assets
+	PATH=$(retool_bin_path):$(PATH) statik -src $(SELF_DIR)/assets -dest $(SELF_DIR)/pkg/ -p assets -f -m -c "$$LICENSE_HEADER"
+
 .PHONY: all-gen
-all-gen: mock-gen kubernetes-gen license-gen
+all-gen: mock-gen kubernetes-gen license-gen asset-gen
 
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
@@ -175,9 +204,12 @@ verify-gen: dep-ensure ## Ensure all codegen is up to date
 	@./hack/verify-generated.sh
 
 .PHONY: build-bin
-build-bin: out ## Build m3db-operator binary
+build-bin: out dep-ensure build-bin-no-deps
 	@echo "--- $@"
-	@which go > /dev/null || (echo "error: golang needs to be installed" && exit 1)
+
+.PHONY: build-bin-no-deps
+build-bin-no-deps: ## Build m3db-operator binary
+	@echo "--- $@"
 	@echo "building $(PROJECT_NAME)..."
 	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(PROJECT_NAME) $(BUILD_PATH)
 

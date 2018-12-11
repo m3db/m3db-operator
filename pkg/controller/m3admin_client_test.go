@@ -31,7 +31,6 @@ import (
 
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/golang/mock/gomock"
@@ -44,8 +43,8 @@ func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
 	m.clusterKeyFn = func(cl *myspec.M3DBCluster, url string) string {
 		return cl.Name
 	}
-	m.clusterURLFn = func(_ *myspec.M3DBCluster) (string, error) {
-		return url, nil
+	m.clusterURLFn = func(_ *myspec.M3DBCluster) string {
+		return url
 	}
 	return m
 }
@@ -59,25 +58,15 @@ func TestClusterKey(t *testing.T) {
 func TestClusterURL(t *testing.T) {
 	cluster := newM3DBCluster("a")
 	cluster.Namespace = "foo"
-
-	url, err := clusterURL(cluster)
-	assert.NoError(t, err)
+	url := clusterURL(cluster)
 	assert.Equal(t, "http://m3coordinator-a.foo:7201", url)
-
-	cluster.Spec.Services = []*corev1.Service{
-		&corev1.Service{},
-	}
-
-	_, err = clusterURL(cluster)
-	assert.Error(t, err)
 }
 
 func TestClusterURLProxy(t *testing.T) {
 	cluster := newM3DBCluster("a")
 	cluster.Namespace = "foo"
 
-	url, err := clusterURLProxy(cluster)
-	assert.NoError(t, err)
+	url := clusterURLProxy(cluster)
 	assert.Equal(t, "http://localhost:8001/api/v1/namespaces/foo/services/m3coordinator-a:coordinator/proxy", url)
 }
 
@@ -129,7 +118,6 @@ func TestNamespaceClientForCluster(t *testing.T) {
 	clusterB := newM3DBCluster("b")
 	clusterC := newM3DBCluster("c")
 	testErr := errors.New("test")
-	testErr2 := errors.New("test2")
 
 	cl := m.namespaceClientForCluster(clusterA)
 	assert.Equal(t, nsClient, cl)
@@ -144,12 +132,6 @@ func TestNamespaceClientForCluster(t *testing.T) {
 
 	cl3 := m.namespaceClientForCluster(clusterC)
 	assert.Equal(t, testErr, cl3.Delete("foo"))
-
-	m.clusterURLFn = func(_ *myspec.M3DBCluster) (string, error) {
-		return "", testErr2
-	}
-	cl3 = m.namespaceClientForCluster(clusterC)
-	assert.Equal(t, testErr2, cl3.Delete("foo"))
 }
 
 func TestPlacementClientForCluster(t *testing.T) {
@@ -168,7 +150,6 @@ func TestPlacementClientForCluster(t *testing.T) {
 	clusterB := newM3DBCluster("b")
 	clusterC := newM3DBCluster("c")
 	testErr := errors.New("test")
-	testErr2 := errors.New("test2")
 
 	cl := m.placementClientForCluster(clusterA)
 	assert.Equal(t, plClient, cl)
@@ -183,12 +164,6 @@ func TestPlacementClientForCluster(t *testing.T) {
 
 	cl3 := m.placementClientForCluster(clusterC)
 	assert.Equal(t, testErr, cl3.Delete())
-
-	m.clusterURLFn = func(_ *myspec.M3DBCluster) (string, error) {
-		return "", testErr2
-	}
-	cl3 = m.placementClientForCluster(clusterC)
-	assert.Equal(t, testErr2, cl3.Delete())
 }
 
 func TestErrorNamespaceClient(t *testing.T) {

@@ -34,6 +34,11 @@ const (
 	// two days with a block size of 2h. BufferPast and BufferFuture are both 10m.
 	// Snapshotting is enabled. Metrics are indexed based on tags.
 	PresetTenSecondsTwoDaysIndexed Preset = "10s:2d"
+
+	// PresetOneMinuteFourtyDaysIndexed stores metrics at 10 second resolution for
+	// two days with a block size of 2h. BufferPast and BufferFuture are both 10m.
+	// Snapshotting is enabled. Metrics are indexed based on tags.
+	PresetOneMinuteFourtyDaysIndexed Preset = "1m:40d"
 )
 
 var (
@@ -45,7 +50,7 @@ var (
 		RepairEnabled:     false,
 		SnapshotEnabled:   true,
 		RetentionOptions: myspec.RetentionOptions{
-			RetentionPeriod:                     48 * time.Hour,
+			RetentionPeriod:                     2 * 24 * time.Hour,
 			BlockSize:                           2 * time.Hour,
 			BufferFuture:                        10 * time.Minute,
 			BufferPast:                          10 * time.Minute,
@@ -55,6 +60,27 @@ var (
 		IndexOptions: myspec.IndexOptions{
 			Enabled:   true,
 			BlockSize: 2 * time.Hour,
+		},
+	}
+
+	presetOneMinuteFourtyDaysIndexed = myspec.NamespaceOptions{
+		BootstrapEnabled:  true,
+		FlushEnabled:      true,
+		WritesToCommitLog: true,
+		CleanupEnabled:    true,
+		RepairEnabled:     false,
+		SnapshotEnabled:   true,
+		RetentionOptions: myspec.RetentionOptions{
+			RetentionPeriod:                     40 * 24 * time.Hour,
+			BlockSize:                           24 * time.Hour,
+			BufferFuture:                        10 * time.Minute,
+			BufferPast:                          20 * time.Minute,
+			BlockDataExpiry:                     true,
+			BlockDataExpiryAfterNotAccessPeriod: 10 * time.Minute,
+		},
+		IndexOptions: myspec.IndexOptions{
+			Enabled:   true,
+			BlockSize: 24 * time.Hour,
 		},
 	}
 )

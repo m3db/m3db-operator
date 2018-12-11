@@ -92,11 +92,21 @@ func TestRequestFromSpec(t *testing.T) {
 		{
 			ns: myspec.Namespace{
 				Name:   "foo",
-				Preset: string(PresetTenSecondsTwoDaysIndexed),
+				Preset: "10s:2d",
 			},
 			req: &admin.NamespaceAddRequest{
 				Name:    "foo",
 				Options: requestOptsFromAPI(&presetTenSecondsTwoDaysIndexed),
+			},
+		},
+		{
+			ns: myspec.Namespace{
+				Name:   "foo",
+				Preset: "1m:40d",
+			},
+			req: &admin.NamespaceAddRequest{
+				Name:    "foo",
+				Options: requestOptsFromAPI(&presetOneMinuteFourtyDaysIndexed),
 			},
 		},
 	}

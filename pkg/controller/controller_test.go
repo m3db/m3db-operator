@@ -261,7 +261,6 @@ func TestHandlePodUpdate(t *testing.T) {
 		kubeObjects: []runtime.Object{pod1},
 	})
 	defer deps.cleanup()
-
 	c := deps.newController()
 
 	mockID := &myspec.PodIdentity{

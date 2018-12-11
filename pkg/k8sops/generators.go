@@ -45,16 +45,16 @@ const (
 	_probePort       = 7201
 	_probePathHealth = "/health"
 
-	_dataDirectory          = "/var/lib/m3db/"
-	_configurationDirectory = "/etc/m3db/"
-	_configurationName      = "m3-configuration"
-	_configurationFileName  = "m3.yml"
-	_healthFileName         = "/bin/m3dbnode_bootstrapped.sh"
+	_dataDirectory             = "/var/lib/m3db/"
+	_dataVolumeName            = "m3db-data"
+	_configurationDirectory    = "/etc/m3db/"
+	_configurationName         = "m3-configuration"
+	_configurationFileLocation = _configurationDirectory + _configurationFileName
+	_configurationFileName     = "m3.yml"
+	_healthFileName            = "/bin/m3dbnode_bootstrapped.sh"
 )
 
 var (
-	_configurationFileLocation = fmt.Sprintf("%s%s", _configurationDirectory, _configurationFileName)
-
 	errEmptyClusterName = errors.New("cluster name cannot be empty")
 )
 
@@ -106,7 +106,6 @@ func GenerateStatefulSet(
 	isolationGroup string,
 	instanceAmount int32,
 ) (*appsv1.StatefulSet, error) {
-
 	// TODO(schallert): always sort zones alphabetically.
 
 	stsID := -1
@@ -154,15 +153,40 @@ func GenerateStatefulSet(
 	}
 
 	statefulSet := NewBaseStatefulSet(ssName, isolationGroup, cluster, instanceAmount)
-	statefulSet.Spec.Template.Spec.Containers[0].LivenessProbe = probeHealth
-	statefulSet.Spec.Template.Spec.Containers[0].ReadinessProbe = probeReady
-	statefulSet.Spec.Template.Spec.Containers[0].Resources = clusterSpec.ContainerResources
-	statefulSet.Spec.Template.Spec.Containers[0].Ports = generateContainerPorts()
+	m3dbContainer := &statefulSet.Spec.Template.Spec.Containers[0]
+	m3dbContainer.LivenessProbe = probeHealth
+	m3dbContainer.ReadinessProbe = probeReady
+	m3dbContainer.Resources = clusterSpec.ContainerResources
+	m3dbContainer.Ports = generateContainerPorts()
 	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroup)
 
 	// Set owner ref so sts will be GC'd when the cluster is deleted
 	clusterRef := GenerateOwnerRef(cluster)
 	statefulSet.OwnerReferences = []metav1.OwnerReference{*clusterRef}
+
+	configVol, configVolMount, err := buildConfigMapComponents(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	m3dbContainer.VolumeMounts = append(m3dbContainer.VolumeMounts, configVolMount)
+	vols := &statefulSet.Spec.Template.Spec.Volumes
+	*vols = append(*vols, configVol)
+
+	if cluster.Spec.DataDirVolumeClaimTemplate == nil {
+		// No persistent volume claims, add an empty dir for m3db data.
+		vols := &statefulSet.Spec.Template.Spec.Volumes
+		*vols = append(*vols, v1.Volume{
+			Name: _dataVolumeName,
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			},
+		})
+	} else {
+		template := cluster.Spec.DataDirVolumeClaimTemplate.DeepCopy()
+		template.ObjectMeta.Name = _dataVolumeName
+		statefulSet.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{*template}
+	}
 
 	return statefulSet, nil
 }
