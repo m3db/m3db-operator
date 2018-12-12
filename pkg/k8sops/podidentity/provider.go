@@ -108,10 +108,10 @@ func (p *provider) Identity(pod *corev1.Pod, cluster *myspec.M3DBCluster) (*mysp
 			if err != nil {
 				return nil, err
 			}
-			if node.Spec.ExternalID == "" {
+			if node.Spec.DoNotUse_ExternalID == "" {
 				return nil, errEmptyNodeExternalID
 			}
-			id.NodeExternalID = node.Spec.ExternalID
+			id.NodeExternalID = node.Spec.DoNotUse_ExternalID
 		case myspec.PodIdentitySourceNodeSpecProviderID:
 			node, err := p.nodeForPod(pod)
 			if err != nil {

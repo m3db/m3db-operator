@@ -38,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
@@ -280,4 +281,73 @@ func TestHandlePodUpdate(t *testing.T) {
 	require.True(t, ok, "new pod must have annotated ID")
 	expID := `{"name":"pod1","uid":"foo"}`
 	assert.Equal(t, expID, annotatedID)
+}
+
+func TestClusterEventLoop(t *testing.T) {
+	deps := newTestDeps(t, &testOpts{})
+	defer deps.cleanup()
+	c := deps.newController()
+
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: newObjectMeta("foo", nil),
+	}
+	c.enqueueCluster(cluster)
+
+	wait.Poll(time.Millisecond, 5*time.Second, func() (bool, error) {
+		return c.clusterWorkQueue.Len() == 1, nil
+	})
+
+	doneC := make(chan struct{})
+	go func() {
+		c.runClusterLoop()
+		doneC <- struct{}{}
+	}()
+
+	wait.Poll(time.Millisecond, 5*time.Second, func() (bool, error) {
+		return c.clusterWorkQueue.Len() == 0, nil
+	})
+
+	c.clusterWorkQueue.ShutDown()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Error("expected loop to finish within 10s")
+	case <-doneC:
+	}
+}
+
+func TestPodEventLoop(t *testing.T) {
+	deps := newTestDeps(t, &testOpts{})
+	defer deps.cleanup()
+	c := deps.newController()
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod1",
+			Namespace: "namespace",
+		},
+	}
+	c.enqueuePod(pod)
+
+	wait.Poll(time.Millisecond, 5*time.Second, func() (bool, error) {
+		return c.podWorkQueue.Len() == 1, nil
+	})
+
+	doneC := make(chan struct{})
+	go func() {
+		c.runPodLoop()
+		doneC <- struct{}{}
+	}()
+
+	wait.Poll(time.Millisecond, 5*time.Second, func() (bool, error) {
+		return c.podWorkQueue.Len() == 0, nil
+	})
+
+	c.podWorkQueue.ShutDown()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Error("expected loop to finish within 10s")
+	case <-doneC:
+	}
 }

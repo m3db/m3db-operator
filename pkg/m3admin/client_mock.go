@@ -57,6 +57,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 
 // DoHTTPRequest mocks base method
 func (m *MockClient) DoHTTPRequest(action, url string, data *bytes.Buffer) (*http.Response, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DoHTTPRequest", action, url, data)
 	ret0, _ := ret[0].(*http.Response)
 	ret1, _ := ret[1].(error)
@@ -65,5 +66,6 @@ func (m *MockClient) DoHTTPRequest(action, url string, data *bytes.Buffer) (*htt
 
 // DoHTTPRequest indicates an expected call of DoHTTPRequest
 func (mr *MockClientMockRecorder) DoHTTPRequest(action, url, data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPRequest), action, url, data)
 }

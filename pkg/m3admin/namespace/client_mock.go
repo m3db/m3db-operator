@@ -57,6 +57,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 
 // Create mocks base method
 func (m *MockClient) Create(request *admin.NamespaceAddRequest) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", request)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -64,11 +65,13 @@ func (m *MockClient) Create(request *admin.NamespaceAddRequest) error {
 
 // Create indicates an expected call of Create
 func (mr *MockClientMockRecorder) Create(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), request)
 }
 
 // List mocks base method
 func (m *MockClient) List() (*admin.NamespaceGetResponse, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List")
 	ret0, _ := ret[0].(*admin.NamespaceGetResponse)
 	ret1, _ := ret[1].(error)
@@ -77,11 +80,13 @@ func (m *MockClient) List() (*admin.NamespaceGetResponse, error) {
 
 // List indicates an expected call of List
 func (mr *MockClientMockRecorder) List() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockClient)(nil).List))
 }
 
 // Delete mocks base method
 func (m *MockClient) Delete(namespace string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", namespace)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -89,5 +94,6 @@ func (m *MockClient) Delete(namespace string) error {
 
 // Delete indicates an expected call of Delete
 func (mr *MockClientMockRecorder) Delete(namespace interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), namespace)
 }

@@ -157,25 +157,23 @@ func namespacesToDelete(registry *dbns.Registry, specNs []myspec.Namespace) (toD
 	return
 }
 
-func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (bool, error) {
+func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	plClient := c.adminClient.placementClientForCluster(cluster)
 	_, err := plClient.Get()
 	if err == nil {
 		if !cluster.Status.HasInitializedPlacement() {
-			// Placement exists but status doesn't reflect that, change it. Return
-			// true so event loop re-enqueues.
-			return true, c.setStatusPlacementCreated(cluster)
+			return c.setStatusPlacementCreated(cluster)
 		}
 
 		// Nothing to do, placement already exists and status reflects that
-		return false, nil
+		return cluster, nil
 	}
 
 	if err != m3admin.ErrNotFound {
 		err := fmt.Errorf("error from m3admin placement get: %v", err)
 		c.logger.Error(err.Error())
 		runtime.HandleError(err)
-		return false, err
+		return nil, err
 	}
 
 	// Error is just that placement isn't there, let's create it.
@@ -195,26 +193,26 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (b
 	c.logger.Debug("placement init selector", zap.String("selector", sel.String()))
 	pods, err := c.podLister.Pods(cluster.Namespace).List(sel)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	for _, pod := range pods {
 		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
 		newPlacement.Instances = append(newPlacement.Instances, instance)
 	}
 
 	if err := plClient.Init(newPlacement); err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	return c.setStatusPlacementCreated(cluster)
 }
 
-func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) error {
+func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionPlacementInitialized,
 		Status:         corev1.ConditionTrue,
@@ -225,16 +223,18 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) erro
 
 	// TODO(schallert): move to UpdateStatus once 1.10 status subresource is out
 	// of alpha.
-	_, err := c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+	var err error
+	cluster, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
 	if err != nil {
 		err := fmt.Errorf("error updating cluster placement init status: %v", err)
 		c.logger.Error(err.Error())
-		runtime.HandleError(err)
-		// TODO(schallert): event?
-		return err
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, "failed to update placement status: %v", err)
+		return nil, err
 	}
 
-	return nil
+	c.logger.Info("updated cluster placement status", zap.String("cluster", cluster.Name),
+		zap.Any("status", cluster.Status))
+	return cluster, nil
 }
 
 func (c *Controller) setStatusPodBootstrapping(cluster *myspec.M3DBCluster,

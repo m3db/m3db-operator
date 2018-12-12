@@ -405,14 +405,8 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	}
 
 	if !cluster.Status.HasInitializedPlacement() {
-		updated, err := c.validatePlacementWithStatus(cluster)
+		cluster, err = c.validatePlacementWithStatus(cluster)
 		if err != nil {
-			return err
-		}
-
-		if updated {
-			err = errors.New("re-enqueing cluster due to API update")
-			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, err.Error())
 			return err
 		}
 	}
@@ -441,9 +435,9 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 
 	}
 
-	if len(unavailInsts) > 0 {
+	if ln := len(unavailInsts); ln > 0 {
 		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
-		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", unavailInsts)
+		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", ln)
 		return nil
 	}
 
@@ -463,10 +457,10 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	if podToReplace != nil {
 		err = c.replacePodInPlacement(cluster, placement, leavingInstanceID, podToReplace)
 		if err != nil {
-			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: " + leavingInstanceID)
+			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: "+leavingInstanceID)
 			return err
 		}
-		c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "successfully replaced instance: " + leavingInstanceID)
+		c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "successfully replaced instance: "+leavingInstanceID)
 	}
 
 	for _, set := range childrenSets {
@@ -553,7 +547,6 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
-	c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "cluster updated and synced")
 	return nil
 }
 
@@ -708,8 +701,7 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 	pod = pod.DeepCopy()
 
 	podLogger := c.logger.With(zap.String("pod", pod.Name))
-
-	podLogger.Info("processing pod")
+	podLogger.Debug("processing pod")
 
 	cluster, err := c.getParentCluster(pod)
 	if err != nil {
@@ -723,13 +715,13 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 		return err
 	}
 
+	podLogger.Debug("pod ID", zap.Any("id", id))
+
 	idStr, err := podidentity.IdentityJSON(id)
 	if err != nil {
 		podLogger.Error("error marshaling pod ID", zap.Error(err))
 		return err
 	}
-
-	podLogger.Info("pod ID", zap.Any("id", id))
 
 	currentID, ok := pod.Annotations[podidentity.AnnotationKeyPodIdentity]
 	if ok {
@@ -740,7 +732,7 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 		}
 
 		// TODO(schallert): decide how to enforce updated pod identity (need to
-		// determine ramnifications of changing).
+		// determine ramnifications of changing). Will likely need to do a replace.
 		return nil
 	}
 
@@ -753,6 +745,9 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 		podLogger.Error("error updating pod annotation", zap.Error(err))
 		return err
 	}
+
+	podLogger.Info("updated pod ID", zap.Any("id", id))
+	c.recorder.NormalEvent(pod, eventer.ReasonSuccessSync, "updated pod %s with ID annotation", pod.Name)
 
 	return nil
 }
