@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package v1
+package v1alpha1
 
 import (
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"

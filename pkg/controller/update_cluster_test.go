@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -359,7 +359,7 @@ func TestAddPodToPlacement(t *testing.T) {
 	err := controller.addPodToPlacement(cluster, pod)
 	assert.NoError(t, err)
 
-	cluster, err = controller.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = controller.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.True(t, cluster.Status.HasPodBootstrapping())

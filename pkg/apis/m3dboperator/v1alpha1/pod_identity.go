@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package v1
+package v1alpha1
 
 // PodIdentitySource indicates a pre-defined source for deriving pod identity.
 type PodIdentitySource string

@@ -23,7 +23,7 @@
 package fake
 
 import (
-	v1 "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/typed/m3dboperator/v1"
+	v1 "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/typed/m3dboperator/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

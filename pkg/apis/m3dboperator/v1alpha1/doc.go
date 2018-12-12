@@ -20,6 +20,6 @@
 
 // +k8s:deepcopy-gen=package,register
 
-// Package v1 is the v1 version of the API.
+// Package v1alpha1 is the v1alpha1 version of the API.
 // +groupName=operator.m3db.io
-package v1
+package v1alpha1

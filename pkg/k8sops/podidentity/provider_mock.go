@@ -27,10 +27,10 @@ package podidentity
 import (
 	"reflect"
 
-	v1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	"github.com/golang/mock/gomock"
-	v10 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 )
 
 // MockProvider is a mock of Provider interface
@@ -57,10 +57,10 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // Identity mocks base method
-func (m *MockProvider) Identity(pod *v10.Pod, cluster *v1.M3DBCluster) (*v1.PodIdentity, error) {
+func (m *MockProvider) Identity(pod *v1.Pod, cluster *v1alpha1.M3DBCluster) (*v1alpha1.PodIdentity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Identity", pod, cluster)
-	ret0, _ := ret[0].(*v1.PodIdentity)
+	ret0, _ := ret[0].(*v1alpha1.PodIdentity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -27,10 +27,10 @@ import (
 	"sync"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
-	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
+	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -137,7 +137,7 @@ func New(opts ...Option) (*Controller, error) {
 
 	statefulSetInformer := kubeInformerFactory.Apps().V1().StatefulSets()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
-	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1().M3DBClusters()
+	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
 
 	samplescheme.AddToScheme(scheme.Scheme)
 

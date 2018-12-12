@@ -23,7 +23,7 @@
 package versioned
 
 import (
-	operatorv1 "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/typed/m3dboperator/v1"
+	operatorv1alpha1 "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/typed/m3dboperator/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -31,27 +31,27 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	OperatorV1() operatorv1.OperatorV1Interface
+	OperatorV1alpha1() operatorv1alpha1.OperatorV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
-	Operator() operatorv1.OperatorV1Interface
+	Operator() operatorv1alpha1.OperatorV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	operatorV1 *operatorv1.OperatorV1Client
+	operatorV1alpha1 *operatorv1alpha1.OperatorV1alpha1Client
 }
 
-// OperatorV1 retrieves the OperatorV1Client
-func (c *Clientset) OperatorV1() operatorv1.OperatorV1Interface {
-	return c.operatorV1
+// OperatorV1alpha1 retrieves the OperatorV1alpha1Client
+func (c *Clientset) OperatorV1alpha1() operatorv1alpha1.OperatorV1alpha1Interface {
+	return c.operatorV1alpha1
 }
 
 // Deprecated: Operator retrieves the default version of OperatorClient.
 // Please explicitly pick a version.
-func (c *Clientset) Operator() operatorv1.OperatorV1Interface {
-	return c.operatorV1
+func (c *Clientset) Operator() operatorv1alpha1.OperatorV1alpha1Interface {
+	return c.operatorV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -70,7 +70,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.operatorV1, err = operatorv1.NewForConfig(&configShallowCopy)
+	cs.operatorV1alpha1, err = operatorv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.operatorV1 = operatorv1.NewForConfigOrDie(c)
+	cs.operatorV1alpha1 = operatorv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -95,7 +95,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.operatorV1 = operatorv1.New(c)
+	cs.operatorV1alpha1 = operatorv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

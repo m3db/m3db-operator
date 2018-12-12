@@ -27,14 +27,14 @@ package k8sops
 import (
 	"reflect"
 
-	v1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	"github.com/golang/mock/gomock"
-	v10 "k8s.io/api/apps/v1"
-	v11 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/apps/v1"
+	v10 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v13 "k8s.io/client-go/kubernetes/typed/core/v1"
+	v11 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -62,10 +62,10 @@ func (m *MockK8sops) EXPECT() *MockK8sopsMockRecorder {
 }
 
 // ListM3DBCluster mocks base method
-func (m *MockK8sops) ListM3DBCluster() (*v1.M3DBClusterList, error) {
+func (m *MockK8sops) ListM3DBCluster() (*v1alpha1.M3DBClusterList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListM3DBCluster")
-	ret0, _ := ret[0].(*v1.M3DBClusterList)
+	ret0, _ := ret[0].(*v1alpha1.M3DBClusterList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -77,10 +77,10 @@ func (mr *MockK8sopsMockRecorder) ListM3DBCluster() *gomock.Call {
 }
 
 // GetM3DBCluster mocks base method
-func (m *MockK8sops) GetM3DBCluster(namespace, name string) (*v1.M3DBCluster, error) {
+func (m *MockK8sops) GetM3DBCluster(namespace, name string) (*v1alpha1.M3DBCluster, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetM3DBCluster", namespace, name)
-	ret0, _ := ret[0].(*v1.M3DBCluster)
+	ret0, _ := ret[0].(*v1alpha1.M3DBCluster)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -135,10 +135,10 @@ func (mr *MockK8sopsMockRecorder) GenerateCRD() *gomock.Call {
 }
 
 // UpdateCRD mocks base method
-func (m *MockK8sops) UpdateCRD(cluster *v1.M3DBCluster) (*v1.M3DBCluster, error) {
+func (m *MockK8sops) UpdateCRD(cluster *v1alpha1.M3DBCluster) (*v1alpha1.M3DBCluster, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateCRD", cluster)
-	ret0, _ := ret[0].(*v1.M3DBCluster)
+	ret0, _ := ret[0].(*v1alpha1.M3DBCluster)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -164,10 +164,10 @@ func (mr *MockK8sopsMockRecorder) NewListWatcher() *gomock.Call {
 }
 
 // GetService mocks base method
-func (m *MockK8sops) GetService(cluster *v1.M3DBCluster, name string) (*v11.Service, error) {
+func (m *MockK8sops) GetService(cluster *v1alpha1.M3DBCluster, name string) (*v10.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetService", cluster, name)
-	ret0, _ := ret[0].(*v11.Service)
+	ret0, _ := ret[0].(*v10.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -179,7 +179,7 @@ func (mr *MockK8sopsMockRecorder) GetService(cluster, name interface{}) *gomock.
 }
 
 // DeleteService mocks base method
-func (m *MockK8sops) DeleteService(cluster *v1.M3DBCluster, name string) error {
+func (m *MockK8sops) DeleteService(cluster *v1alpha1.M3DBCluster, name string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteService", cluster, name)
 	ret0, _ := ret[0].(error)
@@ -193,7 +193,7 @@ func (mr *MockK8sopsMockRecorder) DeleteService(cluster, name interface{}) *gomo
 }
 
 // EnsureService mocks base method
-func (m *MockK8sops) EnsureService(cluster *v1.M3DBCluster, svc *v11.Service) error {
+func (m *MockK8sops) EnsureService(cluster *v1alpha1.M3DBCluster, svc *v10.Service) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EnsureService", cluster, svc)
 	ret0, _ := ret[0].(error)
@@ -207,10 +207,10 @@ func (mr *MockK8sopsMockRecorder) EnsureService(cluster, svc interface{}) *gomoc
 }
 
 // MultiLabelSelector mocks base method
-func (m *MockK8sops) MultiLabelSelector(kvs map[string]string) v12.ListOptions {
+func (m *MockK8sops) MultiLabelSelector(kvs map[string]string) v11.ListOptions {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MultiLabelSelector", kvs)
-	ret0, _ := ret[0].(v12.ListOptions)
+	ret0, _ := ret[0].(v11.ListOptions)
 	return ret0
 }
 
@@ -221,10 +221,10 @@ func (mr *MockK8sopsMockRecorder) MultiLabelSelector(kvs interface{}) *gomock.Ca
 }
 
 // LabelSelector mocks base method
-func (m *MockK8sops) LabelSelector(key, value string) v12.ListOptions {
+func (m *MockK8sops) LabelSelector(key, value string) v11.ListOptions {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LabelSelector", key, value)
-	ret0, _ := ret[0].(v12.ListOptions)
+	ret0, _ := ret[0].(v11.ListOptions)
 	return ret0
 }
 
@@ -235,7 +235,7 @@ func (mr *MockK8sopsMockRecorder) LabelSelector(key, value interface{}) *gomock.
 }
 
 // DeleteStatefulSets mocks base method
-func (m *MockK8sops) DeleteStatefulSets(cluster *v1.M3DBCluster, listOpts v12.ListOptions) error {
+func (m *MockK8sops) DeleteStatefulSets(cluster *v1alpha1.M3DBCluster, listOpts v11.ListOptions) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteStatefulSets", cluster, listOpts)
 	ret0, _ := ret[0].(error)
@@ -249,10 +249,10 @@ func (mr *MockK8sopsMockRecorder) DeleteStatefulSets(cluster, listOpts interface
 }
 
 // GetStatefulSets mocks base method
-func (m *MockK8sops) GetStatefulSets(cluster *v1.M3DBCluster, listOpts v12.ListOptions) (*v10.StatefulSetList, error) {
+func (m *MockK8sops) GetStatefulSets(cluster *v1alpha1.M3DBCluster, listOpts v11.ListOptions) (*v1.StatefulSetList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStatefulSets", cluster, listOpts)
-	ret0, _ := ret[0].(*v10.StatefulSetList)
+	ret0, _ := ret[0].(*v1.StatefulSetList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -264,7 +264,7 @@ func (mr *MockK8sopsMockRecorder) GetStatefulSets(cluster, listOpts interface{})
 }
 
 // GetPlacementDetails mocks base method
-func (m *MockK8sops) GetPlacementDetails(cluster *v1.M3DBCluster) (map[string]string, error) {
+func (m *MockK8sops) GetPlacementDetails(cluster *v1alpha1.M3DBCluster) (map[string]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPlacementDetails", cluster)
 	ret0, _ := ret[0].(map[string]string)
@@ -279,10 +279,10 @@ func (mr *MockK8sopsMockRecorder) GetPlacementDetails(cluster interface{}) *gomo
 }
 
 // GetPodsByLabel mocks base method
-func (m *MockK8sops) GetPodsByLabel(cluster *v1.M3DBCluster, listOpts v12.ListOptions) (*v11.PodList, error) {
+func (m *MockK8sops) GetPodsByLabel(cluster *v1alpha1.M3DBCluster, listOpts v11.ListOptions) (*v10.PodList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPodsByLabel", cluster, listOpts)
-	ret0, _ := ret[0].(*v11.PodList)
+	ret0, _ := ret[0].(*v10.PodList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -294,10 +294,10 @@ func (mr *MockK8sopsMockRecorder) GetPodsByLabel(cluster, listOpts interface{}) 
 }
 
 // CreateStatefulSet mocks base method
-func (m *MockK8sops) CreateStatefulSet(cluster *v1.M3DBCluster, statefulSet *v10.StatefulSet) (*v10.StatefulSet, error) {
+func (m *MockK8sops) CreateStatefulSet(cluster *v1alpha1.M3DBCluster, statefulSet *v1.StatefulSet) (*v1.StatefulSet, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateStatefulSet", cluster, statefulSet)
-	ret0, _ := ret[0].(*v10.StatefulSet)
+	ret0, _ := ret[0].(*v1.StatefulSet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -309,10 +309,10 @@ func (mr *MockK8sopsMockRecorder) CreateStatefulSet(cluster, statefulSet interfa
 }
 
 // GetStatefulSet mocks base method
-func (m *MockK8sops) GetStatefulSet(cluster *v1.M3DBCluster, name string) (*v10.StatefulSet, error) {
+func (m *MockK8sops) GetStatefulSet(cluster *v1alpha1.M3DBCluster, name string) (*v1.StatefulSet, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStatefulSet", cluster, name)
-	ret0, _ := ret[0].(*v10.StatefulSet)
+	ret0, _ := ret[0].(*v1.StatefulSet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -324,10 +324,10 @@ func (mr *MockK8sopsMockRecorder) GetStatefulSet(cluster, name interface{}) *gom
 }
 
 // UpdateStatefulSet mocks base method
-func (m *MockK8sops) UpdateStatefulSet(cluster *v1.M3DBCluster, statefulSet *v10.StatefulSet) (*v10.StatefulSet, error) {
+func (m *MockK8sops) UpdateStatefulSet(cluster *v1alpha1.M3DBCluster, statefulSet *v1.StatefulSet) (*v1.StatefulSet, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatefulSet", cluster, statefulSet)
-	ret0, _ := ret[0].(*v10.StatefulSet)
+	ret0, _ := ret[0].(*v1.StatefulSet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -339,10 +339,10 @@ func (mr *MockK8sopsMockRecorder) UpdateStatefulSet(cluster, statefulSet interfa
 }
 
 // CheckStatefulStatus mocks base method
-func (m *MockK8sops) CheckStatefulStatus(cluster *v1.M3DBCluster, statefulSet *v10.StatefulSet) (*v10.StatefulSet, error) {
+func (m *MockK8sops) CheckStatefulStatus(cluster *v1alpha1.M3DBCluster, statefulSet *v1.StatefulSet) (*v1.StatefulSet, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckStatefulStatus", cluster, statefulSet)
-	ret0, _ := ret[0].(*v10.StatefulSet)
+	ret0, _ := ret[0].(*v1.StatefulSet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -354,10 +354,10 @@ func (mr *MockK8sopsMockRecorder) CheckStatefulStatus(cluster, statefulSet inter
 }
 
 // Events mocks base method
-func (m *MockK8sops) Events(namespace string) v13.EventInterface {
+func (m *MockK8sops) Events(namespace string) v12.EventInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Events", namespace)
-	ret0, _ := ret[0].(v13.EventInterface)
+	ret0, _ := ret[0].(v12.EventInterface)
 	return ret0
 }
 

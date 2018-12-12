@@ -27,7 +27,7 @@ import (
 
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
-	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1"
+	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
@@ -128,7 +128,7 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 	pods := kubeInformers.Core().V1().Pods()
 
 	crdInformers := crdinformers.NewSharedInformerFactory(deps.crdClient, 0)
-	crds := crdInformers.Operator().V1().M3DBClusters()
+	crds := crdInformers.Operator().V1alpha1().M3DBClusters()
 
 	deps.statefulSetLister = sets.Lister()
 	deps.podLister = pods.Lister()
