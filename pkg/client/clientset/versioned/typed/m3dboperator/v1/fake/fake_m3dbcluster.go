@@ -66,7 +66,7 @@ func (c *FakeM3DBClusters) List(opts v1.ListOptions) (result *m3dboperatorv1.M3D
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &m3dboperatorv1.M3DBClusterList{}
+	list := &m3dboperatorv1.M3DBClusterList{ListMeta: obj.(*m3dboperatorv1.M3DBClusterList).ListMeta}
 	for _, item := range obj.(*m3dboperatorv1.M3DBClusterList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)

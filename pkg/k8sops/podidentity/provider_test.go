@@ -123,7 +123,7 @@ func TestIdentity(t *testing.T) {
 			pod:  newPodForNode("pod-a", "node-1"),
 			nodes: []runtime.Object{func() runtime.Object {
 				n := newTestNode("node-1")
-				n.Spec.ExternalID = "id1"
+				n.Spec.DoNotUse_ExternalID = "id1"
 				return n
 			}()},
 			cluster: clusterWithSources("foo", myspec.PodIdentitySourceNodeSpecExternalID),

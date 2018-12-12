@@ -42,6 +42,7 @@ import (
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -88,6 +89,8 @@ func (deps *testDeps) newController() *Controller {
 		crdClient:     deps.crdClient,
 		podIDProvider: deps.idProvider,
 
+		clusterWorkQueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), clusterWorkQueueName),
+		podWorkQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName),
 		clusterLister:     deps.crdLister,
 		statefulSetLister: deps.statefulSetLister,
 		podLister:         deps.podLister,

@@ -59,6 +59,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 
 // Init mocks base method
 func (m *MockClient) Init(request *admin.PlacementInitRequest) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Init", request)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -66,11 +67,13 @@ func (m *MockClient) Init(request *admin.PlacementInitRequest) error {
 
 // Init indicates an expected call of Init
 func (mr *MockClientMockRecorder) Init(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockClient)(nil).Init), request)
 }
 
 // Get mocks base method
 func (m *MockClient) Get() (placement.Placement, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get")
 	ret0, _ := ret[0].(placement.Placement)
 	ret1, _ := ret[1].(error)
@@ -79,11 +82,13 @@ func (m *MockClient) Get() (placement.Placement, error) {
 
 // Get indicates an expected call of Get
 func (mr *MockClientMockRecorder) Get() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockClient)(nil).Get))
 }
 
 // Delete mocks base method
 func (m *MockClient) Delete() error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete")
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -91,11 +96,13 @@ func (m *MockClient) Delete() error {
 
 // Delete indicates an expected call of Delete
 func (mr *MockClientMockRecorder) Delete() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete))
 }
 
 // Add mocks base method
 func (m *MockClient) Add(instance placementpb.Instance) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", instance)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -103,11 +110,13 @@ func (m *MockClient) Add(instance placementpb.Instance) error {
 
 // Add indicates an expected call of Add
 func (mr *MockClientMockRecorder) Add(instance interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), instance)
 }
 
 // Remove mocks base method
 func (m *MockClient) Remove(id string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Remove", id)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -115,11 +124,13 @@ func (m *MockClient) Remove(id string) error {
 
 // Remove indicates an expected call of Remove
 func (mr *MockClientMockRecorder) Remove(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockClient)(nil).Remove), id)
 }
 
 // Replace mocks base method
 func (m *MockClient) Replace(leavingInstanceID string, newInstance placementpb.Instance) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Replace", leavingInstanceID, newInstance)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -127,5 +138,6 @@ func (m *MockClient) Replace(leavingInstanceID string, newInstance placementpb.I
 
 // Replace indicates an expected call of Replace
 func (mr *MockClientMockRecorder) Replace(leavingInstanceID, newInstance interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Replace", reflect.TypeOf((*MockClient)(nil).Replace), leavingInstanceID, newInstance)
 }

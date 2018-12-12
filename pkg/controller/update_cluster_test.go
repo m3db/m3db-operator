@@ -556,11 +556,10 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 
 	placementMock.EXPECT().Get().AnyTimes()
 
-	testBool, err := controller.validatePlacementWithStatus(cluster)
+	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
 
 	require.NoError(t, err)
-	require.True(t, testBool)
-
+	require.NotNil(t, clusterReturn)
 }
 
 func TestSortPodID(t *testing.T) {

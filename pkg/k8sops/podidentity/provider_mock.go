@@ -58,6 +58,7 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 
 // Identity mocks base method
 func (m *MockProvider) Identity(pod *v10.Pod, cluster *v1.M3DBCluster) (*v1.PodIdentity, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Identity", pod, cluster)
 	ret0, _ := ret[0].(*v1.PodIdentity)
 	ret1, _ := ret[1].(error)
@@ -66,5 +67,6 @@ func (m *MockProvider) Identity(pod *v10.Pod, cluster *v1.M3DBCluster) (*v1.PodI
 
 // Identity indicates an expected call of Identity
 func (mr *MockProviderMockRecorder) Identity(pod, cluster interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Identity", reflect.TypeOf((*MockProvider)(nil).Identity), pod, cluster)
 }
