@@ -23,7 +23,7 @@ package namespace
 import (
 	"time"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 )
 
 // Preset represents a predfined namespace.

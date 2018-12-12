@@ -23,7 +23,7 @@
 package fake
 
 import (
-	m3dboperatorv1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	v1alpha1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,29 +34,29 @@ import (
 
 // FakeM3DBClusters implements M3DBClusterInterface
 type FakeM3DBClusters struct {
-	Fake *FakeOperatorV1
+	Fake *FakeOperatorV1alpha1
 	ns   string
 }
 
-var m3dbclustersResource = schema.GroupVersionResource{Group: "operator.m3db.io", Version: "v1", Resource: "m3dbclusters"}
+var m3dbclustersResource = schema.GroupVersionResource{Group: "operator.m3db.io", Version: "v1alpha1", Resource: "m3dbclusters"}
 
-var m3dbclustersKind = schema.GroupVersionKind{Group: "operator.m3db.io", Version: "v1", Kind: "M3DBCluster"}
+var m3dbclustersKind = schema.GroupVersionKind{Group: "operator.m3db.io", Version: "v1alpha1", Kind: "M3DBCluster"}
 
 // Get takes name of the m3DBCluster, and returns the corresponding m3DBCluster object, and an error if there is any.
-func (c *FakeM3DBClusters) Get(name string, options v1.GetOptions) (result *m3dboperatorv1.M3DBCluster, err error) {
+func (c *FakeM3DBClusters) Get(name string, options v1.GetOptions) (result *v1alpha1.M3DBCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(m3dbclustersResource, c.ns, name), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewGetAction(m3dbclustersResource, c.ns, name), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*m3dboperatorv1.M3DBCluster), err
+	return obj.(*v1alpha1.M3DBCluster), err
 }
 
 // List takes label and field selectors, and returns the list of M3DBClusters that match those selectors.
-func (c *FakeM3DBClusters) List(opts v1.ListOptions) (result *m3dboperatorv1.M3DBClusterList, err error) {
+func (c *FakeM3DBClusters) List(opts v1.ListOptions) (result *v1alpha1.M3DBClusterList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(m3dbclustersResource, m3dbclustersKind, c.ns, opts), &m3dboperatorv1.M3DBClusterList{})
+		Invokes(testing.NewListAction(m3dbclustersResource, m3dbclustersKind, c.ns, opts), &v1alpha1.M3DBClusterList{})
 
 	if obj == nil {
 		return nil, err
@@ -66,8 +66,8 @@ func (c *FakeM3DBClusters) List(opts v1.ListOptions) (result *m3dboperatorv1.M3D
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &m3dboperatorv1.M3DBClusterList{ListMeta: obj.(*m3dboperatorv1.M3DBClusterList).ListMeta}
-	for _, item := range obj.(*m3dboperatorv1.M3DBClusterList).Items {
+	list := &v1alpha1.M3DBClusterList{ListMeta: obj.(*v1alpha1.M3DBClusterList).ListMeta}
+	for _, item := range obj.(*v1alpha1.M3DBClusterList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -83,43 +83,43 @@ func (c *FakeM3DBClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a m3DBCluster and creates it.  Returns the server's representation of the m3DBCluster, and an error, if there is any.
-func (c *FakeM3DBClusters) Create(m3DBCluster *m3dboperatorv1.M3DBCluster) (result *m3dboperatorv1.M3DBCluster, err error) {
+func (c *FakeM3DBClusters) Create(m3DBCluster *v1alpha1.M3DBCluster) (result *v1alpha1.M3DBCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(m3dbclustersResource, c.ns, m3DBCluster), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewCreateAction(m3dbclustersResource, c.ns, m3DBCluster), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*m3dboperatorv1.M3DBCluster), err
+	return obj.(*v1alpha1.M3DBCluster), err
 }
 
 // Update takes the representation of a m3DBCluster and updates it. Returns the server's representation of the m3DBCluster, and an error, if there is any.
-func (c *FakeM3DBClusters) Update(m3DBCluster *m3dboperatorv1.M3DBCluster) (result *m3dboperatorv1.M3DBCluster, err error) {
+func (c *FakeM3DBClusters) Update(m3DBCluster *v1alpha1.M3DBCluster) (result *v1alpha1.M3DBCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(m3dbclustersResource, c.ns, m3DBCluster), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewUpdateAction(m3dbclustersResource, c.ns, m3DBCluster), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*m3dboperatorv1.M3DBCluster), err
+	return obj.(*v1alpha1.M3DBCluster), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeM3DBClusters) UpdateStatus(m3DBCluster *m3dboperatorv1.M3DBCluster) (*m3dboperatorv1.M3DBCluster, error) {
+func (c *FakeM3DBClusters) UpdateStatus(m3DBCluster *v1alpha1.M3DBCluster) (*v1alpha1.M3DBCluster, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(m3dbclustersResource, "status", c.ns, m3DBCluster), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewUpdateSubresourceAction(m3dbclustersResource, "status", c.ns, m3DBCluster), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*m3dboperatorv1.M3DBCluster), err
+	return obj.(*v1alpha1.M3DBCluster), err
 }
 
 // Delete takes name of the m3DBCluster and deletes it. Returns an error if one occurs.
 func (c *FakeM3DBClusters) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(m3dbclustersResource, c.ns, name), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewDeleteAction(m3dbclustersResource, c.ns, name), &v1alpha1.M3DBCluster{})
 
 	return err
 }
@@ -128,17 +128,17 @@ func (c *FakeM3DBClusters) Delete(name string, options *v1.DeleteOptions) error 
 func (c *FakeM3DBClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(m3dbclustersResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &m3dboperatorv1.M3DBClusterList{})
+	_, err := c.Fake.Invokes(action, &v1alpha1.M3DBClusterList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched m3DBCluster.
-func (c *FakeM3DBClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *m3dboperatorv1.M3DBCluster, err error) {
+func (c *FakeM3DBClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.M3DBCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(m3dbclustersResource, c.ns, name, data, subresources...), &m3dboperatorv1.M3DBCluster{})
+		Invokes(testing.NewPatchSubresourceAction(m3dbclustersResource, c.ns, name, data, subresources...), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*m3dboperatorv1.M3DBCluster), err
+	return obj.(*v1alpha1.M3DBCluster), err
 }

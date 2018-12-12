@@ -23,7 +23,7 @@ package k8sops
 import (
 	"errors"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

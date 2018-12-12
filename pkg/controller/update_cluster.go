@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -224,7 +224,7 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*my
 	// TODO(schallert): move to UpdateStatus once 1.10 status subresource is out
 	// of alpha.
 	var err error
-	cluster, err = c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
 	if err != nil {
 		err := fmt.Errorf("error updating cluster placement init status: %v", err)
 		c.logger.Error(err.Error())
@@ -266,7 +266,7 @@ func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.Clu
 	cond.Message = message
 	cluster.Status.UpdateCondition(cond)
 
-	return c.crdClient.OperatorV1().M3DBClusters(cluster.Namespace).Update(cluster)
+	return c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
 }
 
 // Updates the cluster if there had been a condition that a pod was

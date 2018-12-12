@@ -26,7 +26,7 @@ import (
 	"os"
 	"path/filepath"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -64,7 +64,7 @@ func (h *Harness) CreateM3DBCluster(filename string) (*myspec.M3DBCluster, error
 	}
 
 	h.Logger.Info("creating m3dbcluster", zap.String("m3dbcluster", cluster.Name))
-	cluster, err = h.CRDClient.OperatorV1().M3DBClusters(h.Namespace).Create(cluster)
+	cluster, err = h.CRDClient.OperatorV1alpha1().M3DBClusters(h.Namespace).Create(cluster)
 	if err != nil {
 		return nil, err
 	}

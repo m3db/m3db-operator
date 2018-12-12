@@ -25,7 +25,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	v1alpha1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -56,9 +56,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=operator.m3db.io, Version=v1
-	case v1.SchemeGroupVersion.WithResource("m3dbclusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Operator().V1().M3DBClusters().Informer()}, nil
+	// Group=operator.m3db.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("m3dbclusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Operator().V1alpha1().M3DBClusters().Informer()}, nil
 
 	}
 

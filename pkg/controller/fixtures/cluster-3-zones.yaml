@@ -1,5 +1,5 @@
 ---
-apiVersion: operator.m3db.io/v1
+apiVersion: operator.m3db.io/v1alpha1
 kind: M3DBCluster
 metadata:
   name: cluster-zones

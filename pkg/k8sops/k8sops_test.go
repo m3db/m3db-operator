@@ -25,7 +25,7 @@ import (
 	"os"
 	"testing"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 
 	appsv1 "k8s.io/api/apps/v1"

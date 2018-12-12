@@ -24,6 +24,6 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 "${CODEGEN_PKG}"/generate-groups.sh all\
   github.com/m3db/m3db-operator/pkg/client \
   github.com/m3db/m3db-operator/pkg/apis \
-  m3dboperator:v1  \
+  m3dboperator:v1alpha1  \
   --go-header-file "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt" \
   "$@"

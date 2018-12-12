@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"

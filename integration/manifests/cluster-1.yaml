@@ -211,7 +211,7 @@ data:
               - http://etcd-1.etcd:2379
               - http://etcd-2.etcd:2379
 ---
-apiVersion: operator.m3db.io/v1
+apiVersion: operator.m3db.io/v1alpha1
 kind: M3DBCluster
 metadata:
   name: m3db-cluster-test-1

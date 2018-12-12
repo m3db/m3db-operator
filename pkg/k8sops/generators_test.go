@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
