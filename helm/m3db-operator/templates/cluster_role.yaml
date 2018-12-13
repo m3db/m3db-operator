@@ -30,3 +30,6 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
