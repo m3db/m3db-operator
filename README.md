@@ -1,5 +1,7 @@
 # M3DB Operator [![e2e](https://travis-ci.org/m3db/m3db-operator.svg?branch=master)](https://travis-ci.org/m3db/m3db-operator)  [![Build status](https://badge.buildkite.com/6cf88054469d7d59a584f618426dc2bd436f816daaf5000db8.svg)](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
 
+Project Status: Alpha
+
 The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It aims to automate everyday tasks around managing M3DB. Specifically, it aims to automate:
 
 * Creating M3DB clusters
@@ -8,7 +10,6 @@ The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It ai
 * Shrinking clusters (removing instances)
 * Replacing failed instances
 
-Project Status: Alpha
 
 ## Getting Started
 
@@ -29,24 +30,6 @@ Apply the persistent disk storage resource:
 
 ```
 kubectl apply -f example/storage-fast-gcp.yaml
-```
-
-## Local (Minikube) Prerequisites 
-
-Ensure Minikube has enough memory and CPU resources.
-```
-minikube stop && minikube delete && minikube start --cpus 4 --memory 819
-```
-
-Apply the persistent disk storage resource:
-
-```
-kubectl apply -f example/storage-fast-minikube.yaml
-```
-
-Label your minikube instance with zone metadata to support scheduling:
-```
-kubectl label nodes minikube failure-domain.beta.kubernetes.io/zone=minikube
 ```
 
 ## etcd Cluster
@@ -183,3 +166,6 @@ kubectl delete -f manifests/operator.yaml
     dep-ensure      Run dep ensure to generate vendor directory
     dep-install     Ensure dep is installed
 ```
+
+### License
+This project is licensed under the Apache license -- see the [LICENSE](https://github.com/m3db/m3db-operator/blob/master/LICENSE) file for details. 
