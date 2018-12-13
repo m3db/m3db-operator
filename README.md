@@ -10,7 +10,7 @@ The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It ai
 * Shrinking clusters (removing instances)
 * Replacing failed instances
 
-More complete documentation for the project can be found [here][https://operator.m3db.io].
+More complete documentation for the project can be found [here][docs].
 
 ## Getting Started
 
