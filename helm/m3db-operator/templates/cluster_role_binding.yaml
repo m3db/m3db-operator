@@ -9,3 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.operator.name }}
+  namespace: {{ .Release.Namespace }}

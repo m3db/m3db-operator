@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: m3db-operator
+  namespace: default
 
 ---
 # Source: m3db-operator/templates/cluster_role.yaml
@@ -39,6 +40,9 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
 
 ---
 # Source: m3db-operator/templates/cluster_role_binding.yaml
@@ -53,6 +57,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: m3db-operator
+  namespace: default
 
 ---
 # Source: m3db-operator/templates/stateful_set.yaml
@@ -60,6 +65,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: m3db-operator
+  namespace: default
 spec:
   serviceName: m3db-operator
   replicas: 1
@@ -73,7 +79,7 @@ spec:
     spec:
       containers:
         - name: m3db-operator
-          image: quay.io/m3db/m3db-operator:v0.1.0
+          image: quay.io/m3db/m3db-operator:v0.1.1
           command:
           - m3db-operator
           imagePullPolicy: Always

@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Values.operator.name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   serviceName: {{ .Values.operator.name }}
   replicas: 1

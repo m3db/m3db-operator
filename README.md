@@ -47,10 +47,10 @@ helm repo add m3db https://s3.amazonaws.com/m3-helm-charts-repository/stable;
 helm install m3db/m3db-operator --namespace m3db-operator
 ```
 
-With `kubectl`:
+With `kubectl` (will install in the `default` namespace):
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.0/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.1/bundle.yaml
 ```
 
 ## Managing Clusters
@@ -60,7 +60,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.0/bun
 Create a simple etcd cluster to store M3DB's topology:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.0/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.1/example/etcd/etcd-basic.yaml
 ```
 
 Apply manifest with your zones specified for isolation groups:
