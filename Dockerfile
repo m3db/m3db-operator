@@ -20,7 +20,7 @@ ADD . /go/src/github.com/m3db/m3db-operator
 RUN cd /go/src/github.com/m3db/m3db-operator/ && \
     git submodule update --init      && \
     dep ensure && \
-    make build-bin
+    make m3db-operator
 
 # stage 2: lightweight "release"
 FROM alpine:latest
