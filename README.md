@@ -1,51 +1,67 @@
-# m3db-operator [![e2e](https://travis-ci.org/m3db/m3db-operator.svg?branch=master)](https://travis-ci.org/m3db/m3db-operator)  [![Build status](https://badge.buildkite.com/6cf88054469d7d59a584f618426dc2bd436f816daaf5000db8.svg)](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
+# M3DB Operator [![e2e](https://travis-ci.org/m3db/m3db-operator.svg?branch=master)](https://travis-ci.org/m3db/m3db-operator)  [![Build status](https://badge.buildkite.com/6cf88054469d7d59a584f618426dc2bd436f816daaf5000db8.svg)](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
 
-## Project Status: pre-Alpha
+The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It aims to automate everyday tasks around managing M3DB. Specifically, it aims to automate:
 
-### Kubernetes cluster prerequisites
+* Creating M3DB clusters
+* Destroying M3DB clusters
+* Expanding clusters (adding instances)
+* Shrinking clusters (removing instances)
+* Replacing failed instances
 
-### GKE
+Project Status: Alpha
+
+## Getting Started
+
+The following instructions serve as a quickstart to get an M3DB cluster up and running in your Kubernetes cluster.
+
+### Kubernetes Cluster Prerequisites
+
+## Cloud (GKE) Prerequisites
 When running on GKE, the user applying the manifests will need the ability to
 allow `cluster-admin-binding` during the installation. Use the following
-`ClusterRoleBinding` with the user name provided by gcloud
+`ClusterRoleBinding` with the user name provided by gcloud:
 
 ```
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=<name@domain.com>
 ```
 
-Apply the persistent disk storage resource
+Apply the persistent disk storage resource:
 
 ```
 kubectl apply -f example/storage-fast-gcp.yaml
 ```
 
-## Minikube
+## Local (Minikube) Prerequisites 
 
-Ensure Minikube has enough memory and cpu resources
+Ensure Minikube has enough memory and CPU resources.
 ```
 minikube stop && minikube delete && minikube start --cpus 4 --memory 819
 ```
 
-Apply the persistent disk storage resource
+Apply the persistent disk storage resource:
 
 ```
 kubectl apply -f example/storage-fast-minikube.yaml
 ```
 
-Label your minikube instance with zone metadata to support scheduling
+Label your minikube instance with zone metadata to support scheduling:
 ```
 kubectl label nodes minikube failure-domain.beta.kubernetes.io/zone=minikube
 ```
 
-## Deploy etcd cluster
+## etcd Cluster
 
-Apply the `etcd` cluster
+M3DB stores its topology in etcd, so it is necessary to deploy an etcd cluster for a healthy deployment of M3DB.  
+
+Apply the `etcd` cluster:
 
 ```
 kubectl apply -f example/etcd.yaml
 ```
 
-## Deploying the operator
+## Deploying the M3DB Operator
+
+Deployments can be made either inside or outside the cluster. Deploying outside the cluster is *only* for streamlined development + testing use cases and should not be used in production.
 
 ### In-Cluster
 
@@ -72,7 +88,7 @@ Update the [operator manifest](https://github.com/m3db/m3db-operator/blob/master
 ... <snip>
 ```
 
-Apply the `m3db-operator` operator
+Apply the `m3db-operator` operator:
 
 ```
 kubectl apply -f manifests/operator.yaml
@@ -134,7 +150,7 @@ The operator will automatically retry operations until it can connect to the coo
 
 ### Delete M3 Cluster
 
-Delete M3 Cluster
+Delete M3DB Cluster:
 
 ```
 kubectl delete -f example/m3db-cluster.yaml
@@ -147,7 +163,7 @@ $ kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --prefix ""
 2
 ```
 
-Delete M3DB Operator
+Delete M3DB Operator:
 
 ```
 kubectl delete -f manifests/operator.yaml
