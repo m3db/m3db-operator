@@ -10,7 +10,11 @@ The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It ai
 * Shrinking clusters (removing instances)
 * Replacing failed instances
 
-More complete documentation for the project can be found [here][docs].
+More information:
+
+- [Documentation][docs]
+- [Gitter room](https://gitter.im/m3db/kubernetes)
+- [M3DB Google Group](https://groups.google.com/forum/#!forum/m3db)
 
 ## Getting Started
 
@@ -46,7 +50,7 @@ helm install m3db/m3db-operator --namespace m3db-operator
 With `kubectl`:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/master/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.0/bundle.yaml
 ```
 
 ## Managing Clusters
@@ -56,7 +60,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/master/bun
 Create a simple etcd cluster to store M3DB's topology:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/master/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.0/example/etcd/etcd-basic.yaml
 ```
 
 Apply manifest with your zones specified for isolation groups:
