@@ -187,7 +187,7 @@ type ClusterSpec struct {
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
 	// sane default will be used.
 	// +optional
-	ConfigMapName *string `json:"configMapName,omitempty", yaml:"podIdentityConfig"`
+	ConfigMapName *string `json:"configMapName,omitempty" yaml:"configMapName"`
 
 	// PodIdentityConfig sets the configuration for pod identity. If unset only
 	// pod name and UID will be used.
