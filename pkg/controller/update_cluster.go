@@ -65,11 +65,7 @@ func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
-	if err := c.createNamespaces(cluster, resp.Registry); err != nil {
-		return err
-	}
-
-	return nil
+	return c.createNamespaces(cluster, resp.Registry)
 }
 
 // createNamespaces will attempt to create in the cluster all namespaces which

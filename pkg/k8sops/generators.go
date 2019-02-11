@@ -29,7 +29,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -86,9 +86,15 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 			Name: m3dboperator.Name,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   m3dboperator.GroupName,
-			Version: m3dboperator.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Group: m3dboperator.GroupName,
+			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
+				{
+					Name:    m3dboperator.Version,
+					Served:  true,
+					Storage: true,
+				},
+			},
+			Scope: apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 				Plural: m3dboperator.ResourcePlural,
 				Kind:   m3dboperator.ResourceKind,
