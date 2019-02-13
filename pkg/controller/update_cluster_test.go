@@ -76,7 +76,7 @@ func TestReconcileNamespaces(t *testing.T) {
 
 	registry := &dbns.Registry{
 		Namespaces: map[string]*dbns.NamespaceOptions{
-			"a": &dbns.NamespaceOptions{},
+			"a": {},
 		},
 	}
 	resp := &admin.NamespaceGetResponse{
@@ -104,7 +104,7 @@ func TestCleanupNamespaces(t *testing.T) {
 	defer deps.cleanup()
 
 	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{
-		"foo": &dbns.NamespaceOptions{},
+		"foo": {},
 	}}
 
 	nsMock.EXPECT().Delete("foo").Return(nil)
@@ -159,7 +159,7 @@ func TestNamespacesToCreate(t *testing.T) {
 		{
 			registry: &dbns.Registry{
 				Namespaces: map[string]*dbns.NamespaceOptions{
-					"foo": &dbns.NamespaceOptions{},
+					"foo": {},
 				},
 			},
 			namespaces: []myspec.Namespace{
@@ -169,7 +169,7 @@ func TestNamespacesToCreate(t *testing.T) {
 		{
 			registry: &dbns.Registry{
 				Namespaces: map[string]*dbns.NamespaceOptions{
-					"foo": &dbns.NamespaceOptions{},
+					"foo": {},
 				},
 			},
 			namespaces: []myspec.Namespace{
@@ -197,7 +197,7 @@ func TestNamespacesToDelete(t *testing.T) {
 		{
 			registry: &dbns.Registry{
 				Namespaces: map[string]*dbns.NamespaceOptions{
-					"foo": &dbns.NamespaceOptions{},
+					"foo": {},
 				},
 			},
 			namespaces: []myspec.Namespace{
@@ -207,7 +207,7 @@ func TestNamespacesToDelete(t *testing.T) {
 		{
 			registry: &dbns.Registry{
 				Namespaces: map[string]*dbns.NamespaceOptions{
-					"foo": &dbns.NamespaceOptions{},
+					"foo": {},
 				},
 			},
 			namespaces: []myspec.Namespace{
@@ -218,7 +218,7 @@ func TestNamespacesToDelete(t *testing.T) {
 		{
 			registry: &dbns.Registry{
 				Namespaces: map[string]*dbns.NamespaceOptions{
-					"foo": &dbns.NamespaceOptions{},
+					"foo": {},
 				},
 			},
 			namespaces: []myspec.Namespace{

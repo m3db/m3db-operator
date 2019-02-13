@@ -31,7 +31,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -241,7 +241,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						v1.Container{
+						{
 							Name: ssName,
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &[]bool{true}[0],
@@ -262,7 +262,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 							Image:           image,
 							ImagePullPolicy: "Always",
 							Env: []v1.EnvVar{
-								v1.EnvVar{
+								{
 									Name: "NAMESPACE",
 									ValueFrom: &v1.EnvVarSource{
 										FieldRef: &v1.ObjectFieldSelector{
@@ -273,11 +273,11 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 							},
 							Ports: nil,
 							VolumeMounts: []v1.VolumeMount{
-								v1.VolumeMount{
+								{
 									Name:      _dataVolumeName,
 									MountPath: _dataDirectory,
 								},
-								v1.VolumeMount{
+								{
 									Name:      "cache",
 									MountPath: "/var/lib/m3kv/",
 								},
@@ -286,7 +286,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 						},
 					},
 					Volumes: []v1.Volume{
-						v1.Volume{
+						{
 							Name: "cache",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},

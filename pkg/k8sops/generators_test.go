@@ -28,7 +28,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,9 +46,15 @@ func TestGenerateCRD(t *testing.T) {
 			Name: m3dboperator.Name,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   m3dboperator.GroupName,
-			Version: m3dboperator.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Group: m3dboperator.GroupName,
+			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
+				{
+					Name:    m3dboperator.Version,
+					Served:  true,
+					Storage: true,
+				},
+			},
+			Scope: apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 				Plural: m3dboperator.ResourcePlural,
 				Kind:   m3dboperator.ResourceKind,
@@ -145,7 +151,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 						},
 					},
 					Containers: []v1.Container{
-						v1.Container{
+						{
 							Name: ssName,
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &[]bool{true}[0],
@@ -167,7 +173,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 							Image:           clusterSpec.Image,
 							ImagePullPolicy: "Always",
 							Env: []v1.EnvVar{
-								v1.EnvVar{
+								{
 									Name: "NAMESPACE",
 									ValueFrom: &v1.EnvVarSource{
 										FieldRef: &v1.ObjectFieldSelector{
@@ -178,19 +184,19 @@ func TestGenerateStatefulSet(t *testing.T) {
 							},
 							Ports: generateContainerPorts(),
 							VolumeMounts: []v1.VolumeMount{
-								v1.VolumeMount{
+								{
 									Name:      _dataVolumeName,
 									MountPath: _dataDirectory,
 								},
-								v1.VolumeMount{
+								{
 									Name:      "cache",
 									MountPath: "/var/lib/m3kv/",
 								},
-								v1.VolumeMount{
+								{
 									Name:      "pod-identity",
 									MountPath: "/etc/m3db/pod-identity",
 								},
-								v1.VolumeMount{
+								{
 									Name:      _configurationName,
 									MountPath: _configurationDirectory,
 								},
@@ -208,13 +214,13 @@ func TestGenerateStatefulSet(t *testing.T) {
 						},
 					},
 					Volumes: []v1.Volume{
-						v1.Volume{
+						{
 							Name: "cache",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
 						},
-						v1.Volume{
+						{
 							Name: "pod-identity",
 							VolumeSource: v1.VolumeSource{
 								DownwardAPI: &v1.DownwardAPIVolumeSource{
@@ -229,7 +235,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 								},
 							},
 						},
-						v1.Volume{
+						{
 							Name: _configurationName,
 							VolumeSource: v1.VolumeSource{
 								ConfigMap: &v1.ConfigMapVolumeSource{
