@@ -29,7 +29,7 @@ rules:
   verbs: ["*"]
 - apiGroups: [""]
   resources: ["events"]
-  verbs: ["create"]
+  verbs: ["create", "patch"]
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list", "watch"]
