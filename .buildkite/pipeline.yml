@@ -1,3 +1,14 @@
+common: &common
+  timeout_in_minutes: 20
+  agents:
+    queue: workers
+  retry:
+    # Automatically retry failures one time.
+    automatic:
+      limit: 1
+    # Allow manual retries.
+    manual: true
+
 steps:
   - name: Unit
     command: .buildkite/test.sh
@@ -6,3 +17,4 @@ steps:
         run: app
         config: .buildkite/docker-compose.yml
         workdir: /go/src/github.com/m3db/m3db-operator
+    <<: *common
