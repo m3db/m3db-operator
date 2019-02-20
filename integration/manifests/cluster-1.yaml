@@ -216,7 +216,7 @@ kind: M3DBCluster
 metadata:
   name: m3db-cluster-test-1
 spec:
-  image: quay.io/m3/m3dbnode:latest
+  image: quay.io/m3db/m3dbnode:latest
   replicationFactor: 3
   numberOfShards: 256
   isolationGroups:
