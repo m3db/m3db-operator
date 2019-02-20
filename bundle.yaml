@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: m3db-operator
-          image: quay.io/m3db/m3db-operator:v0.1.1
+          image: quay.io/m3db/m3db-operator:latest
           command:
           - m3db-operator
           imagePullPolicy: Always
@@ -87,4 +87,3 @@ spec:
             - name: ENVIRONMENT
               value: production
       serviceAccount: m3db-operator
-

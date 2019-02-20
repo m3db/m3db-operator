@@ -16,6 +16,7 @@ spec:
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
+  configMapName: m3-configuration
   resources:
     requests:
       memory: 4Gi

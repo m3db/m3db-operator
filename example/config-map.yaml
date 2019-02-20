@@ -19,6 +19,11 @@ data:
         extended: none
       tagOptions:
         idScheme: quoted
+      local:
+        namespaces:
+        - namespace: "metrics-10s:2d"
+          type: unaggregated
+          retention: 48h
 
     db:
       logging:
