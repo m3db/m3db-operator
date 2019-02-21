@@ -91,6 +91,7 @@ spec:
   - metadata:
       name: etcd-data
     spec:
+      storageClassName: fast
       accessModes:
         - ReadWriteOnce
       resources:

@@ -153,8 +153,11 @@ After deleting a cluster you'll have to delete the metadata in etcd if you want 
 M3DB cluster. On our roadmap is to add a finalizer to `m3dbcluster` API objects to allow the operator to clean up their
 data in etcd. Until then, you'll have to do so manually:
 
+**WARNING**: This will delete all data in your etcd cluster. If you are using this cluster for anything other than M3DB,
+you will want to delete only the relevant keys (generally anything containing the string `m3db`).
+
 ```
-kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --keys-only --prefix ""
+kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --prefix ""
 ```
 
 [pod-identity]: ../configuration/pod_identity
