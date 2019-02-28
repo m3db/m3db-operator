@@ -106,7 +106,7 @@ IndexOptions defines parameters for indexing.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | enabled | Enabled controls whether metric indexing is enabled. | bool | false |
-| blockSize | BlockSize controls the index block size. | time.Duration | false |
+| blockSize | BlockSize controls the index block size. | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -145,12 +145,12 @@ RetentionOptions defines parameters for data retention.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| retentionPeriod | RetentionPeriod controls how long data for the namespace is retained. | time.Duration | false |
-| blockSize | BlockSize controls the block size for the namespace. | time.Duration | false |
-| bufferFuture | BufferFuture controls how far in the future metrics can be written. | time.Duration | false |
-| bufferPast | BufferPast controls how far in the past metrics can be written. | time.Duration | false |
+| retentionPeriod | RetentionPeriod controls how long data for the namespace is retained. | string | false |
+| blockSize | BlockSize controls the block size for the namespace. | string | false |
+| bufferFuture | BufferFuture controls how far in the future metrics can be written. | string | false |
+| bufferPast | BufferPast controls how far in the past metrics can be written. | string | false |
 | blockDataExpiry | BlockDataExpiry controls the block expiry. | bool | false |
-| blockDataExpiryAfterNotAccessPeriod | BlockDataExpiry controls the not after access period for expiration. | time.Duration | false |
+| blockDataExpiryAfterNotAccessPeriod | BlockDataExpiry controls the not after access period for expiration. | string | false |
 
 [Back to TOC](#table-of-contents)
 
