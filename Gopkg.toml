@@ -104,3 +104,7 @@
 [[constraint]]
   name = "github.com/rakyll/statik"
   version = "0.1.5"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.1"

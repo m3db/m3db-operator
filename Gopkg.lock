@@ -390,6 +390,14 @@
   version = "v2.0.1"
 
 [[projects]]
+  digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
+
+[[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
@@ -1016,6 +1024,7 @@
     "github.com/m3db/stackmurmur3",
     "github.com/m3db/vellum/regexp",
     "github.com/m3db/vellum/utf8",
+    "github.com/pkg/errors",
     "github.com/rakyll/statik/fs",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",

@@ -395,6 +395,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	}
 
 	if err := c.reconcileNamespaces(cluster); err != nil {
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, "failed to create namespace: %s", err)
 		c.logger.Error("error reconciling namespaces", zap.Error(err))
 		return err
 	}

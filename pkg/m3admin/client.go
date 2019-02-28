@@ -22,12 +22,15 @@ package m3admin
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
+	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -133,11 +136,38 @@ func (c *client) DoHTTPRequest(
 
 	l.Debug("response received")
 
+	code := response.StatusCode
+	if code >= 200 && code < 300 {
+		return response, nil
+	}
+
+	// attempt to parse our error message
+	errMsg, err := parseResponseError(response)
+	if err != nil {
+		l.Debug("error parsing error response", zap.Error(err))
+	}
+
 	if response.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound
+		return nil, pkgerrors.WithMessage(ErrNotFound, errMsg)
 	}
-	if response.StatusCode != http.StatusOK {
-		return nil, ErrNotOk
+
+	return nil, pkgerrors.WithMessage(ErrNotOk, errMsg)
+}
+
+func parseResponseError(r *http.Response) (string, error) {
+	defer func() {
+		io.Copy(ioutil.Discard, r.Body)
+		r.Body.Close()
+	}()
+
+	respErr := struct {
+		Error string `json:"error"`
+	}{}
+
+	err := json.NewDecoder(r.Body).Decode(&respErr)
+	if err != nil {
+		return "", err
 	}
-	return response, nil
+
+	return respErr.Error, nil
 }

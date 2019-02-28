@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	retryhttp "github.com/hashicorp/go-retryablehttp"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -106,7 +107,7 @@ func TestClient_DoHTTPRequest_Err(t *testing.T) {
 
 			cl := NewClient(WithHTTPClient(retry))
 			_, err := cl.DoHTTPRequest("GET", s.URL, nil)
-			assert.Equal(t, test.expErr, err)
+			assert.Equal(t, test.expErr, pkgerrors.Cause(err))
 		})
 	}
 }

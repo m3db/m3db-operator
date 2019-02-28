@@ -23,6 +23,7 @@ package namespace
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
@@ -46,9 +47,14 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 	}
 
 	if ns.Options != nil {
+		opts, err := requestOptsFromAPI(ns.Options)
+		if err != nil {
+			return nil, err
+		}
+
 		return &admin.NamespaceAddRequest{
 			Name:    ns.Name,
-			Options: requestOptsFromAPI(ns.Options),
+			Options: opts,
 		}, nil
 	}
 
@@ -62,39 +68,84 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 		return nil, fmt.Errorf("preset '%s' not found", ns.Preset)
 	}
 
+	requestOpts, err := requestOptsFromAPI(&opts)
+	if err != nil {
+		return nil, err
+	}
+
 	return &admin.NamespaceAddRequest{
 		Name:    ns.Name,
-		Options: requestOptsFromAPI(&opts),
+		Options: requestOpts,
 	}, nil
 }
 
-func requestOptsFromAPI(opts *myspec.NamespaceOptions) *m3ns.NamespaceOptions {
+func requestOptsFromAPI(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOptions, error) {
+	retentionOpts, err := retentionOptsFromAPI(opts.RetentionOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	indexOpts, err := indexOptsFromAPI(opts.IndexOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &m3ns.NamespaceOptions{
 		BootstrapEnabled:  opts.BootstrapEnabled,
 		FlushEnabled:      opts.FlushEnabled,
 		WritesToCommitLog: opts.WritesToCommitLog,
 		CleanupEnabled:    opts.CleanupEnabled,
 		RepairEnabled:     opts.RepairEnabled,
-		RetentionOptions:  retentionOptsFromAPI(opts.RetentionOptions),
+		RetentionOptions:  retentionOpts,
 		SnapshotEnabled:   opts.SnapshotEnabled,
-		IndexOptions:      indexOptsFromAPI(opts.IndexOptions),
-	}
+		IndexOptions:      indexOpts,
+	}, nil
 }
 
-func retentionOptsFromAPI(opts myspec.RetentionOptions) *m3ns.RetentionOptions {
+func retentionOptsFromAPI(opts myspec.RetentionOptions) (*m3ns.RetentionOptions, error) {
+	retention, err := time.ParseDuration(opts.RetentionPeriod)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize, err := time.ParseDuration(opts.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+
+	bufferFuture, err := time.ParseDuration(opts.BufferFuture)
+	if err != nil {
+		return nil, err
+	}
+
+	bufferPast, err := time.ParseDuration(opts.BufferPast)
+	if err != nil {
+		return nil, err
+	}
+
+	expiryNanos, err := time.ParseDuration(opts.BlockDataExpiryAfterNotAccessPeriod)
+	if err != nil {
+		return nil, err
+	}
+
 	return &m3ns.RetentionOptions{
-		RetentionPeriodNanos:                     opts.RetentionPeriod.Nanoseconds(),
-		BlockSizeNanos:                           opts.BlockSize.Nanoseconds(),
-		BufferFutureNanos:                        opts.BufferFuture.Nanoseconds(),
-		BufferPastNanos:                          opts.BufferPast.Nanoseconds(),
+		RetentionPeriodNanos:                     retention.Nanoseconds(),
+		BlockSizeNanos:                           blockSize.Nanoseconds(),
+		BufferFutureNanos:                        bufferFuture.Nanoseconds(),
+		BufferPastNanos:                          bufferPast.Nanoseconds(),
 		BlockDataExpiry:                          opts.BlockDataExpiry,
-		BlockDataExpiryAfterNotAccessPeriodNanos: opts.BlockDataExpiryAfterNotAccessPeriod.Nanoseconds(),
-	}
+		BlockDataExpiryAfterNotAccessPeriodNanos: expiryNanos.Nanoseconds(),
+	}, nil
 }
 
-func indexOptsFromAPI(opts myspec.IndexOptions) *m3ns.IndexOptions {
+func indexOptsFromAPI(opts myspec.IndexOptions) (*m3ns.IndexOptions, error) {
+	blockSize, err := time.ParseDuration(opts.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+
 	return &m3ns.IndexOptions{
 		Enabled:        opts.Enabled,
-		BlockSizeNanos: opts.BlockSize.Nanoseconds(),
-	}
+		BlockSizeNanos: blockSize.Nanoseconds(),
+	}, nil
 }
