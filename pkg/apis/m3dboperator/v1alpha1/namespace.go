@@ -20,8 +20,6 @@
 
 package v1alpha1
 
-import "time"
-
 // Namespace defines an M3DB namespace or points to a preset M3DB namespace.
 type Namespace struct {
 	// Name is the namespace name.
@@ -38,22 +36,22 @@ type Namespace struct {
 // RetentionOptions defines parameters for data retention.
 type RetentionOptions struct {
 	// RetentionPeriod controls how long data for the namespace is retained.
-	RetentionPeriod time.Duration `json:"retentionPeriod,omitempty"`
+	RetentionPeriod string `json:"retentionPeriod,omitempty"`
 
 	// BlockSize controls the block size for the namespace.
-	BlockSize time.Duration `json:"blockSize,omitempty"`
+	BlockSize string `json:"blockSize,omitempty"`
 
 	// BufferFuture controls how far in the future metrics can be written.
-	BufferFuture time.Duration `json:"bufferFuture,omitempty"`
+	BufferFuture string `json:"bufferFuture,omitempty"`
 
 	// BufferPast controls how far in the past metrics can be written.
-	BufferPast time.Duration `json:"bufferPast,omitempty"`
+	BufferPast string `json:"bufferPast,omitempty"`
 
 	// BlockDataExpiry controls the block expiry.
 	BlockDataExpiry bool `json:"blockDataExpiry,omitempty"`
 
 	// BlockDataExpiry controls the not after access period for expiration.
-	BlockDataExpiryAfterNotAccessPeriod time.Duration `json:"blockDataExpiryAfterNotAccessPeriod,omitempty"`
+	BlockDataExpiryAfterNotAccessPeriod string `json:"blockDataExpiryAfterNotAccessPeriod,omitempty"`
 }
 
 // IndexOptions defines parameters for indexing.
@@ -62,7 +60,7 @@ type IndexOptions struct {
 	Enabled bool `json:"enabled,omitempty"`
 
 	// BlockSize controls the index block size.
-	BlockSize time.Duration `json:"blockSize,omitempty"`
+	BlockSize string `json:"blockSize,omitempty"`
 }
 
 // NamespaceOptions defines parameters for an M3DB namespace. See

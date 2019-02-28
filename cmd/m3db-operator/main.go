@@ -81,8 +81,6 @@ func main() {
 	var cfg zap.Config
 	if _develLog {
 		cfg = zap.NewDevelopmentConfig()
-		cfg.DisableStacktrace = true
-		cfg.DisableCaller = true
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	} else {
 		cfg = zap.NewProductionConfig()
@@ -90,6 +88,8 @@ func main() {
 	if _debugLog {
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 	}
+	cfg.DisableStacktrace = true
+	cfg.DisableCaller = true
 	logger, err := cfg.Build()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error building logger: %v", err)

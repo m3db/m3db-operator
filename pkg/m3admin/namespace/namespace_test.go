@@ -30,9 +30,15 @@ import (
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRequestFromSpec(t *testing.T) {
+	preset10s2d, err := m3dbNamespaceOptsFromSpec(&presetTenSecondsTwoDaysIndexed)
+	require.NoError(t, err)
+	preset1m40d, err := m3dbNamespaceOptsFromSpec(&presetOneMinuteFourtyDaysIndexed)
+	require.NoError(t, err)
+
 	tests := []struct {
 		ns     myspec.Namespace
 		req    *admin.NamespaceAddRequest
@@ -44,13 +50,13 @@ func TestRequestFromSpec(t *testing.T) {
 		},
 		{
 			ns: myspec.Namespace{
-				Name: "foo",
+				Name: "empty",
 			},
 			expErr: true,
 		},
 		{
 			ns: myspec.Namespace{
-				Name:    "foo",
+				Name:    "badpreset",
 				Preset:  "a",
 				Options: &myspec.NamespaceOptions{},
 			},
@@ -58,7 +64,45 @@ func TestRequestFromSpec(t *testing.T) {
 		},
 		{
 			ns: myspec.Namespace{
-				Name: "foo",
+				Name: "validcustom",
+				Options: &myspec.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: myspec.RetentionOptions{
+						RetentionPeriod:                     "1s",
+						BlockSize:                           "1s",
+						BufferFuture:                        "1s",
+						BufferPast:                          "1s",
+						BlockDataExpiry:                     true,
+						BlockDataExpiryAfterNotAccessPeriod: "1s",
+					},
+					IndexOptions: myspec.IndexOptions{
+						BlockSize: "1s",
+						Enabled:   true,
+					},
+				},
+			},
+			req: &admin.NamespaceAddRequest{
+				Name: "validcustom",
+				Options: &m3ns.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: &m3ns.RetentionOptions{
+						RetentionPeriodNanos:                     1000000000,
+						BlockSizeNanos:                           1000000000,
+						BufferFutureNanos:                        1000000000,
+						BufferPastNanos:                          1000000000,
+						BlockDataExpiry:                          true,
+						BlockDataExpiryAfterNotAccessPeriodNanos: 1000000000,
+					},
+					IndexOptions: &m3ns.IndexOptions{
+						BlockSizeNanos: 1000000000,
+						Enabled:        true,
+					},
+				},
+			},
+		},
+		{
+			ns: myspec.Namespace{
+				Name: "invalidcustom",
 				Options: &myspec.NamespaceOptions{
 					BootstrapEnabled: true,
 					RetentionOptions: myspec.RetentionOptions{
@@ -70,7 +114,7 @@ func TestRequestFromSpec(t *testing.T) {
 				},
 			},
 			req: &admin.NamespaceAddRequest{
-				Name: "foo",
+				Name: "invalidcustom",
 				Options: &m3ns.NamespaceOptions{
 					BootstrapEnabled: true,
 					RetentionOptions: &m3ns.RetentionOptions{
@@ -81,6 +125,7 @@ func TestRequestFromSpec(t *testing.T) {
 					},
 				},
 			},
+			expErr: true,
 		},
 		{
 			ns: myspec.Namespace{
@@ -96,7 +141,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 			req: &admin.NamespaceAddRequest{
 				Name:    "foo",
-				Options: requestOptsFromAPI(&presetTenSecondsTwoDaysIndexed),
+				Options: preset10s2d,
 			},
 		},
 		{
@@ -106,7 +151,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 			req: &admin.NamespaceAddRequest{
 				Name:    "foo",
-				Options: requestOptsFromAPI(&presetOneMinuteFourtyDaysIndexed),
+				Options: preset1m40d,
 			},
 		},
 	}
@@ -116,6 +161,7 @@ func TestRequestFromSpec(t *testing.T) {
 		if test.expErr {
 			assert.Error(t, err)
 		} else {
+			assert.NoError(t, err)
 			assert.Equal(t, test.req, req)
 		}
 	}
@@ -123,15 +169,16 @@ func TestRequestFromSpec(t *testing.T) {
 
 func TestRetentionOptsFromAPI(t *testing.T) {
 	opts := myspec.RetentionOptions{
-		RetentionPeriod:                     time.Second,
-		BlockSize:                           2 * time.Second,
-		BufferFuture:                        3 * time.Second,
-		BufferPast:                          4 * time.Second,
+		RetentionPeriod:                     time.Duration(time.Second).String(),
+		BlockSize:                           time.Duration(2 * time.Second).String(),
+		BufferFuture:                        time.Duration(3 * time.Second).String(),
+		BufferPast:                          time.Duration(4 * time.Second).String(),
 		BlockDataExpiry:                     true,
-		BlockDataExpiryAfterNotAccessPeriod: 5 * time.Second,
+		BlockDataExpiryAfterNotAccessPeriod: time.Duration(5 * time.Second).String(),
 	}
 
-	nsOpts := retentionOptsFromAPI(opts)
+	nsOpts, err := m3dbRetentionOptsFromSpec(opts)
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(1000000000), nsOpts.RetentionPeriodNanos)
 	assert.Equal(t, int64(2000000000), nsOpts.BlockSizeNanos)
@@ -144,10 +191,11 @@ func TestRetentionOptsFromAPI(t *testing.T) {
 func TestIndexOptsFromAPI(t *testing.T) {
 	opts := myspec.IndexOptions{
 		Enabled:   true,
-		BlockSize: time.Second,
+		BlockSize: time.Second.String(),
 	}
 
-	iOpts := indexOptsFromAPI(opts)
+	iOpts, err := m3dbIndexOptsFromSpec(opts)
+	assert.NoError(t, err)
 
 	assert.True(t, iOpts.Enabled)
 	assert.Equal(t, int64(1000000000), iOpts.BlockSizeNanos)
