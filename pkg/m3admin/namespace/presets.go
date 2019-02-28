@@ -50,16 +50,16 @@ var (
 		RepairEnabled:     false,
 		SnapshotEnabled:   true,
 		RetentionOptions: myspec.RetentionOptions{
-			RetentionPeriod:                     time.Duration(2 * 24 * time.Hour).String(),
-			BlockSize:                           time.Duration(2 * time.Hour).String(),
-			BufferFuture:                        time.Duration(10 * time.Minute).String(),
-			BufferPast:                          time.Duration(10 * time.Minute).String(),
+			RetentionPeriod:                     (2 * 24 * time.Hour).String(),
+			BlockSize:                           (2 * time.Hour).String(),
+			BufferFuture:                        (10 * time.Minute).String(),
+			BufferPast:                          (10 * time.Minute).String(),
 			BlockDataExpiry:                     true,
-			BlockDataExpiryAfterNotAccessPeriod: time.Duration(5 * time.Minute).String(),
+			BlockDataExpiryAfterNotAccessPeriod: (5 * time.Minute).String(),
 		},
 		IndexOptions: myspec.IndexOptions{
 			Enabled:   true,
-			BlockSize: time.Duration(2 * time.Hour).String(),
+			BlockSize: (2 * time.Hour).String(),
 		},
 	}
 
@@ -71,16 +71,16 @@ var (
 		RepairEnabled:     false,
 		SnapshotEnabled:   true,
 		RetentionOptions: myspec.RetentionOptions{
-			RetentionPeriod:                     time.Duration(40 * 24 * time.Hour).String(),
-			BlockSize:                           time.Duration(24 * time.Hour).String(),
-			BufferFuture:                        time.Duration(10 * time.Minute).String(),
-			BufferPast:                          time.Duration(20 * time.Minute).String(),
+			RetentionPeriod:                     (40 * 24 * time.Hour).String(),
+			BlockSize:                           (24 * time.Hour).String(),
+			BufferFuture:                        (10 * time.Minute).String(),
+			BufferPast:                          (20 * time.Minute).String(),
 			BlockDataExpiry:                     true,
-			BlockDataExpiryAfterNotAccessPeriod: time.Duration(10 * time.Minute).String(),
+			BlockDataExpiryAfterNotAccessPeriod: (10 * time.Minute).String(),
 		},
 		IndexOptions: myspec.IndexOptions{
 			Enabled:   true,
-			BlockSize: time.Duration(24 * time.Hour).String(),
+			BlockSize: (24 * time.Hour).String(),
 		},
 	}
 )
