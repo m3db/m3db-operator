@@ -34,9 +34,9 @@ import (
 )
 
 func TestRequestFromSpec(t *testing.T) {
-	preset10s2d, err := requestOptsFromAPI(&presetTenSecondsTwoDaysIndexed)
+	preset10s2d, err := m3dbNamespaceOptsFromSpec(&presetTenSecondsTwoDaysIndexed)
 	require.NoError(t, err)
-	preset1m40d, err := requestOptsFromAPI(&presetOneMinuteFourtyDaysIndexed)
+	preset1m40d, err := m3dbNamespaceOptsFromSpec(&presetOneMinuteFourtyDaysIndexed)
 	require.NoError(t, err)
 
 	tests := []struct {

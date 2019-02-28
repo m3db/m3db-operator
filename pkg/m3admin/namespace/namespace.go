@@ -47,7 +47,7 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 	}
 
 	if ns.Options != nil {
-		opts, err := requestOptsFromAPI(ns.Options)
+		opts, err := m3dbNamespaceOptsFromSpec(ns.Options)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 		return nil, fmt.Errorf("preset '%s' not found", ns.Preset)
 	}
 
-	requestOpts, err := requestOptsFromAPI(&opts)
+	requestOpts, err := m3dbNamespaceOptsFromSpec(&opts)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 	}, nil
 }
 
-func requestOptsFromAPI(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOptions, error) {
+func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOptions, error) {
 	retentionOpts, err := m3dbRetentionOptsFromSpec(opts.RetentionOptions)
 	if err != nil {
 		return nil, err
