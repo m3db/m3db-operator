@@ -177,7 +177,7 @@ func TestRetentionOptsFromAPI(t *testing.T) {
 		BlockDataExpiryAfterNotAccessPeriod: time.Duration(5 * time.Second).String(),
 	}
 
-	nsOpts, err := retentionOptsFromAPI(opts)
+	nsOpts, err := m3dbRetentionOptsFromSpec(opts)
 	assert.NoError(t, err)
 
 	assert.Equal(t, int64(1000000000), nsOpts.RetentionPeriodNanos)
@@ -194,7 +194,7 @@ func TestIndexOptsFromAPI(t *testing.T) {
 		BlockSize: time.Second.String(),
 	}
 
-	iOpts, err := indexOptsFromAPI(opts)
+	iOpts, err := m3dbIndexOptsFromSpec(opts)
 	assert.NoError(t, err)
 
 	assert.True(t, iOpts.Enabled)

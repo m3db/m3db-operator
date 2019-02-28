@@ -80,12 +80,12 @@ func RequestFromSpec(ns myspec.Namespace) (*admin.NamespaceAddRequest, error) {
 }
 
 func requestOptsFromAPI(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOptions, error) {
-	retentionOpts, err := retentionOptsFromAPI(opts.RetentionOptions)
+	retentionOpts, err := m3dbRetentionOptsFromSpec(opts.RetentionOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	indexOpts, err := indexOptsFromAPI(opts.IndexOptions)
+	indexOpts, err := m3dbIndexOptsFromSpec(opts.IndexOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func requestOptsFromAPI(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOptions, 
 	}, nil
 }
 
-func retentionOptsFromAPI(opts myspec.RetentionOptions) (*m3ns.RetentionOptions, error) {
+func m3dbRetentionOptsFromSpec(opts myspec.RetentionOptions) (*m3ns.RetentionOptions, error) {
 	retention, err := time.ParseDuration(opts.RetentionPeriod)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func retentionOptsFromAPI(opts myspec.RetentionOptions) (*m3ns.RetentionOptions,
 	}, nil
 }
 
-func indexOptsFromAPI(opts myspec.IndexOptions) (*m3ns.IndexOptions, error) {
+func m3dbIndexOptsFromSpec(opts myspec.IndexOptions) (*m3ns.IndexOptions, error) {
 	blockSize, err := time.ParseDuration(opts.BlockSize)
 	if err != nil {
 		return nil, err
