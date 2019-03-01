@@ -22,12 +22,17 @@ package controller
 
 import (
 	"archive/zip"
+	"errors"
 	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/golang/mock/gomock"
 	"github.com/kubernetes/utils/pointer"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +58,35 @@ func registerValidConfigMap() error {
 
 	fs.Register(sw.String())
 	return nil
+}
+
+func TestEnsurePlacement(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	k8sops, err := newFakeK8sops()
+	require.NoError(t, err)
+
+	placementMock := deps.placementClient
+	defer deps.cleanup()
+
+	controller := deps.newController()
+	controller.k8sclient = k8sops
+
+	placementMock.EXPECT().Get().Return(nil, pkgerrors.WithMessage(m3admin.ErrNotFound, "foo"))
+	placementMock.EXPECT().Init(gomock.Any())
+
+	err = controller.EnsurePlacement(cluster)
+	assert.NoError(t, err)
+
+	placementMock.EXPECT().Get()
+	err = controller.EnsurePlacement(cluster)
+	assert.NoError(t, err)
+
+	placementMock.EXPECT().Get().Return(nil, errors.New("foo"))
+	err = controller.EnsurePlacement(cluster)
+	assert.Error(t, err)
 }
 
 func TestEnsureService_Base(t *testing.T) {

@@ -35,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
+	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -53,7 +54,7 @@ func (c *Controller) EnsurePlacement(cluster *myspec.M3DBCluster) error {
 	// Get placement
 	plClient := c.adminClient.placementClientForCluster(cluster)
 	_, err := plClient.Get()
-	if err == m3admin.ErrNotFound {
+	if pkgerrors.Cause(err) == m3admin.ErrNotFound {
 		placementInitRequest := &admin.PlacementInitRequest{
 			NumShards:         cluster.Spec.NumberOfShards,
 			ReplicationFactor: cluster.Spec.ReplicationFactor,
