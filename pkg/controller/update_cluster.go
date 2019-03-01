@@ -47,6 +47,7 @@ import (
 	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -109,7 +110,7 @@ func (c *Controller) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns
 			continue
 		}
 
-		if err == m3admin.ErrNotFound {
+		if pkgerrors.Cause(err) == m3admin.ErrNotFound {
 			c.logger.Info("namespace has already been deleted", zap.String("namespace", ns))
 			continue
 		}
@@ -165,7 +166,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*
 		return cluster, nil
 	}
 
-	if err != m3admin.ErrNotFound {
+	if pkgerrors.Cause(err) != m3admin.ErrNotFound {
 		err := fmt.Errorf("error from m3admin placement get: %v", err)
 		c.logger.Error(err.Error())
 		runtime.HandleError(err)

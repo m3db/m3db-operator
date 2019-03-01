@@ -47,6 +47,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/golang/mock/gomock"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +92,7 @@ func TestReconcileNamespaces(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCleanupNamespaces(t *testing.T) {
+func TestPruneNamespaces(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	cluster.Spec.Namespaces = []myspec.Namespace{}
 
@@ -111,7 +112,7 @@ func TestCleanupNamespaces(t *testing.T) {
 	err := controller.pruneNamespaces(cluster, registry)
 	assert.NoError(t, err)
 
-	nsMock.EXPECT().Delete("foo").Return(m3admin.ErrNotFound)
+	nsMock.EXPECT().Delete("foo").Return(pkgerrors.WithMessage(m3admin.ErrNotFound, "foo"))
 	err = controller.pruneNamespaces(cluster, registry)
 	assert.NoError(t, err)
 
@@ -542,7 +543,6 @@ func podWithName(name string) *corev1.Pod {
 }
 
 func TestValidatePlacementWithStatus(t *testing.T) {
-
 	cluster := getFixture("cluster-3-zones.yaml", t)
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
@@ -552,9 +552,28 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 	defer deps.cleanup()
 
 	controller := deps.newController()
-	//idProvider := deps.idProvider
 
 	placementMock.EXPECT().Get().AnyTimes()
+
+	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
+
+	require.NoError(t, err)
+	require.NotNil(t, clusterReturn)
+}
+
+func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	placementMock := deps.placementClient
+	defer deps.cleanup()
+
+	controller := deps.newController()
+
+	placementMock.EXPECT().Get().Return(nil, pkgerrors.Wrap(m3admin.ErrNotFound, "foo"))
+	placementMock.EXPECT().Init(gomock.Any())
 
 	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
 
