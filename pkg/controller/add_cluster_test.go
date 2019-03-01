@@ -85,7 +85,7 @@ func TestEnsurePlacement(t *testing.T) {
 	err = controller.EnsurePlacement(cluster)
 	assert.NoError(t, err)
 
-	placementMock.EXPECT().Get().Return(nil, errors.New("foo"))
+	placementMock.EXPECT().Get().Return(nil, errors.New("placement client not available"))
 	err = controller.EnsurePlacement(cluster)
 	assert.Error(t, err)
 }
