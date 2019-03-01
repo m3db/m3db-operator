@@ -57,8 +57,9 @@ IsolationGroup defines the name of zone as well attributes for the zone configur
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name | string | false |
-| numInstances | NumInstances defines the number of instances | int32 | false |
+| name | Name | string | true |
+| numInstances | NumInstances defines the number of instances | int32 | true |
+| storageClassName | StorageClassName is the name of the StorageClass to use for this isolation group. This allows ensuring that PVs will be created in the same zone as the pinned statefulset on Kubernetes < 1.12 (when topology aware volume scheduling was introduced). Only has effect if the clusters `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template will have its storageClassName field overridden per-isolationgroup. If unset the storageClassName of the volumeClaimTemplate will be used. | string | false |
 
 [Back to TOC](#table-of-contents)
 

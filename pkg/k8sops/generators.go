@@ -33,6 +33,8 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/kubernetes/utils/pointer"
 )
 
 const (
@@ -106,21 +108,23 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
 func GenerateStatefulSet(
 	cluster *myspec.M3DBCluster,
-	isolationGroup string,
+	isolationGroupName string,
 	instanceAmount int32,
 ) (*appsv1.StatefulSet, error) {
 	// TODO(schallert): always sort zones alphabetically.
 
 	stsID := -1
+	var isolationGroup myspec.IsolationGroup
 	for i, g := range cluster.Spec.IsolationGroups {
-		if g.Name == isolationGroup {
+		if g.Name == isolationGroupName {
+			isolationGroup = g
 			stsID = i
 			break
 		}
 	}
 
 	if stsID == -1 {
-		return nil, fmt.Errorf("could not find isogroup '%s' in spec", isolationGroup)
+		return nil, fmt.Errorf("could not find isogroup '%s' in spec", isolationGroupName)
 	}
 
 	clusterName := cluster.GetName()
@@ -155,13 +159,13 @@ func GenerateStatefulSet(
 		},
 	}
 
-	statefulSet := NewBaseStatefulSet(ssName, isolationGroup, cluster, instanceAmount)
+	statefulSet := NewBaseStatefulSet(ssName, isolationGroupName, cluster, instanceAmount)
 	m3dbContainer := &statefulSet.Spec.Template.Spec.Containers[0]
 	m3dbContainer.LivenessProbe = probeHealth
 	m3dbContainer.ReadinessProbe = probeReady
 	m3dbContainer.Resources = clusterSpec.ContainerResources
 	m3dbContainer.Ports = generateContainerPorts()
-	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroup)
+	statefulSet.Spec.Template.Spec.Affinity = GenerateZoneAffinity(isolationGroupName)
 
 	// Set owner ref so sts will be GC'd when the cluster is deleted
 	clusterRef := GenerateOwnerRef(cluster)
@@ -188,6 +192,9 @@ func GenerateStatefulSet(
 	} else {
 		template := cluster.Spec.DataDirVolumeClaimTemplate.DeepCopy()
 		template.ObjectMeta.Name = _dataVolumeName
+		if sc := isolationGroup.StorageClassName; sc != "" {
+			template.Spec.StorageClassName = pointer.StringPtr(sc)
+		}
 		statefulSet.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{*template}
 	}
 

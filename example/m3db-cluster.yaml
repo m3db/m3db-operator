@@ -16,7 +16,7 @@ spec:
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
-  resources:
+  containerResources:
     requests:
       memory: 4Gi
       cpu: '1'
