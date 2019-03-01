@@ -16,17 +16,17 @@ available, this will create a cluster that will not use persistent storage and w
 the pods die:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.2/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.3/example/etcd/etcd-basic.yaml
 
 # Verify etcd health once pods available
 kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl endpoint health
-# 127.0.0.1:2379 is healthy: successfully committed proposal: took = 2.94668ms
+# 127.0.0.1.3379 is healthy: successfully committed proposal: took = 2.94668ms
 ```
 
 If you have remote storage available and would like to jump straight to using it, apply the following manifest for etcd
 instead:
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.2/example/etcd/etcd-pd.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.3/example/etcd/etcd-pd.yaml
 ```
 
 ### M3DB
@@ -92,7 +92,7 @@ for performance reasons, and since M3DB already replicates your data.
 
 Create an etcd cluster with persistent volumes:
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.2/example/etcd/etcd-pd.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.3/example/etcd/etcd-pd.yaml
 ```
 
 We recommend modifying the `storageClassName` in the manifest to one that matches your cloud provider's fastest remote
