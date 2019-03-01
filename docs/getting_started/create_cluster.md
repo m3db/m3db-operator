@@ -20,7 +20,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.3/exa
 
 # Verify etcd health once pods available
 kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl endpoint health
-# 127.0.0.1.3379 is healthy: successfully committed proposal: took = 2.94668ms
+# 127.0.0.1:2379 is healthy: successfully committed proposal: took = 2.94668ms
 ```
 
 If you have remote storage available and would like to jump straight to using it, apply the following manifest for etcd
