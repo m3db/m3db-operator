@@ -26,12 +26,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes/utils/pointer"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
