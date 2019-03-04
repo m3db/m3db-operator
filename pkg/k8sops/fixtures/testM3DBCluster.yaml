@@ -3,6 +3,7 @@ apiVersion: operator.m3db.io/v1alpha1
 kind: M3DBCluster
 metadata:
   name: m3db-cluster
+  namespace: foo
 spec:
   image: fake.fake/fake/m3dbnode:latest
   replicationFactor: 3
@@ -24,6 +25,9 @@ spec:
     limits:
       memory: 2Gi
       cpu: '2'
+  etcdEndpoints:
+    - ep0
+    - ep1
   dataDirVolumeClaimTemplate:
     metadata:
       name: fake-data

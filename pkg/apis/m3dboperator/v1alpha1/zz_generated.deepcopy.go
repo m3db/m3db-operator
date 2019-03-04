@@ -60,6 +60,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.EtcdEndpoints != nil {
+		in, out := &in.EtcdEndpoints, &out.EtcdEndpoints
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ConfigMapName != nil {
 		in, out := &in.ConfigMapName, &out.ConfigMapName
 		*out = new(string)

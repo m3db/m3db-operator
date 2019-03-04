@@ -53,7 +53,7 @@ import (
 
 const (
 	// Informers will resync on this interval
-	_informerSyncDuration = 30 * time.Second
+	_informerSyncDuration = 5 * time.Minute
 )
 
 var (

@@ -35,6 +35,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	m3EnvironmentHeader = "Cluster-Environment-Name"
+)
+
 var (
 	// ErrNotOk indicates that HTTP status was not Ok
 	ErrNotOk = errors.New("status not ok")
@@ -49,8 +53,9 @@ type Client interface {
 }
 
 type client struct {
-	client *retryhttp.Client
-	logger *zap.Logger
+	client      *retryhttp.Client
+	logger      *zap.Logger
+	environment string
 }
 
 // NewClient returns a new m3admin client.
@@ -61,8 +66,9 @@ func NewClient(clientOpts ...Option) Client {
 	}
 
 	client := &client{
-		client: opts.client,
-		logger: opts.logger,
+		client:      opts.client,
+		logger:      opts.logger,
+		environment: opts.environment,
 	}
 
 	if client.client == nil {
@@ -105,6 +111,9 @@ func (c *client) DoHTTPRequest(
 	}
 
 	request.Header.Add("Content-Type", "application/json")
+	if c.environment != "" {
+		request.Header.Add(m3EnvironmentHeader, c.environment)
+	}
 
 	if l.Core().Enabled(zapcore.DebugLevel) {
 		dump, err := httputil.DumpRequest(request.Request, true)

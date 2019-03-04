@@ -126,11 +126,8 @@ func New(opts ...Option) (*Controller, error) {
 		logger = zap.NewNop()
 	}
 
-	adminClient := m3admin.NewClient(
-		m3admin.WithLogger(logger),
-	)
-
-	multiClient := newMultiAdminClient(adminClient, logger)
+	adminOpts := []m3admin.Option{m3admin.WithLogger(logger)}
+	multiClient := newMultiAdminClient(adminOpts, logger)
 	if options.kubectlProxy {
 		multiClient.clusterURLFn = clusterURLProxy
 	}

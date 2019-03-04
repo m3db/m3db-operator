@@ -29,7 +29,6 @@ import (
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
@@ -72,7 +71,7 @@ type testDeps struct {
 }
 
 func (deps *testDeps) newController() *Controller {
-	m := newMultiAdminClient(m3admin.NewClient(), zap.NewNop())
+	m := newMultiAdminClient(nil, zap.NewNop())
 	m.nsClientFn = func(...namespace.Option) (namespace.Client, error) {
 		return deps.namespaceClient, nil
 	}

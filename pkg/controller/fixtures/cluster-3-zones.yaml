@@ -18,7 +18,10 @@ spec:
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
-  resources:
+  etcdEndpoints:
+    - "a"
+    - "b"
+  containerResources:
     requests:
       memory: 1Gi
       cpu: '1'
