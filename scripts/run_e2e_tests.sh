@@ -2,6 +2,10 @@
 
 set -ex
 
+function cleanup() {
+  pkill -f "kubectl proxy"
+}
+
 function main() {
   readonly NAMESPACE="m3db-e2e-test-1"
 
@@ -40,10 +44,11 @@ function main() {
     done
   fi
 
+  trap cleanup EXIT
+
   kubectl proxy &
   go clean -testcache
   go test -v -tags integration ./integration/e2e
-  pkill -f "kubectl proxy"
 }
 
 main

@@ -213,10 +213,20 @@ type ClusterSpec struct {
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
 type IsolationGroup struct {
 	// Name
-	Name string `json:"name,omitempty" yaml:"name"`
+	Name string `json:"name"`
 
 	// NumInstances defines the number of instances
-	NumInstances int32 `json:"numInstances,omitempty" yaml:"numInstances"`
+	NumInstances int32 `json:"numInstances"`
+
+	// StorageClassName is the name of the StorageClass to use for this isolation
+	// group. This allows ensuring that PVs will be created in the same zone as
+	// the pinned statefulset on Kubernetes < 1.12 (when topology aware volume
+	// scheduling was introduced). Only has effect if the clusters
+	// `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template
+	// will have its storageClassName field overridden per-isolationgroup. If
+	// unset the storageClassName of the volumeClaimTemplate will be used.
+	// +optional
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // GetByName fetches an IsolationGroup by name.

@@ -303,6 +303,27 @@ func TestGenerateStatefulSet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
 	assert.Equal(t, ss, newSS)
+
+	// Reset spec and fixture, test per-isogroup storageclasses
+	ss = baseSS.DeepCopy()
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.IsolationGroups[0].StorageClassName = "foo"
+	ss.Spec.VolumeClaimTemplates[0].Spec.StorageClassName = pointer.StringPtr("foo")
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
+
+	// Ensure changing another isogroup doesn't affect this statefulset
+	ss = baseSS.DeepCopy()
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.IsolationGroups[1].StorageClassName = "foo"
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
 }
 
 func TestGenerateM3DBService(t *testing.T) {
