@@ -33,7 +33,7 @@ metadata:
 spec:
   image: quay.io/m3db/m3dbnode:latest
   replicationFactor: 3
-  numberOfShards: 4
+  numberOfShards: 1024
   isolationGroups:
   - name: us-east1-b
     numInstances: 1
