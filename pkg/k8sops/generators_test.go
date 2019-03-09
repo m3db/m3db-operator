@@ -122,8 +122,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         "m3dbnode-m3db-cluster",
-			PodManagementPolicy: "Parallel",
+			ServiceName: "m3dbnode-m3db-cluster",
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},

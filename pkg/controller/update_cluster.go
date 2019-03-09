@@ -180,8 +180,8 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*
 		ReplicationFactor: cluster.Spec.ReplicationFactor,
 	}
 
-	targetLabels := map[string]string{}
-	for k, v := range cluster.Labels {
+	targetLabels := labels.BaseLabels(cluster)
+	for k, v := range cluster.Spec.Labels {
 		targetLabels[k] = v
 	}
 	targetLabels[labels.Component] = labels.ComponentM3DBNode
