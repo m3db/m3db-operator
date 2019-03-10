@@ -65,15 +65,9 @@ const (
 )
 
 var (
-	// ErrIsolationGroupsMissing indicates that the isolation groups within the
-	// spec are missing
-	ErrIsolationGroupsMissing = errors.New("no isolation groups  specified")
-
-	// ErrInvalidReplicationFactor indicates that the replication factor within
-	// the spec is missing
-	ErrInvalidReplicationFactor = errors.New("invalid replication factor")
-
-	errOrphanedPod = errors.New("pod does not belong to an m3db cluster")
+	errOrphanedPod           = errors.New("pod does not belong to an m3db cluster")
+	errInvalidNumIsoGroups   = errors.New("must specify number of isolationgroups equal to replication factor")
+	errEmptyNodeAffinityVals = errors.New("NodeAffinityValues cannot be empty if NodeAffinityKey set")
 )
 
 // Controller object
@@ -331,6 +325,12 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	cluster = cluster.DeepCopy()
 
 	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
+
+	if err := validateIsolationGroups(cluster); err != nil {
+		clusterLogger.Error("failed validating isolationgroups", zap.Error(err))
+		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, err.Error())
+		return err
+	}
 
 	if err := c.ensureConfigMap(cluster); err != nil {
 		clusterLogger.Error("failed to ensure configmap", zap.Error(err))
@@ -772,4 +772,26 @@ func (c *Controller) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster, err
 	}
 
 	return cluster, nil
+}
+
+func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
+	groups := cluster.Spec.IsolationGroups
+
+	if cluster.Spec.ReplicationFactor != int32(len(groups)) {
+		return errInvalidNumIsoGroups
+	}
+
+	names := make(map[string]struct{}, len(groups))
+	for _, g := range groups {
+		names[g.Name] = struct{}{}
+
+		if g.NodeAffinityKey != "" && len(g.NodeAffinityValues) == 0 {
+			return errEmptyNodeAffinityVals
+		}
+	}
+
+	if len(names) != len(groups) {
+		return fmt.Errorf("found %d isolationGroups but %d unique names", len(groups), len(names))
+	}
+	return nil
 }

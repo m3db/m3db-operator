@@ -325,31 +325,34 @@ func generateDownwardAPIVolumeMount() v1.VolumeMount {
 	}
 }
 
-// GenerateNodeAffinity generates a node affinity requiring a strict match for
+// GenerateStatefulSetAffinity generates a node affinity requiring a strict match for
 // given key and value.
-func GenerateNodeAffinity(key, value string) *v1.NodeAffinity {
-	return &v1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				{
-					MatchExpressions: []v1.NodeSelectorRequirement{
-						{
-							Key:      key,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{value},
+func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) *v1.Affinity {
+	affinityKey := FailureDomainZoneKey
+	if k := isoGroup.NodeAffinityKey; k != "" {
+		affinityKey = k
+	}
+	affinityValues := []string{isoGroup.Name}
+	if len(isoGroup.NodeAffinityValues) > 0 {
+		affinityValues = isoGroup.NodeAffinityValues
+	}
+
+	return &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      affinityKey,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   affinityValues,
+							},
 						},
 					},
 				},
 			},
 		},
-	}
-}
-
-// GenerateZoneAffinity returns a node affinity policy requiring a pod be in a
-// given zone.
-func GenerateZoneAffinity(zone string) *v1.Affinity {
-	return &v1.Affinity{
-		NodeAffinity: GenerateNodeAffinity(FailureDomainZoneKey, zone),
 	}
 }
 

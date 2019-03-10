@@ -75,7 +75,7 @@ define CMD_RULES
 .PHONY: $(CMD)
 $(CMD)-no-deps:
 	@echo "--- $(CMD)"
-	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
+	go build -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
 
 $(CMD): dep-ensure $(CMD)-no-deps
 

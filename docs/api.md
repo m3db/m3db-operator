@@ -58,8 +58,10 @@ IsolationGroup defines the name of zone as well attributes for the zone configur
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name | string | true |
-| numInstances | NumInstances defines the number of instances | int32 | true |
+| name | Name is the value that will be used in StatefulSet labels, pod labels, and M3DB placement \"isolationGroup\" fields. | string | true |
+| nodeAffinityKey | NodeAffinityKey is the node label that will be used in corresponding StatefulSet match expression to assign pods to nodes. Defaults to \"failure-domain.beta.kubernetes.io/zone\". | string | false |
+| nodeAffinityValues | NodeSelectorValues is the node label value that will be used to assign pods to nodes. Defaults to the isolation group's name, but can be overridden to allow multiple IsolationGroups to be assigned to the same zone. | []string | false |
+| numInstances | NumInstances defines the number of instances. | int32 | true |
 | storageClassName | StorageClassName is the name of the StorageClass to use for this isolation group. This allows ensuring that PVs will be created in the same zone as the pinned statefulset on Kubernetes < 1.12 (when topology aware volume scheduling was introduced). Only has effect if the clusters `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template will have its storageClassName field overridden per-isolationgroup. If unset the storageClassName of the volumeClaimTemplate will be used. | string | false |
 
 [Back to TOC](#table-of-contents)

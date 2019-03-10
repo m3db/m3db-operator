@@ -26,85 +26,98 @@
 
  # Force dep to vendor the code generators, which aren't imported just used at dev time.
  # Picking a subpackage with Go code won't be necessary once https://github.com/golang/dep/pull/1545 is merged.
- required = [
-   "k8s.io/code-generator/cmd/defaulter-gen",
-   "k8s.io/code-generator/cmd/deepcopy-gen",
-   "k8s.io/code-generator/cmd/conversion-gen",
-   "k8s.io/code-generator/cmd/client-gen",
-   "k8s.io/code-generator/cmd/lister-gen",
-   "k8s.io/code-generator/cmd/informer-gen",
-   "k8s.io/code-generator/cmd/openapi-gen",
-   "k8s.io/gengo/args",
-   "github.com/apache/thrift/lib/go/thrift",
-   "github.com/m3db/stackmurmur3",
-   "github.com/m3db/bloom",
-   "github.com/coreos/bbolt",
-   "github.com/m3db/vellum/regexp",
-   "github.com/m3db/vellum/utf8",
-   "github.com/golang/mock/gomock",
-   "github.com/golang/mock/mockgen",
-   "github.com/kubernetes/utils/pointer",
-   "github.com/rakyll/statik/fs",
- ]
-
- [[constraint]]
-  name = "github.com/kubernetes/utils"
-  branch = "master"
-
- [[override]]
-  name = "github.com/golang/mock"
-  version = "1"
-
- [[override]]
-  name = "github.com/m3db/stackmurmur3"
-  revision = "744c0229c12ed0e4f8cb9d081a2692b3300bf705"
-
- [[override]]
-  name = "github.com/coreos/bbolt"
-  revision = "32c383e75ce054674c53b5a07e55de85332aee14"
-
- [[override]]
-  name = "github.com/m3db/bloom"
-  revision = "47fe1193cdb900de7193d1f3d26ea9b2cbf6fb31"
-
- [[override]]
-  name = "github.com/couchbase/vellum"
-  revision = "51c732079c882f52f8e6af889d99ac2a1611d5e4"
-  source = "github.com/m3db/vellum"
-
- [[constraint]]
-  name = "github.com/m3db/m3"
-  branch = "master"
-
- [[override]]
-  name = "github.com/apache/thrift"
-  version = "0.9.3-pool-read-binary-2"
-  source = "github.com/m3db/thrift"
-
- [[override]]
-   name = "k8s.io/code-generator"
-   branch = "release-1.11"
-
- [[override]]
-   name = "k8s.io/api"
-   branch = "release-1.11"
-
- [[override]]
-   name = "k8s.io/apimachinery"
-   branch = "release-1.11"
-
- [[override]]
-   name = "k8s.io/apiextensions-apiserver"
-   branch = "release-1.11"
-
- [[override]]
-   name = "k8s.io/client-go"
-   branch = "release-8.0"
+required = [
+  "k8s.io/code-generator/cmd/defaulter-gen",
+  "k8s.io/code-generator/cmd/deepcopy-gen",
+  "k8s.io/code-generator/cmd/conversion-gen",
+  "k8s.io/code-generator/cmd/client-gen",
+  "k8s.io/code-generator/cmd/lister-gen",
+  "k8s.io/code-generator/cmd/informer-gen",
+  "k8s.io/code-generator/cmd/openapi-gen",
+  "k8s.io/gengo/args",
+  "github.com/apache/thrift/lib/go/thrift",
+  "github.com/m3db/stackmurmur3",
+  "github.com/m3db/bloom",
+  "github.com/coreos/bbolt",
+  "github.com/m3db/vellum/regexp",
+  "github.com/m3db/vellum/utf8",
+  "github.com/golang/mock/gomock",
+  "github.com/golang/mock/mockgen",
+  "github.com/kubernetes/utils/pointer",
+  "github.com/rakyll/statik/fs",
+]
 
 [[constraint]]
-  name = "github.com/rakyll/statik"
-  version = "0.1.5"
+name = "github.com/kubernetes/utils"
+branch = "master"
+
+[[override]]
+name = "github.com/golang/mock"
+version = "1"
+
+[[override]]
+name = "github.com/m3db/stackmurmur3"
+revision = "744c0229c12ed0e4f8cb9d081a2692b3300bf705"
+
+[[override]]
+name = "github.com/coreos/bbolt"
+revision = "32c383e75ce054674c53b5a07e55de85332aee14"
+
+[[override]]
+name = "github.com/m3db/bloom"
+revision = "47fe1193cdb900de7193d1f3d26ea9b2cbf6fb31"
+
+[[override]]
+name = "github.com/couchbase/vellum"
+revision = "51c732079c882f52f8e6af889d99ac2a1611d5e4"
+source = "github.com/m3db/vellum"
 
 [[constraint]]
-  name = "github.com/pkg/errors"
-  version = "0.8.1"
+name = "github.com/m3db/m3"
+branch = "master"
+
+[[override]]
+name = "github.com/apache/thrift"
+version = "0.9.3-pool-read-binary-2"
+source = "github.com/m3db/thrift"
+
+[[override]]
+  name = "k8s.io/code-generator"
+  branch = "release-1.11"
+
+[[override]]
+  name = "k8s.io/api"
+  branch = "release-1.11"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  branch = "release-1.11"
+
+[[override]]
+  name = "k8s.io/apiextensions-apiserver"
+  branch = "release-1.11"
+
+[[override]]
+  name = "k8s.io/client-go"
+  branch = "release-8.0"
+
+[[constraint]]
+name = "github.com/rakyll/statik"
+version = "0.1.5"
+
+[[constraint]]
+name = "github.com/pkg/errors"
+version = "0.8.1"
+
+# We pin Jaeger deps to same revisions as m3 does
+[[override]]
+name = "github.com/uber/jaeger-lib"
+version = "^1.5.0"
+
+[[override]]
+name = "github.com/uber/jaeger-client-go"
+version = "^2.7.0"
+
+[[override]]
+name = "github.com/opentracing-contrib/go-stdlib"
+revision = "77df8e8e70b403c6b13c0fffaa4867c9044ff4e9"

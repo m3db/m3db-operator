@@ -28,7 +28,6 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"go.uber.org/zap"
@@ -45,22 +44,15 @@ func (h *Harness) CreateM3DBCluster(filename string) (*myspec.M3DBCluster, error
 
 	reader := yaml.NewYAMLOrJSONDecoder(f, 2048)
 
-	cm := &corev1.ConfigMap{}
 	cluster := &myspec.M3DBCluster{}
 
 	for _, iface := range []interface{}{
-		cm,
 		cluster,
 	} {
 
 		if err := reader.Decode(iface); err != nil {
 			return nil, err
 		}
-	}
-
-	h.Logger.Info("creating configmap", zap.String("configmap", cm.Name))
-	if _, err := h.KubeClient.CoreV1().ConfigMaps(h.Namespace).Create(cm); err != nil {
-		return nil, err
 	}
 
 	h.Logger.Info("creating m3dbcluster", zap.String("m3dbcluster", cluster.Name))

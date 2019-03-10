@@ -219,10 +219,23 @@ type ClusterSpec struct {
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
 type IsolationGroup struct {
-	// Name
+	// Name is the value that will be used in StatefulSet labels, pod labels, and
+	// M3DB placement "isolationGroup" fields.
 	Name string `json:"name"`
 
-	// NumInstances defines the number of instances
+	// NodeAffinityKey is the node label that will be used in corresponding
+	// StatefulSet match expression to assign pods to nodes. Defaults to
+	// "failure-domain.beta.kubernetes.io/zone".
+	// +optional
+	NodeAffinityKey string `json:"nodeAffinityKey,omitempty"`
+
+	// NodeSelectorValues is the node label value that will be used to assign pods
+	// to nodes. Defaults to the isolation group's name, but can be overridden to
+	// allow multiple IsolationGroups to be assigned to the same zone.
+	// +optional
+	NodeAffinityValues []string `json:"nodeAffinityValues,omitempty"`
+
+	// NumInstances defines the number of instances.
 	NumInstances int32 `json:"numInstances"`
 
 	// StorageClassName is the name of the StorageClass to use for this isolation

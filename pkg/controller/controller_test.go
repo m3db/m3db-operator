@@ -366,3 +366,70 @@ func TestPodEventLoop(t *testing.T) {
 	case <-doneC:
 	}
 }
+
+func TestValidateIsolationGroups(t *testing.T) {
+	tests := []struct {
+		groups   []myspec.IsolationGroup
+		rf       int32
+		doExpErr bool
+		expErr   error
+	}{
+		{
+			rf: 2,
+			groups: []myspec.IsolationGroup{
+				{Name: "foo"},
+				{Name: "bar"},
+			},
+		},
+		{
+			rf: 3,
+			groups: []myspec.IsolationGroup{
+				{Name: "foo"},
+				{Name: "bar"},
+			},
+			expErr:   errInvalidNumIsoGroups,
+			doExpErr: true,
+		},
+		{
+			rf: 2,
+			groups: []myspec.IsolationGroup{
+				{Name: "foo"},
+				{Name: "foo"},
+			},
+			doExpErr: true,
+		},
+		{
+			rf: 1,
+			groups: []myspec.IsolationGroup{
+				{
+					Name:            "foo",
+					NodeAffinityKey: "key",
+				},
+			},
+			expErr:   errEmptyNodeAffinityVals,
+			doExpErr: true,
+		},
+		{
+			rf: 1,
+			groups: []myspec.IsolationGroup{
+				{
+					Name:               "foo",
+					NodeAffinityKey:    "key",
+					NodeAffinityValues: []string{"v1"},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		cluster := newM3DBCluster("ns", "cluster")
+		cluster.Spec.ReplicationFactor = test.rf
+		cluster.Spec.IsolationGroups = test.groups
+		err := validateIsolationGroups(cluster)
+		if test.doExpErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+}
