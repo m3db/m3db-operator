@@ -192,6 +192,7 @@ type ClusterSpec struct {
 
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
 	// default configmap with template variables for etcd endpoints will be used.
+	// See "Configuring M3DB" in the docs for more.
 	// +optional
 	ConfigMapName *string `json:"configMapName,omitempty" yaml:"configMapName"`
 
