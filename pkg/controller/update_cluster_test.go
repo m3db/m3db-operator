@@ -23,6 +23,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"testing"
@@ -438,7 +439,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 
 	pods := podsForClusterSet(cluster, set, 3)
 	deps := newTestDeps(t, &testOpts{
-		kubeObjects: append(objectsFromPods(pods...)),
+		kubeObjects: objectsFromPods(pods...),
 		crdObjects:  []runtime.Object{cluster},
 	})
 	placementMock := deps.placementClient
@@ -561,10 +562,40 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 	require.NotNil(t, clusterReturn)
 }
 
+type placementInstancesMatcher struct {
+	instanceNames []string
+}
+
+func (p placementInstancesMatcher) Matches(x interface{}) bool {
+	pl := x.(*admin.PlacementInitRequest)
+	plInsts := []string{}
+	for _, inst := range pl.Instances {
+		plInsts = append(plInsts, inst.Id)
+	}
+
+	sort.Strings(p.instanceNames)
+	sort.Strings(plInsts)
+
+	fmt.Println(plInsts)
+	fmt.Println(p.instanceNames)
+
+	return reflect.DeepEqual(p.instanceNames, plInsts)
+}
+
+func (p placementInstancesMatcher) String() string {
+	return fmt.Sprintf("matches whether instance names are equal to %v", p.instanceNames)
+}
+
 func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+	set.Status.ReadyReplicas = 3
+	pods := podsForClusterSet(cluster, set, 3)
+
 	deps := newTestDeps(t, &testOpts{
-		crdObjects: []runtime.Object{cluster},
+		kubeObjects: objectsFromPods(pods...),
+		crdObjects:  []runtime.Object{cluster},
 	})
 
 	placementMock := deps.placementClient
@@ -572,8 +603,21 @@ func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 
 	controller := deps.newController()
 
+	idProvider := deps.idProvider
+	expInsts := []string{
+		`{"name":"cluster-zones-rep0-0","uid":"0"}`,
+		`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+		`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+	}
+	for _, pod := range pods {
+		pod := pod
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
+	}
+	matcher := placementInstancesMatcher{
+		instanceNames: expInsts,
+	}
 	placementMock.EXPECT().Get().Return(nil, pkgerrors.Wrap(m3admin.ErrNotFound, "foo"))
-	placementMock.EXPECT().Init(gomock.Any())
+	placementMock.EXPECT().Init(matcher)
 
 	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
 

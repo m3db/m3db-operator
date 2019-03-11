@@ -97,9 +97,24 @@ func TestGetChildStatefulSets(t *testing.T) {
 		{
 			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
 			sets: []*metav1.ObjectMeta{
-				newMeta("set1", map[string]string{"foo": "bar"}),
+				newMeta("set1", map[string]string{
+					"foo": "bar",
+					"operator.m3db.io/app":     "m3db",
+					"operator.m3db.io/cluster": "cluster1",
+				}),
 			},
 			expChildren: []string{"set1"},
+		},
+		{
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("set1", map[string]string{
+					"foo": "bar",
+					"operator.m3db.io/app":     "m3db",
+					"operator.m3db.io/cluster": "cluster2",
+				}),
+			},
+			expChildren: []string{},
 		},
 	}
 

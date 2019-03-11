@@ -229,8 +229,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 			Labels: objLabels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         HeadlessServiceName(clusterName),
-			PodManagementPolicy: "Parallel",
+			ServiceName: HeadlessServiceName(clusterName),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: objLabels,
 			},

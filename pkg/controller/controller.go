@@ -564,7 +564,8 @@ func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placemen
 // This func is currently read-only, but if we end up modifying statefulsets
 // we'll have to deepcopy.
 func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
-	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(klabels.Set(cluster.Labels).AsSelector())
+	labels := labels.BaseLabels(cluster)
+	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(klabels.Set(labels).AsSelector())
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error listing statefulsets: %v", err))
 		return nil, err
