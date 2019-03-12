@@ -22,6 +22,7 @@ package k8sops
 
 import (
 	"archive/zip"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -38,11 +39,15 @@ func registerValidConfigMap() error {
 	zw := zip.NewWriter(sw)
 
 	// Build a zip fs containing our test config map
-	fw, err := zw.Create("default-config.yaml")
+	fw, err := zw.Create("default-config.tmpl")
 	if err != nil {
 		return err
 	}
-	_, err = fw.Write([]byte("my_config_data"))
+	data, err := ioutil.ReadFile("../../assets/default-config.tmpl")
+	if err != nil {
+		return err
+	}
+	_, err = fw.Write(data)
 	if err != nil {
 		return err
 	}
@@ -63,10 +68,17 @@ func TestGenerateDefaultConfigMap(t *testing.T) {
 	cm, err := GenerateDefaultConfigMap(cluster)
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
-	assert.Equal(t, "my_config_data", cm.Data["m3.yml"])
 	assert.Equal(t, "m3db-config-map-m3db-cluster", cm.Name)
 	assert.Equal(t, "m3db-cluster", cm.OwnerReferences[0].Name)
 
+	data := string(cm.Data["m3.yml"])
+	assert.Contains(t, data, `env: "foo/m3db-cluster"`)
+	assert.Contains(t, data, `- "ep0"`)
+	assert.Contains(t, data, `- "ep1"`)
+}
+
+func TestGenerateDefaultConfigMap_Err(t *testing.T) {
+	cluster := getFixture("testM3DBCluster.yaml", t)
 	// Build a zip FS without our default config map and ensure error.
 	sw := &strings.Builder{}
 	zw := zip.NewWriter(sw)
@@ -117,4 +129,8 @@ func TestBuildConfigMapComponents(t *testing.T) {
 	cluster.Spec.ConfigMapName = pointer.StringPtr("")
 	_, _, err = buildConfigMapComponents(cluster)
 	assert.Equal(t, errEmptyConfigMapName, err)
+}
+
+func TestConfigMapTemplate(t *testing.T) {
+
 }

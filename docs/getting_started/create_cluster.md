@@ -42,6 +42,10 @@ spec:
   image: quay.io/m3db/m3dbnode:latest
   replicationFactor: 3
   numberOfShards: 256
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
   isolationGroups:
     - name: us-east1-b
       numInstances: 1
@@ -116,6 +120,10 @@ spec:
       numInstances: 1
     - name: us-east1-d
       numInstances: 1
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
   podIdentityConfig:
     sources:
       # - NodeName

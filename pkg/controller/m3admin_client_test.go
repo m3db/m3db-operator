@@ -39,31 +39,34 @@ import (
 )
 
 func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
-	m := newMultiAdminClient(cl, zap.NewNop())
+	m := newMultiAdminClient(nil, zap.NewNop())
 	m.clusterKeyFn = func(cl *myspec.M3DBCluster, url string) string {
 		return cl.Name
 	}
-	m.clusterURLFn = func(_ *myspec.M3DBCluster) string {
+	m.clusterURLFn = func(*myspec.M3DBCluster) string {
 		return url
+	}
+	m.adminClientFn = func(...m3admin.Option) m3admin.Client {
+		return cl
 	}
 	return m
 }
 
 func TestClusterKey(t *testing.T) {
-	cluster := newM3DBCluster("a")
+	cluster := newM3DBCluster("ns", "a")
 	key := clusterKey(cluster, "clustera.local")
-	assert.Equal(t, "a/clustera.local", key)
+	assert.Equal(t, "ns/a/clustera.local", key)
 }
 
 func TestClusterURL(t *testing.T) {
-	cluster := newM3DBCluster("a")
+	cluster := newM3DBCluster("ns", "a")
 	cluster.Namespace = "foo"
 	url := clusterURL(cluster)
 	assert.Equal(t, "http://m3coordinator-a.foo:7201", url)
 }
 
 func TestClusterURLProxy(t *testing.T) {
-	cluster := newM3DBCluster("a")
+	cluster := newM3DBCluster("ns", "a")
 	cluster.Namespace = "foo"
 
 	url := clusterURLProxy(cluster)
@@ -74,9 +77,7 @@ func TestNewMultiAdminClient(t *testing.T) {
 	mc := gomock.NewController(t)
 	defer mc.Finish()
 
-	adminClient := m3admin.NewMockClient(mc)
-
-	m := newMultiAdminClient(adminClient, zap.NewNop())
+	m := newMultiAdminClient(nil, zap.NewNop())
 	assert.NotNil(t, m)
 
 	// Ensure no necessary fields are nil.
@@ -87,17 +88,18 @@ func TestNewMultiAdminClient(t *testing.T) {
 		m.plClientFn,
 		m.clusterKeyFn,
 		m.clusterURLFn,
-		m.adminClient,
+		m.adminClientFn,
 		m.logger,
 	} {
 		assert.NotNil(t, v)
 	}
 }
 
-func newM3DBCluster(name string) *myspec.M3DBCluster {
+func newM3DBCluster(ns, name string) *myspec.M3DBCluster {
 	return &myspec.M3DBCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: ns,
 		},
 	}
 }
@@ -114,9 +116,9 @@ func TestNamespaceClientForCluster(t *testing.T) {
 		return nsClient, nil
 	}
 
-	clusterA := newM3DBCluster("a")
-	clusterB := newM3DBCluster("b")
-	clusterC := newM3DBCluster("c")
+	clusterA := newM3DBCluster("ns", "a")
+	clusterB := newM3DBCluster("ns", "b")
+	clusterC := newM3DBCluster("ns", "c")
 	testErr := errors.New("test")
 
 	cl := m.namespaceClientForCluster(clusterA)
@@ -146,9 +148,9 @@ func TestPlacementClientForCluster(t *testing.T) {
 		return plClient, nil
 	}
 
-	clusterA := newM3DBCluster("a")
-	clusterB := newM3DBCluster("b")
-	clusterC := newM3DBCluster("c")
+	clusterA := newM3DBCluster("ns", "a")
+	clusterB := newM3DBCluster("ns", "b")
+	clusterC := newM3DBCluster("ns", "c")
 	testErr := errors.New("test")
 
 	cl := m.placementClientForCluster(clusterA)

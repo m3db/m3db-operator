@@ -74,6 +74,11 @@ spec:
   image: quay.io/m3db/m3dbnode:latest
   replicationFactor: 3
   numberOfShards: 256
+  # Default endpoints if using provided etcd manifests.
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
   isolationGroups:
     - name: <zone-x>
       numInstances: 1

@@ -184,8 +184,15 @@ type ClusterSpec struct {
 	// Namespaces specifies the namespaces this cluster will hold.
 	Namespaces []Namespace `json:"namespaces,omitempty" yaml:"namespaces"`
 
+	// EtcdEndpoints defines the etcd endpoints to use for service discovery. Must
+	// be set if no custom configmap is defined. If set, etcd endpoints will be
+	// templated in to the default configmap template.
+	// +optional
+	EtcdEndpoints []string `json:"etcdEndpoints,omitempty"`
+
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
-	// sane default will be used.
+	// default configmap with template variables for etcd endpoints will be used.
+	// See "Configuring M3DB" in the docs for more.
 	// +optional
 	ConfigMapName *string `json:"configMapName,omitempty" yaml:"configMapName"`
 

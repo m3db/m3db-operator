@@ -30,7 +30,7 @@ function with_retries() {
   done
 }
 
-sed -i 's#quay.io/m3db/m3db-operator:latest#m3db-operator:local#' manifests/operator.yaml
+sed -i 's#quay.io/m3db/m3db-operator:latest#m3db-operator:local#' bundle.yaml
 
 # TEMP until full e2e suite works
 exit

@@ -38,11 +38,12 @@ import (
 func devNullRetry() *retryhttp.Client {
 	retry := retryhttp.NewClient()
 	retry.Logger = zap.NewStdLog(zap.NewNop())
+	retry.RetryMax = 0
 	return retry
 }
 
-func newTestClient() Client {
-	return NewClient(WithHTTPClient(devNullRetry()))
+func newTestClient(opts ...Option) Client {
+	return NewClient(append([]Option{WithHTTPClient(devNullRetry())}, opts...)...)
 }
 
 func TestNewClient(t *testing.T) {
@@ -75,6 +76,33 @@ func TestClient_DoHTTPRequest(t *testing.T) {
 	cl = NewClient(WithLogger(l), WithHTTPClient(devNullRetry()))
 	resp, err = cl.DoHTTPRequest("GET", s.URL, nil)
 	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, []byte("hello"), readAll(resp.Body))
+}
+
+func TestClient_DoHTTPRequest_Header(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(m3EnvironmentHeader) != "foo-env" {
+			w.WriteHeader(500)
+			return
+		}
+		w.Write([]byte("hello"))
+	}))
+	defer s.Close()
+
+	readAll := func(r io.Reader) []byte {
+		data, err := ioutil.ReadAll(r)
+		assert.NoError(t, err)
+		return data
+	}
+
+	cl := newTestClient(WithEnvironment("fooz-env"))
+	_, err := cl.DoHTTPRequest("GET", s.URL, nil)
+	assert.Error(t, err)
+
+	cl = newTestClient(WithEnvironment("foo-env"))
+	resp, err := cl.DoHTTPRequest("GET", s.URL, nil)
+	require.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 	assert.Equal(t, []byte("hello"), readAll(resp.Body))
 }

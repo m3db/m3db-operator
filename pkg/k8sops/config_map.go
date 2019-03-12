@@ -21,7 +21,9 @@
 package k8sops
 
 import (
+	"bytes"
 	"errors"
+	"text/template"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
@@ -32,13 +34,19 @@ import (
 )
 
 const (
-	defaultConfigMapAssetPath = "/default-config.yaml"
+	defaultConfigMapTemplateAssetPath = "/default-config.tmpl"
 )
 
 var (
 	errConfigMapNonNil    = errors.New("cannot generate configmap when cluster specified one")
 	errEmptyConfigMapName = errors.New("configMap name cannot be empty if non-nil")
+	errEmptyEtcdEndpoits  = errors.New("etcd endpoints cannot be empty with default configmap")
 )
+
+type configData struct {
+	Env       string
+	Endpoints []string
+}
 
 // GenerateDefaultConfigMap creates a ConfigMap for the clusters with the
 // default config.
@@ -47,15 +55,32 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 		return nil, errConfigMapNonNil
 	}
 
+	if len(cluster.Spec.EtcdEndpoints) == 0 {
+		return nil, errEmptyEtcdEndpoits
+	}
+
 	hfs, err := fs.New()
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := fs.ReadFile(hfs, defaultConfigMapAssetPath)
+	templateData, err := fs.ReadFile(hfs, defaultConfigMapTemplateAssetPath)
 	if err != nil {
 		return nil, err
 	}
+
+	tmpl, err := template.New("config").Parse(string(templateData))
+	if err != nil {
+		return nil, err
+	}
+
+	config := &configData{
+		Env:       DefaultM3ClusterEnvironmentName(cluster),
+		Endpoints: cluster.Spec.EtcdEndpoints,
+	}
+
+	buf := &bytes.Buffer{}
+	tmpl.Execute(buf, &config)
 
 	ownerRef := GenerateOwnerRef(cluster)
 
@@ -65,7 +90,7 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 			OwnerReferences: []metav1.OwnerReference{*ownerRef},
 		},
 		Data: map[string]string{
-			_configurationFileName: string(data),
+			_configurationFileName: buf.String(),
 		},
 	}
 
@@ -74,6 +99,14 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 
 func defaultConfigMapName(clusterName string) string {
 	return "m3db-config-map-" + clusterName
+}
+
+// DefaultM3ClusterEnvironmentName returns the environment under which cluster
+// topology and runtime configuration will be stored. This ensures that multiple
+// m3db clusters won't conflict with each other when sharing a backing etcd
+// store.
+func DefaultM3ClusterEnvironmentName(cluster *myspec.M3DBCluster) string {
+	return cluster.Namespace + "/" + cluster.Name
 }
 
 // Build the volume for the pod and the volumeMount for the container containing

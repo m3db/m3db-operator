@@ -44,7 +44,7 @@ func registerValidConfigMap() error {
 	zw := zip.NewWriter(sw)
 
 	// Build a zip fs containing our test config map
-	fw, err := zw.Create("default-config.yaml")
+	fw, err := zw.Create("default-config.tmpl")
 	if err != nil {
 		return err
 	}

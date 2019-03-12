@@ -50,13 +50,14 @@ type multiAdminClient struct {
 	clusterKeyFn func(*myspec.M3DBCluster, string) string
 	clusterURLFn func(*myspec.M3DBCluster) string
 
-	adminClient m3admin.Client
-	logger      *zap.Logger
+	adminClientFn func(...m3admin.Option) m3admin.Client
+	adminOpts     []m3admin.Option
+	logger        *zap.Logger
 }
 
 // clusterKey returns a map key for a given cluster.
 func clusterKey(cluster *myspec.M3DBCluster, url string) string {
-	return cluster.Name + "/" + url
+	return cluster.Namespace + "/" + cluster.Name + "/" + url
 }
 
 // clusterURL returns the URL to hit
@@ -65,6 +66,10 @@ func clusterURL(cluster *myspec.M3DBCluster) string {
 	urlFmt := "http://%s.%s:%d"
 	url := fmt.Sprintf(urlFmt, serviceName, cluster.Namespace, k8sops.PortM3Coordinator)
 	return url
+}
+
+func newAdminClient(opts ...m3admin.Option) m3admin.Client {
+	return m3admin.NewClient(opts...)
 }
 
 // clusterURLProxy returns a URL for communicating with a cluster via an
@@ -76,17 +81,24 @@ func clusterURLProxy(cluster *myspec.M3DBCluster) string {
 	return url
 }
 
-func newMultiAdminClient(m3adminClient m3admin.Client, logger *zap.Logger) *multiAdminClient {
+func newMultiAdminClient(adminOpts []m3admin.Option, logger *zap.Logger) *multiAdminClient {
 	return &multiAdminClient{
-		nsClients:    make(map[string]namespace.Client),
-		plClients:    make(map[string]placement.Client),
-		nsClientFn:   namespace.NewClient,
-		plClientFn:   placement.NewClient,
-		clusterKeyFn: clusterKey,
-		clusterURLFn: clusterURL,
-		adminClient:  m3adminClient,
-		logger:       logger,
+		nsClients:     make(map[string]namespace.Client),
+		plClients:     make(map[string]placement.Client),
+		nsClientFn:    namespace.NewClient,
+		plClientFn:    placement.NewClient,
+		clusterKeyFn:  clusterKey,
+		clusterURLFn:  clusterURL,
+		adminClientFn: newAdminClient,
+		adminOpts:     adminOpts,
+		logger:        logger,
 	}
+}
+
+func (m *multiAdminClient) adminClientForCluster(cluster *myspec.M3DBCluster) m3admin.Client {
+	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
+	opts := append(m.adminOpts, m3admin.WithEnvironment(env))
+	return m.adminClientFn(opts...)
 }
 
 func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster) namespace.Client {
@@ -100,8 +112,9 @@ func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster
 		return client
 	}
 
+	adminClient := m.adminClientForCluster(cluster)
 	client, err := m.nsClientFn(
-		namespace.WithClient(m.adminClient),
+		namespace.WithClient(adminClient),
 		namespace.WithLogger(m.logger),
 		namespace.WithURL(url),
 	)
@@ -133,8 +146,9 @@ func (m *multiAdminClient) placementClientForCluster(cluster *myspec.M3DBCluster
 		return client
 	}
 
+	adminClient := m.adminClientForCluster(cluster)
 	client, err := m.plClientFn(
-		placement.WithClient(m.adminClient),
+		placement.WithClient(adminClient),
 		placement.WithLogger(m.logger),
 		placement.WithURL(url),
 	)

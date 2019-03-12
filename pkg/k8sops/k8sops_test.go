@@ -41,7 +41,8 @@ func newFakeK8sops() (K8sops, error) {
 	logger := zap.NewNop()
 	kubeCli := kubeFake.NewSimpleClientset(&appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "m3db-cluster-rep0",
+			Namespace: "foo",
+			Name:      "m3db-cluster-rep0",
 		},
 	})
 	kubeExt := kubeExtFake.NewSimpleClientset()
