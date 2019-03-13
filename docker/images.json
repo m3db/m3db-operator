@@ -1,0 +1,7 @@
+{
+  "images": {
+    "m3db-operator": {
+      "dockerfile": "Dockerfile"
+    }
+  }
+}

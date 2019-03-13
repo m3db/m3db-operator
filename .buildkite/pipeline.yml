@@ -18,3 +18,12 @@ steps:
         config: .buildkite/docker-compose.yml
         workdir: /go/src/github.com/m3db/m3db-operator
     <<: *common
+  - name: "Check for :docker: build"
+    command: ".ci/docker/check_do_docker.sh"
+    agents:
+      queue: builders
+    timeout_in_minutes: 10
+    retry:
+      automatic:
+        limit: 1
+      manual: true
