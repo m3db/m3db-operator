@@ -238,9 +238,10 @@ build-docker: ## Build m3db-operator docker image with go binary
 	@./build/build-docker.sh
 
 .PHONE: helm-bundle
-helm-bundle:
+helm-bundle: install-codegen-tools
 	@echo "--- $@"
 	@helm template helm/m3db-operator > bundle.yaml
+	@PATH=$(retool_bin_path):$(PATH) kubeval -v=1.12.0 bundle.yaml
 
 .PHONY: publish-helm-charts
 publish-helm-charts: ## pushes a new version of the helm chart
