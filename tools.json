@@ -27,6 +27,10 @@
     {
       "Repository": "github.com/rakyll/statik",
       "Commit": "79258177a57a85a8ab2eca7ce0936aad80307f4e"
+    },
+    {
+      "Repository": "github.com/garethr/kubeval",
+      "Commit": "c44f5193dc944abc00e60a1b041ce48b0ae03dfb"
     }
   ],
   "RetoolVersion": "1.3.7"
