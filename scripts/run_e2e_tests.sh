@@ -46,7 +46,7 @@ function main() {
 
   trap cleanup EXIT
 
-  kubectl proxy &>/dev/null &
+  kubectl proxy &
   go clean -testcache
   go test -v -tags integration ./integration/e2e
 }
