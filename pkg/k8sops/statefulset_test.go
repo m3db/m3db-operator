@@ -23,6 +23,8 @@ package k8sops
 import (
 	"testing"
 
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -76,4 +78,48 @@ func TestGenerateDownwardAPIVolumePath(t *testing.T) {
 	}
 
 	assert.Equal(t, exp, vm)
+}
+
+func TestGenerateStatefulSetAffinity(t *testing.T) {
+	tests := []struct {
+		isoGroup  myspec.IsolationGroup
+		expKey    string
+		expValues []string
+	}{
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name: "group1",
+			},
+			expKey:    FailureDomainZoneKey,
+			expValues: []string{"group1"},
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name:            "group2",
+				NodeAffinityKey: "foobar",
+			},
+			expKey:    "foobar",
+			expValues: []string{"group2"},
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name:               "group3",
+				NodeAffinityKey:    "foobar",
+				NodeAffinityValues: []string{"baz", "bar"},
+			},
+			expKey:    "foobar",
+			expValues: []string{"baz", "bar"},
+		},
+	}
+
+	for _, test := range tests {
+		affinity := GenerateStatefulSetAffinity(test.isoGroup)
+		terms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Len(t, terms, 1)
+		exprs := terms[0].MatchExpressions
+		assert.Len(t, exprs, 1)
+		expr := exprs[0]
+		assert.Equal(t, test.expKey, expr.Key)
+		assert.Equal(t, test.expValues, expr.Values)
+	}
 }

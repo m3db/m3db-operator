@@ -2,10 +2,6 @@ PROJECT_NAME := m3db-operator
 OUTPUT_DIR   := out
 DOCS_OUT_DIR := site
 DEP_VERSION  := v0.5.0
-BUILD_SETTINGS := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-ifeq ($(shell uname), Darwin)
-	BUILD_SETTINGS := GOOS=darwin GOARCH=amd64 CGO_ENABLED=0
-endif
 .DEFAULT_GOAL := all
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -59,7 +55,9 @@ mocks_rules_dir      := generated/mocks
 auto_gen             := scripts/auto-gen.sh
 GOMETALINT_VERSION   := v2.0.5
 
-LINUX_AMD64_ENV := GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+LINUX_AMD64_ENV 					:= GOOS=linux GOARCH=amd64 CGO_ENABLED=0
+GO_BUILD_LDFLAGS_CMD      := $(abspath ./.ci/go-build-ldflags.sh) $(package_root)
+GO_BUILD_LDFLAGS          := $(shell $(GO_BUILD_LDFLAGS_CMD))
 
 CMDS :=        		\
 	docgen       		\
@@ -75,9 +73,15 @@ define CMD_RULES
 .PHONY: $(CMD)
 $(CMD)-no-deps:
 	@echo "--- $(CMD)"
-	$(BUILD_SETTINGS) go build -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
+	go build -ldflags '$(GO_BUILD_LDFLAGS)' -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
 
 $(CMD): dep-ensure $(CMD)-no-deps
+
+$(CMD)-linux-amd64-no-deps:
+	$(LINUX_AMD64_ENV) make $(CMD)-no-deps
+
+$(CMD)-linux-amd64:
+	$(LINUX_AMD64_ENV) make $(CMD)
 
 endef
 

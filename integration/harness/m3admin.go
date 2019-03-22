@@ -27,6 +27,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 )
 
@@ -37,8 +38,14 @@ func (h *Harness) NewPlacementClient(cluster *myspec.M3DBCluster) (placement.Cli
 		return nil, err
 	}
 
+	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
+	adminCl := m3admin.NewClient(
+		m3admin.WithEnvironment(env),
+	)
 	url := fmt.Sprintf(proxyBaseURLFmt, h.Namespace, svc.Name, "7201")
+	h.Logger.Sugar().Infof("calling url '%s' with env '%s'", url, env)
 	cl, err := placement.NewClient(
+		placement.WithClient(adminCl),
 		placement.WithURL(url),
 	)
 	if err != nil {

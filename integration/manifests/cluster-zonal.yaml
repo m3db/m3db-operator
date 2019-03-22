@@ -1,0 +1,28 @@
+apiVersion: operator.m3db.io/v1alpha1
+kind: M3DBCluster
+metadata:
+  name: m3db-cluster-test-zonal-1
+spec:
+  image: quay.io/m3db/m3dbnode:latest
+  replicationFactor: 3
+  numberOfShards: 256
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
+  isolationGroups:
+  - name: rep0
+    numInstances: 1
+    nodeAffinityValues:
+    - us-east1-b
+  - name: rep1
+    numInstances: 1
+    nodeAffinityValues:
+    - us-east1-b
+  - name: rep2
+    numInstances: 1
+    nodeAffinityValues:
+    - us-east1-b
+  namespaces:
+  - name: metrics-10s:2d
+    preset: 10s:2d

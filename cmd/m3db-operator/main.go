@@ -23,10 +23,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -37,6 +35,8 @@ import (
 	"github.com/m3db/m3db-operator/pkg/controller"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
+
+	"github.com/m3db/m3x/instrument"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubeinformers "k8s.io/client-go/informers"
@@ -57,7 +57,6 @@ const (
 )
 
 var (
-	_appVersion   = "0.0.1"
 	_kubeCfgFile  string
 	_masterURL    string
 	_operatorName = "m3db_operator"
@@ -98,10 +97,6 @@ func main() {
 
 	defer logger.Sync()
 
-	logger.Info("Go", zap.Any("VERSION", runtime.Version()))
-	logger.Info("Go", zap.Any("OS", runtime.GOOS), zap.Any("ARCH", runtime.GOARCH))
-	logger.Info("Operator", zap.String("version", _appVersion))
-
 	// Setup telemetry
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
@@ -111,20 +106,39 @@ func main() {
 		"environment": env,
 	}
 
-	r := promreporter.NewReporter(promreporter.Options{})
+	config := promreporter.Configuration{
+		HandlerPath:   _metricsPath,
+		ListenAddress: _metricsPort,
+		TimerType:     "summary",
+	}
+
+	r, err := config.NewReporter(promreporter.ConfigurationOptions{
+		OnError: func(err error) {
+			if err != nil {
+				logger.Error("prometheus reporter error", zap.Error(err))
+			}
+		},
+	})
+	if err != nil {
+		logger.Fatal("error constructing prom reporter", zap.Error(err))
+	}
+
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
-		Prefix:         _operatorName,
-		Tags:           tags,
-		CachedReporter: r,
-		Separator:      promreporter.DefaultSeparator,
+		Prefix:          _operatorName,
+		Tags:            tags,
+		CachedReporter:  r,
+		SanitizeOptions: &promreporter.DefaultSanitizerOpts,
+		Separator:       promreporter.DefaultSeparator,
 	}, 1*time.Second)
 	defer closer.Close()
 
-	// Serve the metrics
-	go func() {
-		http.Handle(_metricsPath, r.HTTPHandler())
-		http.ListenAndServe(_metricsPort, nil)
-	}()
+	iopts := instrument.NewOptions().
+		SetMetricsScope(scope)
+	buildReporter := instrument.NewBuildReporter(iopts)
+	if err := buildReporter.Start(); err != nil {
+		logger.Fatal("unable to start build reporter", zap.Error(err))
+	}
+	defer buildReporter.Stop()
 
 	// Create k8s clients
 	crdClient, kubeClient, kubeExt, err := newKubeClient(logger, _masterURL, _kubeCfgFile)

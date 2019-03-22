@@ -10,14 +10,6 @@ common: &common
     manual: true
 
 steps:
-  - name: Unit
-    command: .buildkite/test.sh
-    plugins:
-      docker-compose#v2.5.1:
-        run: app
-        config: .buildkite/docker-compose.yml
-        workdir: /go/src/github.com/m3db/m3db-operator
-    <<: *common
   - name: "Check for :docker: build"
     command: ".ci/docker/check_do_docker.sh"
     agents:
@@ -27,3 +19,11 @@ steps:
       automatic:
         limit: 1
       manual: true
+  - name: Unit
+    command: .buildkite/test.sh
+    plugins:
+      docker-compose#v2.5.1:
+        run: app
+        config: .buildkite/docker-compose.yml
+        workdir: /go/src/github.com/m3db/m3db-operator
+    <<: *common

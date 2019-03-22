@@ -23,6 +23,7 @@
 package e2e
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -40,10 +41,10 @@ const (
 	placementCheckTimeout  = 5 * time.Minute
 )
 
-func TestCreateCluster(t *testing.T) {
+func TestCreateCluster_Regional(t *testing.T) {
 	h := harness.Global
 
-	cluster, err := h.CreateM3DBCluster("cluster-1.yaml")
+	cluster, err := h.CreateM3DBCluster("cluster-regional.yaml")
 	require.NoError(t, err)
 
 	cl, err := h.NewPlacementClient(cluster)
@@ -61,15 +62,59 @@ func TestCreateCluster(t *testing.T) {
 			return false, nil
 		}
 
+		isoGroups := []string{}
 		for _, inst := range pl.Instances() {
 			if !inst.IsAvailable() {
 				h.Logger.Info("waiting for instance to be available", zap.String("instance", inst.ID()))
 				return false, nil
 			}
+			isoGroups = append(isoGroups, inst.IsolationGroup())
 		}
+
+		sort.Strings(isoGroups)
+		assert.Equal(t, []string{"us-east1-b", "us-east1-c", "us-east1-d"}, isoGroups)
 
 		return true, nil
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
+}
+
+func TestCreateCluster_Zonal(t *testing.T) {
+	h := harness.Global
+
+	cluster, err := h.CreateM3DBCluster("cluster-zonal.yaml")
+	require.NoError(t, err)
+
+	cl, err := h.NewPlacementClient(cluster)
+	require.NoError(t, err)
+
+	err = wait.Poll(placementCheckInterval, placementCheckTimeout, func() (bool, error) {
+		pl, err := cl.Get()
+		if err != nil {
+			h.Logger.Warn("error fetching placement", zap.Error(err))
+			return false, nil
+		}
+
+		if pl.NumInstances() != 3 {
+			h.Logger.Info("waiting for 3 instances to exist")
+			return false, nil
+		}
+
+		isoGroups := []string{}
+		for _, inst := range pl.Instances() {
+			if !inst.IsAvailable() {
+				h.Logger.Info("waiting for instance to be available", zap.String("instance", inst.ID()))
+				return false, nil
+			}
+			isoGroups = append(isoGroups, inst.IsolationGroup())
+		}
+
+		sort.Strings(isoGroups)
+		assert.Equal(t, []string{"rep0", "rep1", "rep2"}, isoGroups)
+
+		return true, nil
+	})
+
+	require.NoError(t, err)
 }
