@@ -132,6 +132,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 					Labels: labels,
 				},
 				Spec: v1.PodSpec{
+					SecurityContext: &v1.PodSecurityContext{
+						FSGroup: pointer.Int64Ptr(10),
+					},
 					Affinity: &v1.Affinity{
 						NodeAffinity: &v1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -151,17 +154,12 @@ func TestGenerateStatefulSet(t *testing.T) {
 					},
 					Containers: []v1.Container{
 						{
-							Name: ssName,
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &[]bool{true}[0],
-								Capabilities: &v1.Capabilities{
-									Add: []v1.Capability{
-										"IPC_LOCK",
-									},
-								},
-							},
+							Name:           ssName,
 							LivenessProbe:  health,
 							ReadinessProbe: readiness,
+							SecurityContext: &v1.SecurityContext{
+								RunAsUser: pointer.Int64Ptr(20),
+							},
 							Command: []string{
 								"m3dbnode",
 							},

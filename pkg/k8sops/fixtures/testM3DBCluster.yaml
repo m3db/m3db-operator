@@ -25,6 +25,10 @@ spec:
     limits:
       memory: 2Gi
       cpu: '2'
+  podSecurityContext:
+    fsGroup: 10
+  securityContext:
+    runAsUser: 20
   etcdEndpoints:
     - ep0
     - ep1

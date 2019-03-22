@@ -48,6 +48,8 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | podIdentityConfig | PodIdentityConfig sets the configuration for pod identity. If unset only pod name and UID will be used. | *PodIdentityConfig | false |
 | containerResources | Resources defines memory / cpu constraints for each container in the cluster. | [corev1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#resourcerequirements-v1-core) | false |
 | dataDirVolumeClaimTemplate | DataDirVolumeClaimTemplate is the volume claim template for an M3DB instance's data. It claims PersistentVolumes for cluster storage, volumes are dynamically provisioned by when the StorageClass is defined. | *[corev1.PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#persistentvolumeclaim-v1-core) | false |
+| podSecurityContext | PodSecurityContext allows the user to specify an optional security context for pods. | *corev1.PodSecurityContext | false |
+| securityContext | SecurityContext allows the user to specify a container-level security context. | *corev1.SecurityContext | false |
 | labels | Labels sets the base labels that will be applied to resources created by the cluster. // TODO(schallert): design doc on labeling scheme. | map[string]string | false |
 
 [Back to TOC](#table-of-contents)

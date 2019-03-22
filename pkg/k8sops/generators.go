@@ -32,7 +32,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/kubernetes/utils/pointer"
 )
@@ -132,37 +131,8 @@ func GenerateStatefulSet(
 
 	clusterSpec := cluster.Spec
 
-	// TODO(schallert): we're currently using the health of the coordinator for
-	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
-	// to the dbnode's health endpoint once fixed.
-	probeHealth := &v1.Probe{
-		TimeoutSeconds:      _probeTimeoutSeconds,
-		InitialDelaySeconds: _probeInitialDelaySeconds,
-		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(_probePort),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
-			},
-		},
-	}
-
-	probeReady := &v1.Probe{
-		TimeoutSeconds:      _probeTimeoutSeconds,
-		InitialDelaySeconds: _probeInitialDelaySeconds,
-		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
-			Exec: &v1.ExecAction{
-				Command: []string{_healthFileName},
-			},
-		},
-	}
-
 	statefulSet := NewBaseStatefulSet(ssName, isolationGroupName, cluster, instanceAmount)
 	m3dbContainer := &statefulSet.Spec.Template.Spec.Containers[0]
-	m3dbContainer.LivenessProbe = probeHealth
-	m3dbContainer.ReadinessProbe = probeReady
 	m3dbContainer.Resources = clusterSpec.ContainerResources
 	m3dbContainer.Ports = generateContainerPorts()
 	statefulSet.Spec.Template.Spec.Affinity = GenerateStatefulSetAffinity(isolationGroup)
