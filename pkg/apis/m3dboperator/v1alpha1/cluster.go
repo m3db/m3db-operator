@@ -212,6 +212,14 @@ type ClusterSpec struct {
 	// +optional
 	DataDirVolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"dataDirVolumeClaimTemplate,omitempty" yaml:"dataDirVolumeClaimTemplate"`
 
+	// PodSecurityContext allows the user to specify an optional security context
+	// for pods.
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// SecurityContext allows the user to specify a container-level security
+	// context.
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels"`

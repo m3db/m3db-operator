@@ -14,6 +14,10 @@ spec:
       labels:
         name: {{ .Values.operator.name }}
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
       containers:
         - name: {{ .Values.operator.name }}
           image: {{ .Values.image.repository}}:{{ .Values.image.tag }}

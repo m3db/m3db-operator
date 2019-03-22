@@ -193,20 +193,6 @@ func (k *k8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *a
 }
 
 // NewBaseProbe returns a probe configured for default ports.
-func NewBaseProbe() *v1.Probe {
-	return &v1.Probe{
-		TimeoutSeconds:      _probeTimeoutSeconds,
-		InitialDelaySeconds: _probeInitialDelaySeconds,
-		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(_probePort),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
-			},
-		},
-	}
-}
 
 // NewBaseStatefulSet returns a base configured stateful set.
 func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBCluster, instanceCount int32) *appsv1.StatefulSet {
@@ -221,6 +207,33 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 	objLabels[labels.Component] = labels.ComponentM3DBNode
 	for k, v := range cluster.Spec.Labels {
 		objLabels[k] = v
+	}
+
+	// TODO(schallert): we're currently using the health of the coordinator for
+	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
+	// to the dbnode's health endpoint once fixed.
+	probeHealth := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(_probePort),
+				Path:   _probePathHealth,
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+	}
+
+	probeReady := &v1.Probe{
+		TimeoutSeconds:      _probeTimeoutSeconds,
+		InitialDelaySeconds: _probeInitialDelaySeconds,
+		FailureThreshold:    _probeFailureThreshold,
+		Handler: v1.Handler{
+			Exec: &v1.ExecAction{
+				Command: []string{_healthFileName},
+			},
+		},
 	}
 
 	return &appsv1.StatefulSet{
@@ -239,18 +252,13 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					Labels: objLabels,
 				},
 				Spec: v1.PodSpec{
+					SecurityContext: cluster.Spec.PodSecurityContext,
 					Containers: []v1.Container{
 						{
-							Name: ssName,
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &[]bool{true}[0],
-								Capabilities: &v1.Capabilities{
-									Add: []v1.Capability{
-										"IPC_LOCK",
-									},
-								},
-							},
-							ReadinessProbe: nil,
+							Name:            ssName,
+							SecurityContext: cluster.Spec.SecurityContext,
+							ReadinessProbe:  probeReady,
+							LivenessProbe:   probeHealth,
 							Command: []string{
 								"m3dbnode",
 							},

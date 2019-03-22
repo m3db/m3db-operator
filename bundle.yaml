@@ -77,6 +77,10 @@ spec:
       labels:
         name: m3db-operator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
       containers:
         - name: m3db-operator
           image: quay.io/m3db/m3db-operator:v0.1.4
