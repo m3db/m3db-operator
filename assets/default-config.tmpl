@@ -61,6 +61,8 @@ db:
         - uninitialized_topology
     fs:
         numProcessorsPerCPU: 0.125
+    commitlog:
+        returnUnfulfilledForCorruptCommitLogFiles: false
 
   commitlog:
     flushMaxBytes: 524288
