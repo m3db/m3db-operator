@@ -223,6 +223,10 @@ type ClusterSpec struct {
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
 	Labels map[string]string `json:"labels,omitempty" yaml:"labels"`
+
+	// Tolerations sets the tolerations that will be applied to all M3DB pods.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration

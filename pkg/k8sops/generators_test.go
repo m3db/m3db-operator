@@ -243,6 +243,13 @@ func TestGenerateStatefulSet(t *testing.T) {
 							},
 						},
 					},
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "m3db-dedicated",
+							Effect:   "NoSchedule",
+							Operator: "Exists",
+						},
+					},
 				},
 			},
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
@@ -316,6 +323,17 @@ func TestGenerateStatefulSet(t *testing.T) {
 	ss = baseSS.DeepCopy()
 	fixture = getFixture("testM3DBCluster.yaml", t)
 	fixture.Spec.IsolationGroups[1].StorageClassName = "foo"
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
+
+	// Test empty tolerations
+	ss = baseSS.DeepCopy()
+	ss.Spec.Template.Spec.Tolerations = nil
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.Tolerations = nil
 
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
