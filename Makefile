@@ -8,6 +8,7 @@ SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/.ci/common.mk
 
 SHELL=/bin/bash -o pipefail
+GOPATH=$(shell eval $$(go env | grep GOPATH) && echo $$GOPATH)
 
 define LICENSE_HEADER
 Copyright (c) 2019 Uber Technologies, Inc.
@@ -44,9 +45,11 @@ metalint_check       := .ci/metalint.sh
 metalint_config      := .metalinter.json
 metalint_exclude     := .excludemetalint
 gopath_prefix        := $(GOPATH)/src
+gopath_bin_path      := $(GOPATH)/bin
 package_root         := github.com/m3db/m3db-operator
 package_path         := $(gopath_prefix)/$(package_root)
 retool_bin_path      := $(package_path)/_tools/bin
+combined_bin_paths   := $(retool_bin_path):$(gopath_bin_path)
 retool_package       := github.com/twitchtv/retool
 vendor_prefix        := vendor
 mockgen_package      := github.com/golang/mock/mockgen
@@ -94,12 +97,12 @@ bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
 .PHONY: lint
 lint: install-codegen-tools
 	@echo "--- $@"
-	PATH=$(retool_bin_path):$(PATH) $(lint_check)
+	PATH=$(combined_bin_paths):$(PATH) $(lint_check)
 
 .PHONY: metalint
 metalint: install-codegen-tools dep-ensure install-gometalinter
 	@echo "--- $@"
-	@(PATH=$(retool_bin_path):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
+	@(PATH=$(combined_bin_paths):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
 .PHONY: test-xml
 test-xml: test-base
@@ -186,7 +189,7 @@ license-gen:
 mock-gen-no-deps:
 	@echo "--- $@"
 	@echo generating mocks
-	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
+	PATH=$(combined_bin_paths):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 export LICENSE_HEADER
 .PHONY: asset-gen
