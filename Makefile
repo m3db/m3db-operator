@@ -161,8 +161,8 @@ install-retool:
 .PHONY: install-codegen-tools
 install-codegen-tools: install-retool
 	@echo "--- Installing retool dependencies"
-	@retool sync >/dev/null 2>/dev/null
-	@retool build >/dev/null 2>/dev/null
+	@PATH=$(combined_bin_paths):$(PATH) retool sync >/dev/null 2>/dev/null
+	@PATH=$(combined_bin_paths):$(PATH) retool build >/dev/null 2>/dev/null
 
 .PHONY: install-gometalinter
 install-gometalinter:
@@ -233,11 +233,11 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "--- $@"
-	@./hack/update-generated.sh
+	@GOPATH=$(GOPATH) ./hack/update-generated.sh
 
 .PHONY: verify-gen
 verify-gen: dep-ensure ## Ensure all codegen is up to date
-	@./hack/verify-generated.sh
+	@GOPATH=$(GOPATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
