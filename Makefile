@@ -7,8 +7,9 @@ DEP_VERSION  := v0.5.0
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/.ci/common.mk
 
-SHELL=/bin/bash -o pipefail
-GOPATH=$(shell eval $$(go env | grep GOPATH) && echo $$GOPATH)
+SHELL  = /bin/bash -o pipefail
+GOPATH = $(shell eval $$(go env | grep GOPATH) && echo $$GOPATH)
+GOBIN  ?= $(GOPATH)/bin
 
 define LICENSE_HEADER
 Copyright (c) 2019 Uber Technologies, Inc.
@@ -45,11 +46,10 @@ metalint_check       := .ci/metalint.sh
 metalint_config      := .metalinter.json
 metalint_exclude     := .excludemetalint
 gopath_prefix        := $(GOPATH)/src
-gopath_bin_path      := $(GOPATH)/bin
 package_root         := github.com/m3db/m3db-operator
 package_path         := $(gopath_prefix)/$(package_root)
 retool_bin_path      := $(package_path)/_tools/bin
-combined_bin_paths   := $(retool_bin_path):$(gopath_bin_path)
+combined_bin_paths   := $(retool_bin_path):$(GOBIN)
 retool_package       := github.com/twitchtv/retool
 vendor_prefix        := vendor
 mockgen_package      := github.com/golang/mock/mockgen
