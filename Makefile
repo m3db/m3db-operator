@@ -7,7 +7,9 @@ DEP_VERSION  := v0.5.0
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/.ci/common.mk
 
-SHELL=/bin/bash -o pipefail
+SHELL  = /bin/bash -o pipefail
+GOPATH = $(shell eval $$(go env | grep GOPATH) && echo $$GOPATH)
+GOBIN  ?= $(GOPATH)/bin
 
 define LICENSE_HEADER
 Copyright (c) 2019 Uber Technologies, Inc.
@@ -47,6 +49,7 @@ gopath_prefix        := $(GOPATH)/src
 package_root         := github.com/m3db/m3db-operator
 package_path         := $(gopath_prefix)/$(package_root)
 retool_bin_path      := $(package_path)/_tools/bin
+combined_bin_paths   := $(retool_bin_path):$(GOBIN)
 retool_package       := github.com/twitchtv/retool
 vendor_prefix        := vendor
 mockgen_package      := github.com/golang/mock/mockgen
@@ -94,12 +97,12 @@ bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
 .PHONY: lint
 lint: install-codegen-tools
 	@echo "--- $@"
-	PATH=$(retool_bin_path):$(PATH) $(lint_check)
+	PATH=$(combined_bin_paths):$(PATH) $(lint_check)
 
 .PHONY: metalint
 metalint: install-codegen-tools dep-ensure install-gometalinter
 	@echo "--- $@"
-	@(PATH=$(retool_bin_path):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
+	@(PATH=$(combined_bin_paths):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
 .PHONY: test-xml
 test-xml: test-base
@@ -158,8 +161,8 @@ install-retool:
 .PHONY: install-codegen-tools
 install-codegen-tools: install-retool
 	@echo "--- Installing retool dependencies"
-	@retool sync >/dev/null 2>/dev/null
-	@retool build >/dev/null 2>/dev/null
+	@PATH=$(combined_bin_paths):$(PATH) retool sync >/dev/null 2>/dev/null
+	@PATH=$(combined_bin_paths):$(PATH) retool build >/dev/null 2>/dev/null
 
 .PHONY: install-gometalinter
 install-gometalinter:
@@ -186,7 +189,7 @@ license-gen:
 mock-gen-no-deps:
 	@echo "--- $@"
 	@echo generating mocks
-	PATH=$(retool_bin_path):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
+	PATH=$(combined_bin_paths):$(PATH) PACKAGE=$(package_root) $(auto_gen) $(mocks_output_dir) $(mocks_rules_dir)
 
 export LICENSE_HEADER
 .PHONY: asset-gen
@@ -230,11 +233,11 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "--- $@"
-	@./hack/update-generated.sh
+	@GOPATH=$(GOPATH) ./hack/update-generated.sh
 
 .PHONY: verify-gen
 verify-gen: dep-ensure ## Ensure all codegen is up to date
-	@./hack/verify-generated.sh
+	@GOPATH=$(GOPATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
