@@ -96,7 +96,9 @@ func newMultiAdminClient(adminOpts []m3admin.Option, logger *zap.Logger) *multiA
 }
 
 func (m *multiAdminClient) adminClientForCluster(cluster *myspec.M3DBCluster) m3admin.Client {
-	return m.adminClientFn(m.adminOpts...)
+	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
+	opts := append(m.adminOpts, m3admin.WithEnvironment(env))
+	return m.adminClientFn(opts...)
 }
 
 func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster) namespace.Client {
