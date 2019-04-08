@@ -105,7 +105,11 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 		ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 	}()
-	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
+
+	um := &jsonpb.Unmarshaler{
+		AllowUnknownFields: true,
+	}
+	if err := um.Unmarshal(resp.Body, data); err != nil {
 		return nil, err
 	}
 	if data.Placement == nil {

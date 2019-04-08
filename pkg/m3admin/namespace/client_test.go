@@ -96,14 +96,14 @@ func TestCreateErr(t *testing.T) {
 func TestGet(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte(`{"registry":{"namespaces":{"default":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}},"m3db-cluster":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}}}}}`))
+		w.Write([]byte(`{"registry":{"namespaces":{"default":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}},"m3db-cluster":{"bootstrapEnabled":true,"flushEnabled":true,"writesToCommitLog":true,"cleanupEnabled":true,"repairEnabled":false,"retentionOptions":{"retentionPeriodNanos":"172800000000000","blockSizeNanos":"7200000000000","bufferFutureNanos":"600000000000","bufferPastNanos":"600000000000","blockDataExpiry":true,"blockDataExpiryAfterNotAccessPeriodNanos":"300000000000"},"snapshotEnabled":false,"schemaOptions":{},"indexOptions":{"enabled":true,"blockSizeNanos":"7200000000000"}}}}}`))
 	}))
 	defer s.Close()
 	client := newNamespaceClient(t, s.URL)
 
 	resp, err := client.List()
 	require.NotNil(t, resp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestGet_Nil(t *testing.T) {
