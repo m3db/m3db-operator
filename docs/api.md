@@ -52,6 +52,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | securityContext | SecurityContext allows the user to specify a container-level security context. | *corev1.SecurityContext | false |
 | labels | Labels sets the base labels that will be applied to resources created by the cluster. // TODO(schallert): design doc on labeling scheme. | map[string]string | false |
 | tolerations | Tolerations sets the tolerations that will be applied to all M3DB pods. | []corev1.Toleration | false |
+| priorityClassName | PriorityClassName sets the priority class for all M3DB pods. | string | false |
 
 [Back to TOC](#table-of-contents)
 

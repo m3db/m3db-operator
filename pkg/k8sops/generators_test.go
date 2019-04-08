@@ -132,6 +132,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 					Labels: labels,
 				},
 				Spec: v1.PodSpec{
+					PriorityClassName: "m3db-priority",
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup: pointer.Int64Ptr(10),
 					},

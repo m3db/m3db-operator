@@ -227,6 +227,10 @@ type ClusterSpec struct {
 	// Tolerations sets the tolerations that will be applied to all M3DB pods.
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// PriorityClassName sets the priority class for all M3DB pods.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration

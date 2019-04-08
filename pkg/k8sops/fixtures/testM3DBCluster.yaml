@@ -29,6 +29,7 @@ spec:
     fsGroup: 10
   securityContext:
     runAsUser: 20
+  priorityClassName: m3db-priority
   etcdEndpoints:
     - ep0
     - ep1
