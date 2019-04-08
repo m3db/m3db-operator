@@ -128,7 +128,11 @@ func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 		ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 	}()
-	if err := jsonpb.Unmarshal(resp.Body, data); err != nil {
+
+	um := &jsonpb.Unmarshaler{
+		AllowUnknownFields: true,
+	}
+	if err := um.Unmarshal(resp.Body, data); err != nil {
 		return nil, err
 	}
 
