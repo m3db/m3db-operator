@@ -23,6 +23,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
@@ -30,6 +31,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"go.uber.org/zap"
 )
 
 var (
@@ -75,14 +79,49 @@ func (c *Controller) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
-	cm, err := k8sops.GenerateDefaultConfigMap(cluster)
+	wantCM, err := k8sops.GenerateDefaultConfigMap(cluster)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).Create(cm)
-	if kerrors.IsAlreadyExists(err) {
+	cmClient := c.kubeClient.CoreV1().ConfigMaps(cluster.Namespace)
+
+	// Check if there is a configmap that exists. If so, overwrite it with the
+	// current templated out config. Otherwise, create one.
+	cm, err := cmClient.Get(wantCM.Name, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return err
+		}
+
+		// If the config doesn't exist, create it.
+		_, err := cmClient.Create(wantCM)
+		return err
+	}
+
+	// Make a copy of the configmap to not corrupt cache.
+	cm = cm.DeepCopy()
+
+	// Found an existing config map, check if we need to update its contents.
+	if reflect.DeepEqual(cm.Data, wantCM.Data) {
+		c.logger.Debug("config maps equal, nothing to do",
+			zap.String("namespace", cluster.Namespace),
+			zap.String("cluster", cluster.Name),
+		)
 		return nil
 	}
+
+	cm.Data = wantCM.Data
+	_, err = cmClient.Update(cm)
+	if err != nil {
+		c.logger.Error("error updating configmap", zap.Error(err))
+	} else {
+		c.logger.Info("updated configmap data",
+			zap.String("namespace", cluster.Namespace),
+			zap.String("cluster", cluster.Name),
+			zap.String("configmap", cm.Name),
+		)
+	}
+
 	return err
 }

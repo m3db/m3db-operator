@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func registerValidConfigMap() error {
+func registerValidConfigMap(content string) error {
 	sw := &strings.Builder{}
 	zw := zip.NewWriter(sw)
 
@@ -42,7 +42,7 @@ func registerValidConfigMap() error {
 	if err != nil {
 		return err
 	}
-	_, err = fw.Write([]byte("my_config_data"))
+	_, err = fw.Write([]byte(content))
 	if err != nil {
 		return err
 	}
@@ -79,10 +79,9 @@ func TestEnsureConfigMap(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	defer deps.cleanup()
 
-	require.NoError(t, registerValidConfigMap())
+	require.NoError(t, registerValidConfigMap("my_config_data"))
 
 	controller := deps.newController()
-
 	err := controller.ensureConfigMap(cluster)
 	assert.NoError(t, err)
 
@@ -96,4 +95,27 @@ func TestEnsureConfigMap(t *testing.T) {
 	cluster.Spec.ConfigMapName = pointer.StringPtr("")
 	err = controller.ensureConfigMap(cluster)
 	assert.Equal(t, errEmptyConfigMap, err)
+}
+
+func TestEnsureConfigMap_Update(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	deps := newTestDeps(t, &testOpts{})
+	defer deps.cleanup()
+
+	require.NoError(t, registerValidConfigMap("my_config_data"))
+
+	controller := deps.newController()
+
+	err := controller.ensureConfigMap(cluster)
+	assert.NoError(t, err)
+
+	// Change configmap data, expect to see changes reflected.
+	require.NoError(t, registerValidConfigMap("new_config_data"))
+
+	err = controller.ensureConfigMap(cluster)
+	assert.NoError(t, err)
+
+	cm, err := deps.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get("m3db-config-map-cluster-simple", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "new_config_data", cm.Data["m3.yml"])
 }
