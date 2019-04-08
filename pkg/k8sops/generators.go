@@ -136,6 +136,7 @@ func GenerateStatefulSet(
 	m3dbContainer.Resources = clusterSpec.ContainerResources
 	m3dbContainer.Ports = generateContainerPorts()
 	statefulSet.Spec.Template.Spec.Affinity = GenerateStatefulSetAffinity(isolationGroup)
+	statefulSet.Spec.Template.Spec.Tolerations = cluster.Spec.Tolerations
 
 	// Set owner ref so sts will be GC'd when the cluster is deleted
 	clusterRef := GenerateOwnerRef(cluster)

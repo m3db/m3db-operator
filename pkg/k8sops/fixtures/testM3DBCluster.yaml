@@ -44,3 +44,7 @@ spec:
           storage: 1Gi
         limits:
           storage: 1Gi
+  tolerations:
+  - key: m3db-dedicated
+    effect: NoSchedule
+    operator: Exists
