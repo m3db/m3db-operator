@@ -476,8 +476,11 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 			return fmt.Errorf("set %s has unset spec replica", set.Name)
 		}
 
+		// Number of pods we want in the group.
 		desired := group.NumInstances
+		// Number of pods currently in the group.
 		current := *set.Spec.Replicas
+		// Nunber of instances currently in the placement.
 		inPlacement := int32(len(instancesInIsoGroup(placement, group.Name)))
 
 		setLogger := c.logger.With(
@@ -506,7 +509,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		// trigger a remove so that we can shrink the set.
 		if inPlacement > desired {
 			setLogger.Info("remove instance from placement for set")
-			return c.shrinkPlacementForSet(cluster, set)
+			return c.shrinkPlacementForSet(cluster, set, placement)
 		}
 
 		var newCount int32
@@ -677,10 +680,11 @@ func (c *Controller) handlePodEvent(key string) error {
 	pod, err := c.podLister.Pods(namespace).Get(name)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			c.logger.Error("pod no longer exists", zap.String("pod", name))
+			c.logger.Debug("pod no longer exists", zap.String("pod", name))
 			return nil
 		}
 
+		c.logger.Error("error listing pods in pod handle", zap.String("pod", name), zap.Error(err))
 		return err
 	}
 

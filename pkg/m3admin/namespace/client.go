@@ -141,7 +141,7 @@ func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 		return nil, errors.New("nil registry from coordinator")
 	}
 
-	n.logger.Info("namespace retrieved")
+	n.logger.Debug("namespace retrieved")
 	return data, nil
 }
 

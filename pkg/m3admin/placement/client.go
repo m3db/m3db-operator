@@ -115,7 +115,7 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 	if data.Placement == nil {
 		return nil, errors.New("nil placement fetch")
 	}
-	p.logger.Info("placement retreived")
+	p.logger.Debug("placement retreived")
 	return m3placement.NewPlacementFromProto(data.Placement)
 }
 

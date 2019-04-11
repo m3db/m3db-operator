@@ -416,18 +416,42 @@ func identityForPod(pod *corev1.Pod) *myspec.PodIdentity {
 
 type podNameMatcher struct {
 	name string
+	uid  types.UID
 }
 
 func (p podNameMatcher) String() string {
-	return "matches pods by name"
+	return fmt.Sprintf("matches pods by name == %s and UID == %s", p.name, p.uid)
 }
 
 func (p podNameMatcher) Matches(x interface{}) bool {
-	return x.(*corev1.Pod).Name == p.name
+	pod := x.(*corev1.Pod)
+	return pod.Name == p.name && pod.UID == p.uid
 }
 
-func newPodNameMatcher(name string) gomock.Matcher {
-	return podNameMatcher{name: name}
+func newPodNameMatcher(name string, uid types.UID) gomock.Matcher {
+	return podNameMatcher{
+		name: name,
+		uid:  uid,
+	}
+}
+
+type identifyPodOptions struct {
+	doErr bool
+}
+
+// identifyPods allows a mock ID provider to return a sane identify for a set of
+// pods.
+func identifyPods(idProvider *podidentity.MockProvider, pods []*corev1.Pod, opts *identifyPodOptions) {
+	for _, pod := range pods {
+		pod := pod
+		id := identityForPod(pod)
+		var err error
+		if opts != nil && opts.doErr {
+			id = nil
+			err = errors.New("test")
+		}
+		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name, pod.UID), gomock.Any()).Return(id, err).AnyTimes()
+	}
 }
 
 func TestExpandPlacementForSet(t *testing.T) {
@@ -447,12 +471,9 @@ func TestExpandPlacementForSet(t *testing.T) {
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
-	}
+	identifyPods(idProvider, pods, nil)
 
-	pl := placementFromPods(t, cluster, pods[0:2], idProvider)
+	pl := placementFromPods(t, cluster, pods[:2], idProvider)
 	group := cluster.Spec.IsolationGroups[0]
 
 	instPb, err := k8sops.PlacementInstanceFromPod(cluster, pods[2], idProvider)
@@ -478,10 +499,7 @@ func TestExpandPlacementForSet_Nop(t *testing.T) {
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 3)
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
-	}
+	identifyPods(idProvider, pods, nil)
 
 	pl := placementFromPods(t, cluster, pods, idProvider)
 	group := cluster.Spec.IsolationGroups[0]
@@ -503,10 +521,7 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 
 	pods := podsForClusterSet(cluster, set, 2)
 	group := cluster.Spec.IsolationGroups[0]
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
-	}
+	identifyPods(idProvider, pods, nil)
 
 	pl := placementFromPods(t, cluster, pods, idProvider)
 	const expErr = "cannot expand set 'cluster-zones-rep0', not yet ready"
@@ -521,7 +536,6 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 3)
-
 	deps := newTestDeps(t, &testOpts{
 		kubeObjects: objectsFromPods(pods...),
 	})
@@ -529,9 +543,19 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	controller := deps.newController()
 	defer deps.cleanup()
 
-	deps.idProvider.EXPECT().Identity(newPodNameMatcher(pods[2].Name), cluster).Return(identityForPod(pods[2]), nil)
+	identifyPods(deps.idProvider, pods, nil)
+	pl := placementFromPods(t, cluster, pods, deps.idProvider)
+
+	// Expect the last pod to be removed.
 	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2","uid":"2"}`)
-	err = controller.shrinkPlacementForSet(cluster, set)
+	err = controller.shrinkPlacementForSet(cluster, set, pl)
+	assert.NoError(t, err)
+
+	// If there are more pods in the set then in the placement, we expect the last
+	// in the set to be removed.
+	pl = placementFromPods(t, cluster, pods[:2], deps.idProvider)
+	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-1","uid":"1"}`)
+	err = controller.shrinkPlacementForSet(cluster, set, pl)
 	assert.NoError(t, err)
 }
 
@@ -576,9 +600,6 @@ func (p placementInstancesMatcher) Matches(x interface{}) bool {
 	sort.Strings(p.instanceNames)
 	sort.Strings(plInsts)
 
-	fmt.Println(plInsts)
-	fmt.Println(p.instanceNames)
-
 	return reflect.DeepEqual(p.instanceNames, plInsts)
 }
 
@@ -609,10 +630,7 @@ func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 		`{"name":"cluster-zones-rep0-1","uid":"1"}`,
 		`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 	}
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).AnyTimes()
-	}
+	identifyPods(idProvider, pods, nil)
 	matcher := placementInstancesMatcher{
 		instanceNames: expInsts,
 	}
@@ -648,7 +666,64 @@ func TestSortPodID(t *testing.T) {
 	noPods, err := sortPods(noPodIDs)
 	require.Nil(t, noPods)
 	require.Error(t, err)
+}
 
+func TestSortPods(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		passNil     bool
+		podNames    []string
+		expPodNames []string
+		expErr      bool
+	}{
+		{
+			name:        "empty pods",
+			expPodNames: []string{},
+		},
+		{
+			name:    "nil pods",
+			passNil: true,
+			expErr:  true,
+		},
+		{
+			name:     "bad pod name",
+			podNames: []string{"foo"},
+			expErr:   true,
+		},
+		{
+			name:     "bad pod name w/ 1 valid",
+			podNames: []string{"foo-1", "foo-bar"},
+			expErr:   true,
+		},
+		{
+			name:        "numerical pods",
+			podNames:    []string{"foo-101", "foo-2"},
+			expPodNames: []string{"foo-2", "foo-101"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pods := make([]*corev1.Pod, len(test.podNames))
+			for i, name := range test.podNames {
+				pods[i] = podWithName(name)
+			}
+
+			if test.passNil {
+				pods = nil
+			}
+			podIDs, err := sortPods(pods)
+			if test.expErr {
+				assert.Error(t, err)
+				return
+			}
+
+			podNames := make([]string, len(podIDs))
+			for i, pod := range podIDs {
+				podNames[i] = pod.pod.Name
+			}
+
+			assert.Equal(t, test.expPodNames, podNames)
+		})
+	}
 }
 
 func TestCheckPodsForReplacement(t *testing.T) {
@@ -669,19 +744,14 @@ func TestCheckPodsForReplacement(t *testing.T) {
 	podsForPlacement := podsForClusterSet(cluster, set, 3)
 
 	// there should not be a replacement here
-	noReplacePods := append(podsForPlacement, podsForPlacement[0])
-
-	for _, pod := range noReplacePods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
-	}
+	identifyPods(idProvider, podsForPlacement, nil)
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
-	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, noReplacePods, pl)
+	testLeavingInstanceID, testNewPod, err := controller.checkPodsForReplacement(cluster, podsForPlacement, pl)
 
 	require.NoError(t, err)
-	require.Contains(t, testLeavingInstanceID, "")
+	require.Equal(t, testLeavingInstanceID, "")
 	require.Nil(t, testNewPod)
 
 	// there should be a replace here
@@ -694,15 +764,13 @@ func TestCheckPodsForReplacement(t *testing.T) {
 			},
 		}})
 
-	idProvider.EXPECT().Identity(newPodNameMatcher(replacePods[len(replacePods)-1].Name),
-		gomock.Any()).Return(identityForPod(replacePods[len(replacePods)-1]), nil).MaxTimes(5)
+	identifyPods(idProvider, replacePods, nil)
 
 	testLeavingInstanceID, testNewPod, err = controller.checkPodsForReplacement(cluster, replacePods, pl)
 
 	require.NoError(t, err)
 	require.Contains(t, testLeavingInstanceID, podsForPlacement[1].Name)
 	require.NotNil(t, testNewPod)
-
 }
 
 func TestReplacePodInPlacement(t *testing.T) {
@@ -732,10 +800,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 		},
 	})
 
-	for _, pod := range pods {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
-	}
+	identifyPods(idProvider, pods, nil)
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
@@ -776,11 +841,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 	require.NoError(t, err)
 
 	podsForPlacement := podsForClusterSet(cluster, set, 3)
-
-	for _, pod := range podsForPlacement {
-		pod := pod
-		idProvider.EXPECT().Identity(newPodNameMatcher(pod.Name), gomock.Any()).Return(identityForPod(pod), nil).MaxTimes(2)
-	}
+	identifyPods(idProvider, podsForPlacement, nil)
 
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
@@ -809,63 +870,109 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 
 	badCluster := getFixture("cluster-simple.yaml", t)
 
-	idProvider.EXPECT().Identity(newPodNameMatcher(okPod.Name), gomock.Any()).Return(identityForPod(okPod), nil).MaxTimes(2)
+	idProvider.EXPECT().Identity(newPodNameMatcher(okPod.Name, okPod.UID), gomock.Any()).Return(identityForPod(okPod), nil).MaxTimes(2)
 
 	err = controller.replacePodInPlacement(badCluster, pl, "dummy-id", okPod)
 	require.Error(t, err)
 }
 
-func TestFindPodToRemove(t *testing.T) {
-	pods := []*corev1.Pod{}
-
-	_, err := findPodToRemove(pods)
-	assert.Error(t, err)
-
-	for _, s := range []string{
-		"",
-		"foo",
-		"foo-bar",
-	} {
-		pods = []*corev1.Pod{podWithName(s)}
-		_, err = findPodToRemove(pods)
-		assert.Error(t, err)
-	}
-
-	tests := []struct {
-		names  []string
-		exp    *corev1.Pod
-		expErr bool
+func TestFindPodInPlacement(t *testing.T) {
+	var pl placement.Placement
+	// This is hacky but test order matters: we construct a valid placement on the
+	// first pass and keep a ref to it, such that on the test with a bad ID
+	// provider we have a valid placement and can actually hit the paths we're
+	// trying to test.
+	for _, test := range []struct {
+		name  string
+		doErr bool
 	}{
 		{
-			names: []string{"foo-1", "foo-2", "foo-3"},
-			exp:   podWithName("foo-3"),
+			name: "valid ID",
 		},
 		{
-			names: []string{"foo-100", "foo-2", "foo-1"},
-			exp:   podWithName("foo-100"),
+			name:  "ID error",
+			doErr: true,
 		},
-		{
-			names: []string{"foo-100", "foo-120", "foo-30"},
-			exp:   podWithName("foo-120"),
-		},
-		{
-			names:  []string{"foo-100", "foo-2", "foo-baz"},
-			expErr: true,
-		},
-	}
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cluster := getFixture("cluster-3-zones.yaml", t)
+			deps := newTestDeps(t, &testOpts{
+				crdObjects: []runtime.Object{cluster},
+			})
 
-	for _, test := range tests {
-		pods := make([]*corev1.Pod, len(test.names))
-		for i, name := range test.names {
-			pods[i] = podWithName(name)
-		}
+			controller := deps.newController()
+			idProvider := deps.idProvider
+			defer deps.cleanup()
 
-		pod, err := findPodToRemove(pods)
-		if test.expErr {
-			assert.Error(t, err)
-		} else {
+			set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+			require.NoError(t, err)
+			pods := podsForClusterSet(cluster, set, 3)
+			identifyPods(idProvider, pods, &identifyPodOptions{doErr: test.doErr})
+
+			if !test.doErr {
+				pl = placementFromPods(t, cluster, pods[:2], idProvider)
+			}
+
+			// We expect finding the first pod to return the first instance in the
+			// placement, as they're both sorted.
+			inst, err := controller.findPodInPlacement(cluster, pl, pods[0])
+			if test.doErr {
+				assert.Error(t, err)
+				return
+			}
 			assert.NoError(t, err)
-			assert.Equal(t, test.exp, pod)
-		}
+			assert.Equal(t, pl.Instances()[0], inst)
+
+			// Looking for a pod not in the placement returns an error.
+			inst, err = controller.findPodInPlacement(cluster, pl, pods[2])
+			assert.Equal(t, errPodNotInPlacement, err)
+			assert.Nil(t, inst)
+		})
 	}
+}
+
+func TestFindPodToRemove(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	idProvider := deps.idProvider
+	defer deps.cleanup()
+
+	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+	pods := podsForClusterSet(cluster, set, 3)
+	identifyPods(idProvider, pods, nil)
+
+	pl := placementFromPods(t, cluster, pods, idProvider)
+
+	inst, err := controller.findPodInPlacement(cluster, pl, pods[0])
+	assert.NoError(t, err)
+	assert.Equal(t, pl.Instances()[0], inst)
+
+	// Can't remove from no pods.
+	_, _, err = controller.findPodInstanceToRemove(cluster, pl, nil)
+	assert.Equal(t, errEmptyPodList, err)
+
+	// Can't remove from malformed pod names.
+	_, _, err = controller.findPodInstanceToRemove(cluster, pl, []*corev1.Pod{
+		podWithName("foo"),
+	})
+	assert.Contains(t, err.Error(), "cannot sort pods")
+
+	// Removing from a placement w/ all pods removes the last.
+	pod, inst, err := controller.findPodInstanceToRemove(cluster, pl, pods)
+	assert.NoError(t, err)
+	assert.Equal(t, pods[2], pod)
+	assert.Equal(t, pl.Instances()[2], inst)
+
+	// Removing from a placement w/ 2 insts and 3 pods removes the last pod that's
+	// still in the placement.
+	pl = placementFromPods(t, cluster, pods[:2], idProvider)
+	pod, inst, err = controller.findPodInstanceToRemove(cluster, pl, pods)
+	assert.NoError(t, err)
+	assert.Equal(t, pods[1], pod)
+	assert.Equal(t, pl.Instances()[1], inst)
 }

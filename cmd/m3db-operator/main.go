@@ -53,7 +53,7 @@ import (
 
 const (
 	// Informers will resync on this interval
-	_informerSyncDuration = 5 * time.Minute
+	_informerSyncDuration = time.Minute
 )
 
 var (
@@ -65,6 +65,7 @@ var (
 	_useProxy     bool
 	_debugLog     bool
 	_develLog     bool
+	_humanTime    bool
 )
 
 func init() {
@@ -72,6 +73,7 @@ func init() {
 	flag.StringVar(&_masterURL, "masterhost", "http://127.0.0.1:8001", "Full url to k8s api server")
 	flag.BoolVar(&_debugLog, "debug", false, "enable debug logging")
 	flag.BoolVar(&_develLog, "devel", false, "enable development logging mode")
+	flag.BoolVar(&_humanTime, "human-time", false, "print human-friendly timestamps")
 	flag.BoolVar(&_useProxy, "proxy", false, "use kubectl proxy for cluster communication")
 	flag.Parse()
 }
@@ -86,6 +88,9 @@ func main() {
 	}
 	if _debugLog {
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+	}
+	if _humanTime {
+		cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	}
 	cfg.DisableStacktrace = true
 	cfg.DisableCaller = true
