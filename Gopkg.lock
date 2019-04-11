@@ -277,8 +277,7 @@
   revision = "47fe1193cdb900de7193d1f3d26ea9b2cbf6fb31"
 
 [[projects]]
-  branch = "master"
-  digest = "1:e5b07e2112653cdee10d1e7f0fed39acc7c380c454616e881c9232ae1db42919"
+  digest = "1:5b018a4b2555b870b6317b0f8dbfca94b3300060026059596e201dcb254a4e23"
   name = "github.com/m3db/m3"
   packages = [
     "src/cluster/generated/proto/placementpb",
@@ -289,24 +288,22 @@
     "src/dbnode/generated/proto/namespace",
     "src/msg/generated/proto/topicpb",
     "src/query/generated/proto/admin",
-    "src/x/clock",
-    "src/x/close",
-    "src/x/instrument",
-    "src/x/log",
-    "src/x/process",
-    "src/x/watch",
   ]
   pruneopts = ""
-  revision = "2ae8fdf78946b8daaab5b9d3814e9f2e8c9c73ef"
+  revision = "c71b26bc9880583379946693a30d3ce2e5940ac5"
+  version = "v0.8.1"
 
 [[projects]]
   branch = "master"
   digest = "1:2e3da066040bc7e1d382fa979f1a0e79f563b287787321293e02d30ed98475fa"
   name = "github.com/m3db/m3x"
   packages = [
+    "clock",
+    "close",
     "instrument",
     "log",
     "process",
+    "watch",
   ]
   pruneopts = ""
   revision = "ebf3c7b94afd62bad2aaa3ad20bb2d4142aa342e"
@@ -564,14 +561,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:55c52474bb389797ed66db92966e2b9ddc98a25d9d05c8aa55787fe03d4d4084"
+  digest = "1:324284c785de82a80ce83bf31b89ee00d5d3b575106293eb279c2a4d07273d8b"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "4b34438f7a67ee5f45cc6132e2bad873a20324e9"
+  revision = "0ad05ae3009d6413d3363aa09b350b2ec37daf09"
 
 [[projects]]
   digest = "1:5acd3512b047305d49e8763eef7ba423901e85d5dd2fd1e71778a0ea8de10bd4"
@@ -607,7 +604,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2fda42ffa1bcfcc9ce6463b187dd70024bd1b4b1c6734b8634b22a92cc1d7388"
+  digest = "1:696dfa756211cf4a8efbc1a7ffa81f6bea4eec7ab5868197d113e13201101d59"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -623,7 +620,7 @@
     "internal/semver",
   ]
   pruneopts = ""
-  revision = "e5b8258f49188ec2c4702802a35d1ea0c7ccee77"
+  revision = "2538eef75904eff384a2551359968e40c207d9d2"
 
 [[projects]]
   digest = "1:0a6cbf5be24f00105d33c9f6d2f40b8149e0316537a92be1b0d4c761b7ae39fb"

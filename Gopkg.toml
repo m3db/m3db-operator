@@ -74,7 +74,7 @@ source = "github.com/m3db/vellum"
 
 [[constraint]]
 name = "github.com/m3db/m3"
-branch = "master"
+version = "0.8.1"
 
 [[override]]
 name = "github.com/apache/thrift"
