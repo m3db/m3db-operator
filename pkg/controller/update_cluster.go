@@ -465,7 +465,7 @@ func (c *Controller) findPodInstanceToRemove(cluster *myspec.M3DBCluster, pl pla
 	for i := len(podIDs) - 1; i >= 0; i-- {
 		pod := podIDs[i].pod
 		inst, err := c.findPodInPlacement(cluster, pl, pod)
-		if err == errPodNotInPlacement {
+		if pkgerrors.Cause(err) == errPodNotInPlacement {
 			// If the instance is already out of the placement, continue to the next
 			// one.
 			continue

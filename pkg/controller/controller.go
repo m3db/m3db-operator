@@ -480,7 +480,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		desired := group.NumInstances
 		// Number of pods currently in the group.
 		current := *set.Spec.Replicas
-		// Nunber of instances currently in the placement.
+		// Number of instances in the group AND currently in the placement.
 		inPlacement := int32(len(instancesInIsoGroup(placement, group.Name)))
 
 		setLogger := c.logger.With(

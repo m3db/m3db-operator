@@ -133,7 +133,7 @@ func (p *placementClient) Add(instance placementpb.Instance) error {
 	if err != nil {
 		return err
 	}
-	p.logger.Info("successfully add instance to placement")
+	p.logger.Debug("successfully add instance to placement")
 	return nil
 }
 
