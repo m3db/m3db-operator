@@ -51,6 +51,12 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	errEmptyPodList      = errors.New("cannot find removal candidate in empty list")
+	errNoPodsInPlacement = errors.New("no pods were found in the placement")
+	errPodNotInPlacement = errors.New("instance not found in placement")
+)
+
 // reconcileNamespaces will delete any namespaces currently in the cluster that
 // aren't part of the cluster spec, and create any that are present in the spec
 // but not in the cluster.
@@ -321,7 +327,6 @@ func (c *Controller) checkPodsForReplacement(
 	}
 
 	for _, pod := range sortedPods {
-
 		clusterPodID, err := c.podIDProvider.Identity(pod.pod, cluster)
 		if err != nil {
 			return "", nil, err
@@ -337,13 +342,12 @@ func (c *Controller) checkPodsForReplacement(
 
 				if !reflect.DeepEqual(*clusterPodID, instancePodID) {
 					return inst.ID(), pod.pod, nil
-
 				}
 			}
 		}
 	}
-	return "", nil, nil
 
+	return "", nil, nil
 }
 
 func (c *Controller) replacePodInPlacement(
@@ -426,7 +430,7 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 // shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and
 // removes the last pod in the StatefulSet from the active placement, enabling
 // the StatefulSet size to be decreased once the remove completes.
-func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet) error {
+func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement) error {
 	selector := klabels.SelectorFromSet(set.Labels)
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
 	if err != nil {
@@ -434,47 +438,68 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 		return err
 	}
 
-	removePod, err := findPodToRemove(pods)
+	_, removeInst, err := c.findPodInstanceToRemove(cluster, pl, pods)
 	if err != nil {
 		c.logger.Error("error finding pod to remove", zap.Error(err))
 		return err
 	}
 
-	removePodID, err := c.podIDProvider.Identity(removePod, cluster)
-	if err != nil {
-		return err
-	}
-
-	idStr, err := podidentity.IdentityJSON(removePodID)
-	if err != nil {
-		return err
-	}
-
-	c.logger.Info("removing pod from placement", zap.String("pod", removePod.Name))
-	return c.adminClient.placementClientForCluster(cluster).Remove(idStr)
+	c.logger.Info("removing pod from placement", zap.String("instance", removeInst.ID()))
+	return c.adminClient.placementClientForCluster(cluster).Remove(removeInst.ID())
 }
 
-// findPodToRemove returns the pod name with the highest ordinal number in the
-// stateful set so that we remove from the placement the pod that will be
-// deleted when the set size is scaled down.
-func findPodToRemove(pods []*corev1.Pod) (*corev1.Pod, error) {
+// findPodInstanceToRemove returns the pod (and associated placement instace)
+// with the highest ordinal number in the stateful set AND in the placement, so
+// that we remove from the placement the pod that will be deleted when the set
+// size is scaled down.
+func (c *Controller) findPodInstanceToRemove(cluster *myspec.M3DBCluster, pl placement.Placement, pods []*corev1.Pod) (*corev1.Pod, placement.Instance, error) {
 	if len(pods) == 0 {
-		return nil, errors.New("cannot find removal candidate in empty list")
+		return nil, nil, errEmptyPodList
 	}
 
 	podIDs, err := sortPods(pods)
 	if err != nil {
-		return nil, fmt.Errorf("cannot sort pods: %v", err)
+		return nil, nil, pkgerrors.WithMessage(err, "cannot sort pods")
 	}
 
-	lastPod := podIDs[len(podIDs)-1].pod
+	for i := len(podIDs) - 1; i >= 0; i-- {
+		pod := podIDs[i].pod
+		inst, err := c.findPodInPlacement(cluster, pl, pod)
+		if pkgerrors.Cause(err) == errPodNotInPlacement {
+			// If the instance is already out of the placement, continue to the next
+			// one.
+			continue
+		}
+		if err != nil {
+			return nil, nil, pkgerrors.WithMessage(err, "error finding pod in placement")
+		}
+		return pod, inst, nil
+	}
 
-	return lastPod, nil
+	return nil, nil, errNoPodsInPlacement
+}
+
+// findPodInPlacement looks up a pod in the placement. Equality is based on
+// whether a pods identity matches a placement instance's ID.
+func (c *Controller) findPodInPlacement(cluster *myspec.M3DBCluster, pl placement.Placement, pod *corev1.Pod) (placement.Instance, error) {
+	id, err := c.podIDProvider.Identity(pod, cluster)
+	if err != nil {
+		return nil, err
+	}
+	idStr, err := podidentity.IdentityJSON(id)
+	if err != nil {
+		return nil, err
+	}
+	inst, ok := pl.Instance(idStr)
+	if !ok {
+		return nil, errPodNotInPlacement
+	}
+	return inst, nil
 }
 
 func sortPods(pods []*corev1.Pod) ([]podID, error) {
 	if pods == nil {
-		return nil, fmt.Errorf("no pods to sort")
+		return nil, errEmptyPodList
 	}
 
 	podIDs := make([]podID, len(pods))

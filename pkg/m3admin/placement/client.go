@@ -115,7 +115,7 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 	if data.Placement == nil {
 		return nil, errors.New("nil placement fetch")
 	}
-	p.logger.Info("placement retreived")
+	p.logger.Debug("placement retreived")
 	return m3placement.NewPlacementFromProto(data.Placement)
 }
 
@@ -133,7 +133,7 @@ func (p *placementClient) Add(instance placementpb.Instance) error {
 	if err != nil {
 		return err
 	}
-	p.logger.Info("successfully add instance to placement")
+	p.logger.Debug("successfully add instance to placement")
 	return nil
 }
 
