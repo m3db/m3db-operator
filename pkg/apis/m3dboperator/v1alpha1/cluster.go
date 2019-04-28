@@ -233,23 +233,27 @@ type ClusterSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
+// NodeAffinityTerm represents a node label and a set of label values, any of
+// which can be matched to assign a pod to a node.
+type NodeAffinityTerm struct {
+	// Key is the label of the node.
+	Key string `json:"key"`
+
+	// Values is an array of values, any of which a node can have for a pod to be
+	// assigned to it.
+	Values []string `json:"values"`
+}
+
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
 type IsolationGroup struct {
 	// Name is the value that will be used in StatefulSet labels, pod labels, and
 	// M3DB placement "isolationGroup" fields.
 	Name string `json:"name"`
 
-	// NodeAffinityKey is the node label that will be used in corresponding
-	// StatefulSet match expression to assign pods to nodes. Defaults to
-	// "failure-domain.beta.kubernetes.io/zone".
-	// +optional
-	NodeAffinityKey string `json:"nodeAffinityKey,omitempty"`
-
-	// NodeSelectorValues is the node label value that will be used to assign pods
-	// to nodes. Defaults to the isolation group's name, but can be overridden to
-	// allow multiple IsolationGroups to be assigned to the same zone.
-	// +optional
-	NodeAffinityValues []string `json:"nodeAffinityValues,omitempty"`
+	// NodeAffinityTerms is an array of NodeAffinityTerm requirements, which are
+	// ANDed together to indicate what nodes an isolation group can be assigned
+	// to.
+	NodeAffinityTerms []NodeAffinityTerm `json:"nodeAffinityTerms,omitempty"`
 
 	// NumInstances defines the number of instances.
 	NumInstances int32 `json:"numInstances"`

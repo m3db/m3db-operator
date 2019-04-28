@@ -98,7 +98,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
 			sets: []*metav1.ObjectMeta{
 				newMeta("set1", map[string]string{
-					"foo": "bar",
+					"foo":                      "bar",
 					"operator.m3db.io/app":     "m3db",
 					"operator.m3db.io/cluster": "cluster1",
 				}),
@@ -109,7 +109,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
 			sets: []*metav1.ObjectMeta{
 				newMeta("set1", map[string]string{
-					"foo": "bar",
+					"foo":                      "bar",
 					"operator.m3db.io/app":     "m3db",
 					"operator.m3db.io/cluster": "cluster2",
 				}),
@@ -397,27 +397,6 @@ func TestValidateIsolationGroups(t *testing.T) {
 				{Name: "foo"},
 			},
 			doExpErr: true,
-		},
-		{
-			rf: 1,
-			groups: []myspec.IsolationGroup{
-				{
-					Name:            "foo",
-					NodeAffinityKey: "key",
-				},
-			},
-			expErr:   errEmptyNodeAffinityVals,
-			doExpErr: true,
-		},
-		{
-			rf: 1,
-			groups: []myspec.IsolationGroup{
-				{
-					Name:               "foo",
-					NodeAffinityKey:    "key",
-					NodeAffinityValues: []string{"v1"},
-				},
-			},
 		},
 	}
 

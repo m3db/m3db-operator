@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubernetes/utils/pointer"
+	pkgerrors "github.com/pkg/errors"
 )
 
 const (
@@ -110,8 +111,8 @@ func GenerateStatefulSet(
 	isolationGroupName string,
 	instanceAmount int32,
 ) (*appsv1.StatefulSet, error) {
-	// TODO(schallert): always sort zones alphabetically.
 
+	// TODO(schallert): always sort zones alphabetically.
 	stsID := -1
 	var isolationGroup myspec.IsolationGroup
 	for i, g := range cluster.Spec.IsolationGroups {
@@ -126,16 +127,20 @@ func GenerateStatefulSet(
 		return nil, fmt.Errorf("could not find isogroup '%s' in spec", isolationGroupName)
 	}
 
+	clusterSpec := cluster.Spec
 	clusterName := cluster.GetName()
 	ssName := StatefulSetName(clusterName, stsID)
 
-	clusterSpec := cluster.Spec
+	affinity, err := GenerateStatefulSetAffinity(isolationGroup)
+	if err != nil {
+		return nil, pkgerrors.Wrap(err, "error generating statefulset affinity")
+	}
 
 	statefulSet := NewBaseStatefulSet(ssName, isolationGroupName, cluster, instanceAmount)
 	m3dbContainer := &statefulSet.Spec.Template.Spec.Containers[0]
 	m3dbContainer.Resources = clusterSpec.ContainerResources
 	m3dbContainer.Ports = generateContainerPorts()
-	statefulSet.Spec.Template.Spec.Affinity = GenerateStatefulSetAffinity(isolationGroup)
+	statefulSet.Spec.Template.Spec.Affinity = affinity
 	statefulSet.Spec.Template.Spec.Tolerations = cluster.Spec.Tolerations
 
 	// Set owner ref so sts will be GC'd when the cluster is deleted

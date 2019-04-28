@@ -143,9 +143,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 									{
 										MatchExpressions: []v1.NodeSelectorRequirement{
 											{
-												Key:      FailureDomainZoneKey,
+												Key:      "zone",
 												Operator: v1.NodeSelectorOpIn,
-												Values:   []string{isolationGroup},
+												Values:   []string{"zone-a"},
 											},
 										},
 									},

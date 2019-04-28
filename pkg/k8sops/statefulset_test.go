@@ -81,45 +81,110 @@ func TestGenerateDownwardAPIVolumePath(t *testing.T) {
 }
 
 func TestGenerateStatefulSetAffinity(t *testing.T) {
+	type expTerm struct {
+		key    string
+		values []string
+	}
 	tests := []struct {
-		isoGroup  myspec.IsolationGroup
-		expKey    string
-		expValues []string
+		isoGroup myspec.IsolationGroup
+		expErr   error
+		expTerms []expTerm
 	}{
 		{
 			isoGroup: myspec.IsolationGroup{
 				Name: "group1",
 			},
-			expKey:    FailureDomainZoneKey,
-			expValues: []string{"group1"},
 		},
 		{
 			isoGroup: myspec.IsolationGroup{
-				Name:            "group2",
-				NodeAffinityKey: "foobar",
+				Name: "group2",
+				NodeAffinityTerms: []myspec.NodeAffinityTerm{
+					{
+						Key:    "foobar",
+						Values: []string{"group2"},
+					},
+				},
 			},
-			expKey:    "foobar",
-			expValues: []string{"group2"},
+			expTerms: []expTerm{
+				{
+					key:    "foobar",
+					values: []string{"group2"},
+				},
+			},
 		},
 		{
 			isoGroup: myspec.IsolationGroup{
-				Name:               "group3",
-				NodeAffinityKey:    "foobar",
-				NodeAffinityValues: []string{"baz", "bar"},
+				Name: "zone-and-inst-type",
+				NodeAffinityTerms: []myspec.NodeAffinityTerm{
+					{
+						Key:    "zone",
+						Values: []string{"zone-a"},
+					},
+					{
+						Key:    "instance-type",
+						Values: []string{"large"},
+					},
+				},
 			},
-			expKey:    "foobar",
-			expValues: []string{"baz", "bar"},
+			expTerms: []expTerm{
+				{
+					key:    "zone",
+					values: []string{"zone-a"},
+				},
+				{
+					key:    "instance-type",
+					values: []string{"large"},
+				},
+			},
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name: "group3",
+				NodeAffinityTerms: []myspec.NodeAffinityTerm{
+					{
+						Key: "foobar",
+					},
+				},
+			},
+			expErr: errEmptyNodeAffinityValues,
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name: "group4",
+				NodeAffinityTerms: []myspec.NodeAffinityTerm{
+					{
+						Values: []string{"group2"},
+					},
+				},
+			},
+			expErr: errEmptyNodeAffinityKey,
 		},
 	}
 
 	for _, test := range tests {
-		affinity := GenerateStatefulSetAffinity(test.isoGroup)
+		affinity, err := GenerateStatefulSetAffinity(test.isoGroup)
+		if test.expErr != nil {
+			assert.Equal(t, test.expErr, err)
+			continue
+		}
+
+		if len(test.expTerms) == 0 {
+			assert.Nil(t, affinity)
+			continue
+		}
+
 		terms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, terms, 1)
-		exprs := terms[0].MatchExpressions
-		assert.Len(t, exprs, 1)
-		expr := exprs[0]
-		assert.Equal(t, test.expKey, expr.Key)
-		assert.Equal(t, test.expValues, expr.Values)
+
+		expTerms := make([]corev1.NodeSelectorRequirement, len(test.expTerms))
+		for i, term := range test.expTerms {
+			expTerms[i] = corev1.NodeSelectorRequirement{
+				Key:      term.key,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   term.values,
+			}
+		}
+
+		assert.Equal(t, expTerms, terms[0].MatchExpressions)
 	}
 }

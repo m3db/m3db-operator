@@ -6,11 +6,27 @@ metadata:
   namespace: fake
 spec:
   image: fake.fake/fake/m3dbnode:latest
-  replicationFactor: 2
+  replicationFactor: 3
   numberOfShards: 8
   isolationGroups:
-    - name: us-fake1-a
-      numInstances: 1
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-fake1-b
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-fake1-c
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-fake1-d
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d

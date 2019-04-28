@@ -47,12 +47,24 @@ spec:
   - http://etcd-1.etcd:2379
   - http://etcd-2.etcd:2379
   isolationGroups:
-    - name: us-east1-b
-      numInstances: 1
-    - name: us-east1-c
-      numInstances: 1
-    - name: us-east1-d
-      numInstances: 1
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-a>
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-b>
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-c>
   podIdentityConfig:
     sources:
       - PodUID
@@ -114,12 +126,24 @@ spec:
   replicationFactor: 3
   numberOfShards: 256
   isolationGroups:
-    - name: us-east1-b
-      numInstances: 1
-    - name: us-east1-c
-      numInstances: 1
-    - name: us-east1-d
-      numInstances: 1
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-a>
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-b>
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-c>
   etcdEndpoints:
   - http://etcd-0.etcd:2379
   - http://etcd-1.etcd:2379
