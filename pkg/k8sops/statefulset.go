@@ -41,9 +41,6 @@ import (
 )
 
 const (
-	// FailureDomainZoneKey is the standard Kubernetes node label for a zone.
-	FailureDomainZoneKey = "failure-domain.beta.kubernetes.io/zone"
-
 	podIdentityVolumePath = "/etc/m3db/pod-identity"
 	podIdentityVolumeName = "pod-identity"
 )
