@@ -67,7 +67,8 @@ const (
 
 var (
 	errOrphanedPod         = errors.New("pod does not belong to an m3db cluster")
-	errInvalidNumIsoGroups = errors.New("must specify number of isolationgroups equal to replication factor")
+	errInvalidNumIsoGroups = errors.New("number of isolationgroups not equal to replication factor")
+	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
 
 // Controller object
@@ -791,7 +792,7 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 	}
 
 	if len(names) != len(groups) {
-		return fmt.Errorf("found %d isolationGroups but %d unique names", len(groups), len(names))
+		return pkgerrors.WithMessagef(errNonUniqueIsoGroups, "found %d isolationGroups but %d unique names", len(groups), len(names))
 	}
 	return nil
 }

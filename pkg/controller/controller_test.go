@@ -43,6 +43,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/golang/mock/gomock"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber-go/tally"
@@ -396,6 +397,7 @@ func TestValidateIsolationGroups(t *testing.T) {
 				{Name: "foo"},
 				{Name: "foo"},
 			},
+			expErr:   errNonUniqueIsoGroups,
 			doExpErr: true,
 		},
 	}
@@ -407,6 +409,7 @@ func TestValidateIsolationGroups(t *testing.T) {
 		err := validateIsolationGroups(cluster)
 		if test.doExpErr {
 			assert.Error(t, err)
+			assert.Equal(t, test.expErr, pkgerrors.Cause(err))
 		} else {
 			assert.NoError(t, err)
 		}
