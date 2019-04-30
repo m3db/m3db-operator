@@ -80,18 +80,38 @@ spec:
   - http://etcd-1.etcd:2379
   - http://etcd-2.etcd:2379
   isolationGroups:
-    - name: <zone-x>
-      numInstances: 1
-    - name: <zone-y>
-      numInstances: 1
-    - name: <zone-z>
-      numInstances: 1
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-a>
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-b>
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-c>
   podIdentityConfig:
-    sources:
-      - PodUID
+    sources: []
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
+  dataDirVolumeClaimTemplate:
+    metadata:
+      name: m3db-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Gi
 ```
 
 ### Resizing a Cluster

@@ -54,6 +54,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/kubernetes/utils/pointer"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -65,9 +66,9 @@ const (
 )
 
 var (
-	errOrphanedPod           = errors.New("pod does not belong to an m3db cluster")
-	errInvalidNumIsoGroups   = errors.New("must specify number of isolationgroups equal to replication factor")
-	errEmptyNodeAffinityVals = errors.New("NodeAffinityValues cannot be empty if NodeAffinityKey set")
+	errOrphanedPod         = errors.New("pod does not belong to an m3db cluster")
+	errInvalidNumIsoGroups = errors.New("number of isolationgroups not equal to replication factor")
+	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
 
 // Controller object
@@ -782,20 +783,16 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 	groups := cluster.Spec.IsolationGroups
 
 	if cluster.Spec.ReplicationFactor != int32(len(groups)) {
-		return errInvalidNumIsoGroups
+		return pkgerrors.WithMessagef(errInvalidNumIsoGroups, "replication factor is %d but number of isogroups is %d", cluster.Spec.ReplicationFactor, len(groups))
 	}
 
 	names := make(map[string]struct{}, len(groups))
 	for _, g := range groups {
 		names[g.Name] = struct{}{}
-
-		if g.NodeAffinityKey != "" && len(g.NodeAffinityValues) == 0 {
-			return errEmptyNodeAffinityVals
-		}
 	}
 
 	if len(names) != len(groups) {
-		return fmt.Errorf("found %d isolationGroups but %d unique names", len(groups), len(names))
+		return pkgerrors.WithMessagef(errNonUniqueIsoGroups, "found %d isolationGroups but %d unique names", len(groups), len(names))
 	}
 	return nil
 }

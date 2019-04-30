@@ -10,6 +10,7 @@ This document enumerates the Custom Resource Definitions used by the M3DB Operat
 * [M3DBCluster](#m3dbcluster)
 * [M3DBClusterList](#m3dbclusterlist)
 * [M3DBStatus](#m3dbstatus)
+* [NodeAffinityTerm](#nodeaffinityterm)
 * [IndexOptions](#indexoptions)
 * [Namespace](#namespace)
 * [NamespaceOptions](#namespaceoptions)
@@ -63,8 +64,7 @@ IsolationGroup defines the name of zone as well attributes for the zone configur
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | name | Name is the value that will be used in StatefulSet labels, pod labels, and M3DB placement \"isolationGroup\" fields. | string | true |
-| nodeAffinityKey | NodeAffinityKey is the node label that will be used in corresponding StatefulSet match expression to assign pods to nodes. Defaults to \"failure-domain.beta.kubernetes.io/zone\". | string | false |
-| nodeAffinityValues | NodeSelectorValues is the node label value that will be used to assign pods to nodes. Defaults to the isolation group's name, but can be overridden to allow multiple IsolationGroups to be assigned to the same zone. | []string | false |
+| nodeAffinityTerms | NodeAffinityTerms is an array of NodeAffinityTerm requirements, which are ANDed together to indicate what nodes an isolation group can be assigned to. | [][NodeAffinityTerm](#nodeaffinityterm) | false |
 | numInstances | NumInstances defines the number of instances. | int32 | true |
 | storageClassName | StorageClassName is the name of the StorageClass to use for this isolation group. This allows ensuring that PVs will be created in the same zone as the pinned statefulset on Kubernetes < 1.12 (when topology aware volume scheduling was introduced). Only has effect if the clusters `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template will have its storageClassName field overridden per-isolationgroup. If unset the storageClassName of the volumeClaimTemplate will be used. | string | false |
 
@@ -104,6 +104,17 @@ M3DBStatus contains the current state the M3DB cluster along with a human readab
 | conditions | Various conditions about the cluster. | [][ClusterCondition](#clustercondition) | false |
 | message | Message is a human readable message indicating why the cluster is in it's current state | string | false |
 | observedGeneration | ObservedGeneration is the last generation of the cluster the controller observed. Kubernetes will automatically increment metadata.Generation every time the cluster spec is changed. | int64 | false |
+
+[Back to TOC](#table-of-contents)
+
+## NodeAffinityTerm
+
+NodeAffinityTerm represents a node label and a set of label values, any of which can be matched to assign a pod to a node.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| key | Key is the label of the node. | string | true |
+| values | Values is an array of values, any of which a node can have for a pod to be assigned to it. | []string | true |
 
 [Back to TOC](#table-of-contents)
 

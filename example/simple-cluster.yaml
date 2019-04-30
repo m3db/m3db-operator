@@ -11,12 +11,24 @@ spec:
   - http://etcd-1.etcd:2379
   - http://etcd-2.etcd:2379
   isolationGroups:
-    - name: us-east1-b
-      numInstances: 1
-    - name: us-east1-c
-      numInstances: 1
-    - name: us-east1-d
-      numInstances: 1
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-east1-b
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-east1-c
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - us-east1-d
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d

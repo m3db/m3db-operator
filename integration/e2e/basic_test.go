@@ -72,7 +72,7 @@ func TestCreateCluster_Regional(t *testing.T) {
 		}
 
 		sort.Strings(isoGroups)
-		assert.Equal(t, []string{"us-east1-b", "us-east1-c", "us-east1-d"}, isoGroups)
+		assert.Equal(t, []string{"group1", "group2", "group3"}, isoGroups)
 
 		return true, nil
 	})
@@ -111,7 +111,7 @@ func TestCreateCluster_Zonal(t *testing.T) {
 		}
 
 		sort.Strings(isoGroups)
-		assert.Equal(t, []string{"rep0", "rep1", "rep2"}, isoGroups)
+		assert.Equal(t, []string{"group1", "group2", "group3"}, isoGroups)
 
 		return true, nil
 	})

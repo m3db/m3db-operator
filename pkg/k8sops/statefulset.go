@@ -21,7 +21,7 @@
 package k8sops
 
 import (
-	errorz "errors"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,11 +41,13 @@ import (
 )
 
 const (
-	// FailureDomainZoneKey is the standard Kubernetes node label for a zone.
-	FailureDomainZoneKey = "failure-domain.beta.kubernetes.io/zone"
-
 	podIdentityVolumePath = "/etc/m3db/pod-identity"
 	podIdentityVolumeName = "pod-identity"
+)
+
+var (
+	errEmptyNodeAffinityKey    = errors.New("node affinity term key cannot be empty")
+	errEmptyNodeAffinityValues = errors.New("node affinity term values cannot be empty")
 )
 
 // MultiLabelSelector provides a ListOptions with a LabelSelector
@@ -92,7 +94,7 @@ func (k *k8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.Li
 		return nil, err
 	}
 	if len(statefulSets.Items) == 0 {
-		return nil, errorz.New("failed find any StatefulSets")
+		return nil, errors.New("failed find any StatefulSets")
 	}
 	return statefulSets, nil
 }
@@ -335,15 +337,26 @@ func generateDownwardAPIVolumeMount() v1.VolumeMount {
 }
 
 // GenerateStatefulSetAffinity generates a node affinity requiring a strict match for
-// given key and value.
-func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) *v1.Affinity {
-	affinityKey := FailureDomainZoneKey
-	if k := isoGroup.NodeAffinityKey; k != "" {
-		affinityKey = k
+// given key and values.
+func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) (*v1.Affinity, error) {
+	if len(isoGroup.NodeAffinityTerms) == 0 {
+		return nil, nil
 	}
-	affinityValues := []string{isoGroup.Name}
-	if len(isoGroup.NodeAffinityValues) > 0 {
-		affinityValues = isoGroup.NodeAffinityValues
+
+	expressions := make([]v1.NodeSelectorRequirement, len(isoGroup.NodeAffinityTerms))
+	for i, term := range isoGroup.NodeAffinityTerms {
+		if term.Key == "" {
+			return nil, errEmptyNodeAffinityKey
+		}
+		if len(term.Values) == 0 {
+			return nil, errEmptyNodeAffinityValues
+		}
+
+		expressions[i] = v1.NodeSelectorRequirement{
+			Key:      term.Key,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   term.Values,
+		}
 	}
 
 	return &v1.Affinity{
@@ -351,18 +364,12 @@ func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) *v1.Affinity {
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 				NodeSelectorTerms: []v1.NodeSelectorTerm{
 					{
-						MatchExpressions: []v1.NodeSelectorRequirement{
-							{
-								Key:      affinityKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   affinityValues,
-							},
-						},
+						MatchExpressions: expressions,
 					},
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // GenerateOwnerRef generates an owner reference to a given m3db cluster.
@@ -370,7 +377,6 @@ func GenerateOwnerRef(cluster *myspec.M3DBCluster) *metav1.OwnerReference {
 	return metav1.NewControllerRef(cluster, schema.GroupVersionKind{
 		Group:   myspec.SchemeGroupVersion.Group,
 		Version: myspec.SchemeGroupVersion.Version,
-		// TODO(schallert): use a const here
-		Kind: "m3dbcluster",
+		Kind:    "m3dbcluster",
 	})
 }
