@@ -28,5 +28,5 @@ Generally speaking, the operator's philosophy is if **it would be unclear to a h
 try to guess.**
 
 [operators]: https://coreos.com/operators/
-[m3db]: https://m3db.github.io/m3/m3db/
+[m3db]: https://docs.m3db.io/m3db/
 [keynote]: https://kccna18.sched.com/event/Gsxn/keynote-smooth-operator-large-scale-automated-storage-with-kubernetes-celina-ward-software-engineer-matt-schallert-site-reliability-engineer-uber

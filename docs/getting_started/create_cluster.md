@@ -5,6 +5,74 @@ creating some M3DB clusters!
 
 ## Basic Cluster
 
+The following creates an M3DB cluster spread across 3 zones, with each M3DB instance being able to store up to 350gb of
+data using your Kubernetes cluster's default storage class. For examples of different cluster topologies, such as zonal
+clusters, see the docs on [node affinity][node-affinity].
+
+### Etcd
+
+Create an etcd cluster with persistent volumes:
+```
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.4/example/etcd/etcd-pd.yaml
+```
+
+We recommend modifying the `storageClassName` in the manifest to one that matches your cloud provider's fastest remote
+storage option, such as `pd-ssd` on GCP.
+
+### M3DB
+
+```yaml
+apiVersion: operator.m3db.io/v1alpha1
+kind: M3DBCluster
+metadata:
+  name: persistent-cluster
+spec:
+  image: quay.io/m3db/m3dbnode:latest
+  replicationFactor: 3
+  numberOfShards: 256
+  isolationGroups:
+  - name: group1
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-a>
+  - name: group2
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-b>
+  - name: group3
+    numInstances: 1
+    nodeAffinityTerms:
+    - key: failure-domain.beta.kubernetes.io/zone
+      values:
+      - <zone-c>
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
+  podIdentityConfig:
+    sources: []
+  namespaces:
+    - name: metrics-10s:2d
+      preset: 10s:2d
+  dataDirVolumeClaimTemplate:
+    metadata:
+      name: m3db-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 350Gi
+        limits:
+          storage: 350Gi
+```
+
+## Ephemeral Cluster
+
 **WARNING:** This setup is not intended for production-grade clusters, but rather for "kicking the tires" with the
 operator and M3DB. It is intended to work across almost any Kubernetes environment, and as such has as few dependencies
 as possible (namely persistent storage). See below for instructions on creating a more durable cluster.
@@ -33,7 +101,8 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.4/exa
 
 Once etcd is available, you can create an M3DB cluster. An example of a very basic M3DB cluster definition is as
 follows:
-```
+
+```yaml
 apiVersion: operator.m3db.io/v1alpha1
 kind: M3DBCluster
 metadata:
@@ -99,81 +168,6 @@ $ kubectl exec simple-cluster-rep2-0 -- curl -sSf localhost:9002/health
 {"ok":true,"status":"up","bootstrapped":true}
 ```
 
-## Durable Cluster
-
-This is similar to the cluster above, but using persistent volumes. We recommend using [local volumes][local-volumes]
-for performance reasons, and since M3DB already replicates your data.
-
-### Etcd
-
-Create an etcd cluster with persistent volumes:
-```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.4/example/etcd/etcd-pd.yaml
-```
-
-We recommend modifying the `storageClassName` in the manifest to one that matches your cloud provider's fastest remote
-storage option, such as `pd-ssd` on GCP.
-
-### M3DB
-
-```
-apiVersion: operator.m3db.io/v1alpha1
-kind: M3DBCluster
-metadata:
-  name: persistent-cluster
-spec:
-  image: quay.io/m3db/m3dbnode:latest
-  replicationFactor: 3
-  numberOfShards: 256
-  isolationGroups:
-  - name: group1
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-a>
-  - name: group2
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-b>
-  - name: group3
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-c>
-  etcdEndpoints:
-  - http://etcd-0.etcd:2379
-  - http://etcd-1.etcd:2379
-  - http://etcd-2.etcd:2379
-  podIdentityConfig:
-    sources:
-      # - NodeName
-  namespaces:
-    - name: metrics-10s:2d
-      preset: 10s:2d
-  dataDirVolumeClaimTemplate:
-    metadata:
-      name: m3db-data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      # storageClassName: local-scsi
-      resources:
-        requests:
-          storage: 350Gi
-        limits:
-          storage: 350Gi
-```
-
-Here we are creating a cluster spread across 3 zones, with each M3DB instance being able to store up to 350gb of data
-using your cluster's default storage class.
-
-If you have local disks available, uncomment the two lines to ensure M3DB replaces instances when a pod moves between
-hosts, and that the local storage class is used.
-
 ## Deleting a Cluster
 
 Delete your M3DB cluster with `kubectl`:
@@ -194,3 +188,4 @@ kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --prefix ""
 
 [pod-identity]: ../configuration/pod_identity
 [local-volumes]: https://kubernetes.io/blog/2018/04/13/local-persistent-volumes-beta/
+[node-affinity]: ../configuration/node_affinity

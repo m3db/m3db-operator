@@ -12,7 +12,7 @@ Namespaces are configured as part of an `m3dbcluster` [spec][api-namespaces].
 
 This preset will store metrics at 10 second resolution for 2 days. For example, in your cluster spec:
 
-```
+```yaml
 spec:
 ...
   namespaces:
@@ -24,7 +24,7 @@ spec:
 
 This preset will store metrics at 1 minute resolution for 40 days.
 
-```
+```yaml
 spec:
 ...
   namespaces:
@@ -34,8 +34,32 @@ spec:
 
 ## Custom Namespaces
 
-You can also define your own custom namespaces by setting the `NamespaceOptions` within a cluster spec. See the
-[API][api-ns-options] for all the available fields.
+You can also define your own custom namespaces by setting the `NamespaceOptions` within a cluster spec. The
+[API][api-ns-options] lists all available fields. As an example, a namespace to store 7 days of data may look like:
+```yaml
+...
+spec:
+...
+  namespaces:
+  - name: custom-7d
+    options:
+      bootstrapEnabled: true
+      flushEnabled: true
+      writesToCommitLog: true
+      cleanupEnabled: true
+      snapshotEnabled: true
+      repairEnabled: false
+      retentionOptions:
+        retentionPeriodDuration: 168h
+        blockSizeDuration: 12h
+        bufferFutureDuration: 20m
+        bufferPastDuration: 20m
+        blockDataExpiry: true
+        blockDataExpiryAfterNotAccessPeriodDuration: 5m
+      indexOptions:
+        enabled: true
+        blockSizeDuration: 12h
+```
 
 
 [api-namespaces]: ../api#namespace
