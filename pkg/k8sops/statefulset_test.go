@@ -34,19 +34,11 @@ import (
 func TestStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
 	k, err := newFakeK8sops()
+	require.NotNil(t, k)
 	require.Nil(t, err)
 
 	ssName := StatefulSetName(fixture.GetName(), 0)
 	require.Equal(t, "m3db-cluster-rep0", ssName)
-
-	getSS, err := k.GetStatefulSet(fixture, ssName)
-	require.Nil(t, err)
-	require.NotNil(t, getSS)
-
-	_, err = k.GetStatefulSets(fixture, k.LabelSelector("fake", "fake"))
-	require.NotNil(t, err)
-	err = k.DeleteStatefulSets(fixture, k.LabelSelector("fake", "fake"))
-	require.NotNil(t, err)
 }
 
 func TestGenerateDownwardAPIVolume(t *testing.T) {

@@ -23,8 +23,6 @@ package k8sops
 import (
 	"errors"
 	"fmt"
-	"strings"
-	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
@@ -35,9 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/wait"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -49,150 +44,6 @@ var (
 	errEmptyNodeAffinityKey    = errors.New("node affinity term key cannot be empty")
 	errEmptyNodeAffinityValues = errors.New("node affinity term values cannot be empty")
 )
-
-// MultiLabelSelector provides a ListOptions with a LabelSelector
-// given a map of strings
-func (k *k8sops) MultiLabelSelector(kvs map[string]string) metav1.ListOptions {
-	var selector string
-	for k, v := range kvs {
-		selector = fmt.Sprintf("%s %s=%s", selector, k, v)
-	}
-	selector = strings.Join(strings.Split(strings.TrimRight(selector, " "), " "), ",")
-	return metav1.ListOptions{LabelSelector: selector}
-}
-
-// LabelSelector provides a ListOptions with a LabelSelector given a key
-// and value strings
-func (k *k8sops) LabelSelector(key, value string) metav1.ListOptions {
-	selector := fmt.Sprintf("%s=%s", key, value)
-	return metav1.ListOptions{LabelSelector: selector}
-}
-
-// DeleteStatefulSets will delete all stateful sets associated with a cluster
-func (k *k8sops) DeleteStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) error {
-	statefulSets, err := k.GetStatefulSets(cluster, listOpts)
-	if err != nil {
-		return err
-	}
-	for _, statefulSet := range statefulSets.Items {
-		if err := k.kclient.
-			AppsV1().
-			StatefulSets(cluster.GetNamespace()).
-			Delete(statefulSet.GetName(), &metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-		k.logger.Info("deleting StatefulSet", zap.String("StatefulSet", statefulSet.GetName()))
-	}
-	return nil
-}
-
-// GetStatefulSets provides all the StatefulSets contained within a
-// cluster
-func (k *k8sops) GetStatefulSets(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
-	statefulSets, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).List(listOpts)
-	if err != nil {
-		return nil, err
-	}
-	if len(statefulSets.Items) == 0 {
-		return nil, errors.New("failed find any StatefulSets")
-	}
-	return statefulSets, nil
-}
-
-// GetPlacementDetails provides the pod to isolation group mapping
-func (k *k8sops) GetPlacementDetails(cluster *myspec.M3DBCluster) (map[string]string, error) {
-	placementDetails := make(map[string]string)
-	for _, ig := range cluster.Spec.IsolationGroups {
-		pods, err := k.GetPodsByLabel(cluster, k.LabelSelector(labels.IsolationGroup, ig.Name))
-		if err != nil {
-			return nil, err
-		}
-		for _, pod := range pods.Items {
-			placementDetails[pod.GetName()] = ig.Name
-		}
-	}
-	return placementDetails, nil
-}
-
-// GetPodsByLabel provides a PodList given ListOptions which contain the
-// correct LabelSelector
-func (k *k8sops) GetPodsByLabel(cluster *myspec.M3DBCluster, listOpts metav1.ListOptions) (*v1.PodList, error) {
-	pods, err := k.kclient.CoreV1().Pods(cluster.GetNamespace()).List(listOpts)
-	if err != nil {
-		return nil, err
-	}
-	return pods, nil
-}
-
-// CreateStatefulSet will create a StatefulSet and ensure all Pod replicas are
-// ready before returning
-func (k *k8sops) CreateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Create(statefulSet)
-	if err != nil {
-		k.logger.Error("failed to create statefulset", zap.Error(err), zap.String("statefulset", statefulSet.GetName()))
-	}
-	statefulSet, err = k.CheckStatefulStatus(cluster, statefulSet)
-	if err != nil {
-		return nil, err
-	}
-	k.logger.Info("statefulset created")
-
-	return statefulSet, nil
-}
-
-// GetStatefulSet simply returns a StatefulSet given the current cluster
-func (k *k8sops) GetStatefulSet(cluster *myspec.M3DBCluster, name string) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return statefulSet, nil
-}
-
-// UpdateStatefulSet simply updates a statefulset
-func (k *k8sops) UpdateStatefulSet(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	statefulSet, err := k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).Update(statefulSet)
-	if err != nil {
-		return nil, err
-	}
-	statefulSet, err = k.CheckStatefulStatus(cluster, statefulSet)
-	if err != nil {
-		return nil, err
-	}
-	k.logger.Info("updated ss", zap.Any("ss", statefulSet))
-	statefulSet, err = k.kclient.AppsV1().StatefulSets(cluster.GetNamespace()).UpdateStatus(statefulSet)
-	if err != nil {
-		return nil, err
-	}
-	k.logger.Info("updated ss status", zap.Any("ss", statefulSet))
-	return statefulSet, err
-}
-
-// CheckStatefulStatus will poll a given StatefulSet to ensure it reaches a
-// ready state within 60 seconds with polling updates at 500 ms
-func (k *k8sops) CheckStatefulStatus(cluster *myspec.M3DBCluster, statefulSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	// Poll newly created stateful set and ensure all PODs are in ready state
-	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		statefulSet, err := k.GetStatefulSet(cluster, statefulSet.GetName())
-		if err != nil {
-			return false, err
-		}
-		if statefulSet.Status.Replicas != statefulSet.Status.ReadyReplicas {
-			return false, nil
-		}
-		k.logger.Info("statefulstate has all replicas in a ready state", zap.Int32("readyReplicas", statefulSet.Status.ReadyReplicas))
-		return true, nil
-	})
-	if err != nil {
-		k.logger.Error("ss took longer than 60s to be in ready", zap.Error(err), zap.String("statefulset", statefulSet.GetName()))
-		return nil, err
-	}
-	statefulSet, err = k.GetStatefulSet(cluster, statefulSet.GetName())
-	if err != nil {
-		return nil, err
-	}
-	return statefulSet, nil
-}
 
 // NewBaseProbe returns a probe configured for default ports.
 
