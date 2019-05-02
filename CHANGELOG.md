@@ -13,7 +13,7 @@ specific nodes to M3DB. See the [affinity docs][affinity-docs] for more.
 
 * [FEATURE] Allow specifying of etcd endpoints on M3DBCluster spec ([#99][99])
 * [FEATURE] Allow specifying security contexts for M3DB pods ([#107][107])
-* [FEATURE] Allow specifying tolerations of m3db pods ([#111][111])
+* [FEATURE] Allow specifying tolerations of M3DB pods ([#111][111])
 * [FEATURE] Allow specifying pod priority classes ([#119][119])
 * [FEATURE] Use a dedicated etcd-environment per-cluster to support sharing etcd clusters ([#99][99])
 * [FEATURE] Support more granular node affinity per-isolation group ([#106][106]) ([#131][131])
@@ -47,10 +47,10 @@ If using a custom configmap, this same change will require a modification to you
 
 ## 0.1.2
 
-* Update default cluster ConfigMap to include parameters required by latest m3db.
+* Update default cluster ConfigMap to include parameters required by latest M3DB.
 * Add event `patch` permission to default RBAC role.
 
-## 0.1.0
+## 0.1.1
 
 * Fix helm manifests.
 
@@ -65,6 +65,7 @@ If using a custom configmap, this same change will require a modification to you
 [94]: https://github.com/m3db/m3db-operator/pull/94
 [97]: https://github.com/m3db/m3db-operator/pull/97
 [98]: https://github.com/m3db/m3db-operator/pull/98
+[99]: https://github.com/m3db/m3db-operator/pull/99
 [100]: https://github.com/m3db/m3db-operator/pull/100
 [106]: https://github.com/m3db/m3db-operator/pull/106
 [107]: https://github.com/m3db/m3db-operator/pull/107
@@ -74,6 +75,5 @@ If using a custom configmap, this same change will require a modification to you
 [117]: https://github.com/m3db/m3db-operator/pull/117
 [118]: https://github.com/m3db/m3db-operator/pull/118
 [119]: https://github.com/m3db/m3db-operator/pull/119
-[99]: https://github.com/m3db/m3db-operator/pull/99
 [125]: https://github.com/m3db/m3db-operator/pull/125
 [131]: https://github.com/m3db/m3db-operator/pull/131

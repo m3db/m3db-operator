@@ -10,7 +10,7 @@ on M3DB's resiliency can be found in the [deployment docs][m3db-deployment].
 
 By leveraging Kubernetes' node affinity and M3DB's isolation groups, the operator can guarantee that M3DB pods are
 distributed across failure domains. For example, in a Kubernetes cluster spread across 3 zones in a cloud region, the
-`isolationGroups` below config would guarantee that no single zone failure could degrade the M3DB cluster.
+`isolationGroups` configuration below would guarantee that no single zone failure could degrade the M3DB cluster.
 
 M3DB is unaware of the underlying zone topology: it just views the isolation groups as `group1`, `group2`, `group3` in
 its [placement][m3db-placement]. Thanks to the Kubernetes scheduler, however, these groups are actually scheduled across
