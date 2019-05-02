@@ -89,7 +89,7 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 			// Must create CRD first to have an error updating it.
 			if test.action == "update" {
 				err := k.CreateOrUpdateCRD(m3dboperator.Name, false)
-			assert.NoError(t, err)
+				assert.NoError(t, err)
 			}
 
 			err := k.CreateOrUpdateCRD(m3dboperator.Name, false)

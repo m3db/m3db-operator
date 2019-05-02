@@ -43,6 +43,9 @@ const (
 	ComponentM3DBNode = "m3dbnode"
 	// ComponentCoordinator indicates a component is a coordinator.
 	ComponentCoordinator = "coordinator"
+	// EtcdDeletionFinalizer is the finalizer used to delete cluster data stored
+	// in etcd.
+	EtcdDeletionFinalizer = "operator.m3db.io/etcd-deletion"
 )
 
 // BaseLabels returns the base labels we apply to all objects created by the
