@@ -34,6 +34,24 @@ edit_uri: edit/master/docs/
 repo_name: m3db/m3db-operator
 repo_url: https://github.com/m3db/m3db-operator
 
+markdown_extensions:
+  - pymdownx.arithmatex
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: "!!python/name:pymdownx.emoji.to_svg"
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
 pages:
   - "Introduction": "index.md"
   - "Getting Started":
@@ -44,4 +62,5 @@ pages:
     - "Configuring M3DB": "configuration/configuring_m3db.md"
     - "Pod Identity": "configuration/pod_identity.md"
     - "Namespaces": "configuration/namespaces.md"
+    - "Node Affinity & Cluster Topology": "configuration/node_affinity.md"
   - "API": "api.md"

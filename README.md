@@ -65,7 +65,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.1.4/exa
 
 Apply manifest with your zones specified for isolation groups:
 
-```
+```yaml
 apiVersion: operator.m3db.io/v1alpha1
 kind: M3DBCluster
 metadata:
