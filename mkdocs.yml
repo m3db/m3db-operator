@@ -58,6 +58,7 @@ pages:
     - "Requirements": "getting_started/requirements.md"
     - "Installation": "getting_started/installation.md"
     - "Creating a Cluster": "getting_started/create_cluster.md"
+    - "Monitoring": "getting_started/monitoring.md"
   - "Configuration":
     - "Configuring M3DB": "configuration/configuring_m3db.md"
     - "Pod Identity": "configuration/pod_identity.md"
