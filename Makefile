@@ -151,6 +151,7 @@ install-mockgen:
 		rm -rf $(gopath_prefix)/$(mockgen_package)                                    && \
 		mkdir -p $(shell dirname $(gopath_prefix)/$(mockgen_package))                 && \
 		cp -r $(vendor_prefix)/$(mockgen_package) $(gopath_prefix)/$(mockgen_package) && \
+		go get golang.org/x/tools/go/packages																					&& \
 		go install $(mockgen_package)                                                    \
 	)
 
