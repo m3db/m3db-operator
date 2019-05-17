@@ -1,0 +1,14 @@
+cluster_namespace: m3db
+cluster_name: test-cluster
+namespaces:
+- name: metrics-2d
+  type: unaggregated
+  retention: 48h
+- name: metrics-40d
+  type: aggregated
+  retention: 960h
+  resolution: 1m
+etcd_endpoints:
+- http://etcd-0.etcd:2379
+- http://etcd-1.etcd:2379
+- http://etcd-2.etcd:2379

@@ -1,0 +1,16 @@
+apiVersion: v1
+version: 0.2.0
+name: m3coordinator
+description: "dedicated m3coordinator char"
+keywords:
+- operator
+- m3
+engine: gotpl
+home: https://github.com/m3db/m3db-operator
+sources:
+- https://github.com/m3db/m3db-operator
+maintainers:
+- name: m3 Authors
+  email: m3db@googlegroups.com
+  url: https://operator.m3db.io/
+icon: https://raw.githubusercontent.com/m3db/m3/master/docs/theme/assets/images/M3-logo.png

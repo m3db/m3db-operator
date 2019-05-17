@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: m3coordinator
+    deployment: dedicated-{{ .Values.cluster_name }}
+  name: coordinator-dedicated
+spec:
+  replicas: {{ .Values.num_coordinators }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: m3coordinator
+      deployment: dedicated-{{ .Values.cluster_name }}
+  template:
+    metadata:
+      labels:
+        app: m3coordinator
+        deployment: dedicated-{{ .Values.cluster_name }}
+    spec:
+      containers:
+      - name: m3coordinator
+        image: quay.io/m3db/m3coordinator:latest
+        args:
+        - "-f"
+        - "/etc/m3/coordinator.yaml"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/m3
+        imagePullPolicy: Always
+        ports:
+        - name: coordinator
+          containerPort: 7201
+          protocol: TCP
+        - name: debug
+          containerPort: 7203
+          protocol: TCP
+      volumes:
+      - name: config
+        configMap:
+          name: m3coordinator-dedicated-{{ .Values.cluster_name }}
