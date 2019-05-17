@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: m3coordinator
+  name: m3coordinator-dedicated-{{ .Values.cluster_name }}
+  namespace: {{ .Values.cluster_namespace }}
+spec:
+  ports:
+  - name: coordinator
+    port: 7201
+    protocol: TCP
+    targetPort: 7201
+  - name: coord-debug
+    port: 7203
+    protocol: TCP
+    targetPort: 7203
+  selector:
+    app: coordinator
+  type: ClusterIP
