@@ -16,5 +16,5 @@ spec:
     protocol: TCP
     targetPort: 7203
   selector:
-    app: coordinator
+    app: m3coordinator
   type: ClusterIP
