@@ -105,27 +105,27 @@ func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOp
 func m3dbRetentionOptsFromSpec(opts myspec.RetentionOptions) (*m3ns.RetentionOptions, error) {
 	retention, err := time.ParseDuration(opts.RetentionPeriod)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse retention option RetentionPeriod: %v", err)
 	}
 
 	blockSize, err := time.ParseDuration(opts.BlockSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse retention option BlockSize: %v", err)
 	}
 
 	bufferFuture, err := time.ParseDuration(opts.BufferFuture)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse retention option BufferFuture: %v", err)
 	}
 
 	bufferPast, err := time.ParseDuration(opts.BufferPast)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse retention option BufferPast: %v", err)
 	}
 
 	expiryNanos, err := time.ParseDuration(opts.BlockDataExpiryAfterNotAccessPeriod)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse retention option BlockDataExpiryAfterNotAccessPeriod: %v", err)
 	}
 
 	return &m3ns.RetentionOptions{
@@ -141,7 +141,7 @@ func m3dbRetentionOptsFromSpec(opts myspec.RetentionOptions) (*m3ns.RetentionOpt
 func m3dbIndexOptsFromSpec(opts myspec.IndexOptions) (*m3ns.IndexOptions, error) {
 	blockSize, err := time.ParseDuration(opts.BlockSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse index option BlockSize: %v", err)
 	}
 
 	return &m3ns.IndexOptions{

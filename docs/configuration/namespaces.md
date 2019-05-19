@@ -50,15 +50,15 @@ spec:
       snapshotEnabled: true
       repairEnabled: false
       retentionOptions:
-        retentionPeriodDuration: 168h
-        blockSizeDuration: 12h
-        bufferFutureDuration: 20m
-        bufferPastDuration: 20m
+        retentionPeriod: 168h
+        blockSize: 12h
+        bufferFuture: 20m
+        bufferPast: 20m
         blockDataExpiry: true
-        blockDataExpiryAfterNotAccessPeriodDuration: 5m
+        blockDataExpiryAfterNotAccessPeriod: 5m
       indexOptions:
         enabled: true
-        blockSizeDuration: 12h
+        blockSize: 12h
 ```
 
 
