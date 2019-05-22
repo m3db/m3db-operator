@@ -26,6 +26,36 @@ specific nodes to M3DB. See the [affinity docs][affinity-docs] for more.
 
 ### Breaking Changes
 
+#### API Changes
+
+0.2.0 includes breaking changes to the way isolation groups are defined. In 1.x.x, the `name` of an isolation group was
+assumed to be the value of `failure-domain.beta.kubernetes.io/zone` unless a separate key was manually specified. In
+0.2.0 we chose to require more explicit definition of isolation groups to allow more complex affinity requirements, as
+are described in the [example docs][affinity-docs].
+
+An example of an old isolation group to pin to the zone `us-west1-b` might look like this:
+
+```yaml
+isolationGroups:
+- name: us-west1-b
+  numInstances: 3
+  ...
+```
+
+In the new API this must be formatted as
+```yaml
+isolationGroups:
+- name: group1 # can be any name you like
+  numInstances: 3
+  nodeAffinityTerms:
+  - key: failure-domain.beta.kubernetes.io/zone
+    values:
+    - us-west1-b
+```
+
+
+#### Etcd Keys
+
 0.2.0 changes how M3DB stores its cluster topology in etcd to allow for multiple M3DB clusters to share an etcd cluster.
 A [migration script][etcd-migrate] is provided to copy etcd data from the old format to the new format. If migrating an
 operated cluster, run that script (see script for instructions) and then rolling restart your M3DB pods by deleting them
