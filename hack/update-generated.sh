@@ -27,3 +27,9 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
   m3dboperator:v1alpha1  \
   --go-header-file "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt" \
   "$@"
+
+echo "Generating OpenAPI Schema definition"
+openapi-gen --v=1 --logtostderr \
+  -h "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt" \
+  -i github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1 \
+  -p github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1

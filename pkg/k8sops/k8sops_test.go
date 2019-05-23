@@ -34,10 +34,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-func newFakeK8sops() (K8sops, error) {
+func newFakeK8sops(t *testing.T) K8sops {
 	logger := zap.NewNop()
 	kubeCli := kubeFake.NewSimpleClientset(&appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -53,7 +54,8 @@ func newFakeK8sops() (K8sops, error) {
 		WithKClient(kubeCli),
 		WithLogger(logger),
 	)
-	return k, err
+	require.NoError(t, err)
+	return k
 }
 
 func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {

@@ -45,21 +45,22 @@ const (
 	ClusterConditionPodBootstrapping ClusterConditionType = "PodBootstrapping"
 )
 
+// M3DBCluster defines the cluster
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// M3DBCluster defines the cluster
+// +k8s:openapi-gen=true
 type M3DBCluster struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Type              string      `json:"type"`
 	Spec              ClusterSpec `json:"spec"`
 	Status            M3DBStatus  `json:"status,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // M3DBClusterList represents a list of M3DB Clusters
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:openapi-gen=true
 type M3DBClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -68,6 +69,7 @@ type M3DBClusterList struct {
 
 // M3DBStatus contains the current state the M3DB cluster along with a human
 // readable message
+// +k8s:openapi-gen=true
 type M3DBStatus struct {
 	// State is a enum of green, yellow, and red denoting the health of the
 	// cluster
@@ -132,6 +134,7 @@ func (s *M3DBStatus) UpdateCondition(newCond ClusterCondition) {
 }
 
 // ClusterCondition represents various conditions the cluster can be in.
+// +k8s:openapi-gen=true
 type ClusterCondition struct {
 	// Type of cluster condition.
 	Type ClusterConditionType `json:"type,omitempty"`
@@ -167,6 +170,7 @@ const (
 )
 
 // ClusterSpec defines the desired state for a M3 cluster to be converge to.
+// +k8s:openapi-gen=true
 type ClusterSpec struct {
 	// Image specifies which docker image to use with the cluster
 	Image string `json:"image,omitempty" yaml:"image"`
@@ -235,6 +239,7 @@ type ClusterSpec struct {
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
 // which can be matched to assign a pod to a node.
+// +k8s:openapi-gen=true
 type NodeAffinityTerm struct {
 	// Key is the label of the node.
 	Key string `json:"key"`
@@ -245,6 +250,7 @@ type NodeAffinityTerm struct {
 }
 
 // IsolationGroup defines the name of zone as well attributes for the zone configuration
+// +k8s:openapi-gen=true
 type IsolationGroup struct {
 	// Name is the value that will be used in StatefulSet labels, pod labels, and
 	// M3DB placement "isolationGroup" fields.

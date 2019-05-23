@@ -138,3 +138,7 @@ revision = "25aaa3dff79bb48116615ebe1dea6a494b74ce77"
 [[override]]
 name = "github.com/m3db/prometheus_procfs"
 revision = "1878d9fbb537119d24b21ca07effd591627cd160"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/ant31/crd-validation"

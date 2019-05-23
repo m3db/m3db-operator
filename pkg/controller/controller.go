@@ -71,12 +71,23 @@ var (
 	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
 
+// Configuration contains parameters for the controller.
+type Configuration struct {
+	// ManageCRD indicates whether the controller should create and update specs
+	// of the CRDs it controls.
+	ManageCRD bool
+
+	// EnableValidation controls whether OpenAPI validation is enabled on the CRD.
+	EnableValidation bool
+}
+
 // Controller object
 type Controller struct {
 	lock          *sync.Mutex
 	logger        *zap.Logger
 	clock         clock.Clock
 	scope         tally.Scope
+	config        Configuration
 	k8sclient     k8sops.K8sops
 	podIDProvider podidentity.Provider
 	adminClient   *multiAdminClient
@@ -145,6 +156,7 @@ func New(opts ...Option) (*Controller, error) {
 		lock:          &sync.Mutex{},
 		logger:        logger,
 		scope:         scope,
+		config:        options.config,
 		clock:         clock.RealClock{},
 		k8sclient:     kclient,
 		podIDProvider: options.podIDProvider,
@@ -210,17 +222,17 @@ func New(opts ...Option) (*Controller, error) {
 	return p, nil
 }
 
-// Init ensures all the required resources are created
-func (c *Controller) Init() error {
-	return c.k8sclient.CreateCRD(m3dboperator.Name)
-}
-
 // Run drives the controller event loop.
 func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.clusterWorkQueue.ShutDown()
 
 	c.logger.Info("starting Operator controller")
+	if c.config.ManageCRD {
+		if err := c.k8sclient.CreateOrUpdateCRD(m3dboperator.Name, c.config.EnableValidation); err != nil {
+			return pkgerrors.WithMessage(err, "could not create or update CRD")
+		}
+	}
 
 	c.logger.Info("waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced); !ok {

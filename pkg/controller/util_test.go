@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -51,7 +52,7 @@ func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {
 	return spec
 }
 
-func newFakeK8sops() (k8sops.K8sops, error) {
+func newFakeK8sops(t *testing.T) k8sops.K8sops {
 	logger := zap.NewNop()
 	kubeCli := kubeFake.NewSimpleClientset()
 	kubeExt := kubeExtFake.NewSimpleClientset()
@@ -62,5 +63,6 @@ func newFakeK8sops() (k8sops.K8sops, error) {
 		k8sops.WithKClient(kubeCli),
 		k8sops.WithLogger(logger),
 	)
-	return k, err
+	require.NoError(t, err)
+	return k
 }

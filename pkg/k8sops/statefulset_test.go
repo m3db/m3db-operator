@@ -33,9 +33,8 @@ import (
 
 func TestStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
-	k, err := newFakeK8sops()
+	k := newFakeK8sops(t)
 	require.NotNil(t, k)
-	require.Nil(t, err)
 
 	ssName := StatefulSetName(fixture.GetName(), 0)
 	require.Equal(t, "m3db-cluster-rep0", ssName)

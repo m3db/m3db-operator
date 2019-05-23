@@ -199,8 +199,9 @@ asset-gen:
 	@echo generating assets
 	PATH=$(retool_bin_path):$(PATH) statik -src $(SELF_DIR)/assets -dest $(SELF_DIR)/pkg/ -p assets -f -m -c "$$LICENSE_HEADER"
 
+# NB(schallert): order matters -- we want license generation after all else.
 .PHONY: all-gen
-all-gen: mock-gen kubernetes-gen license-gen asset-gen helm-bundle docs-api-gen
+all-gen: mock-gen kubernetes-gen asset-gen helm-bundle docs-api-gen license-gen
 
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
@@ -234,11 +235,11 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 .PHONY: kubernetes-gen
 kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "--- $@"
-	@GOPATH=$(GOPATH) ./hack/update-generated.sh
+	@GOPATH=$(GOPATH) PATH=$(retool_bin_path):$(PATH) ./hack/update-generated.sh
 
 .PHONY: verify-gen
 verify-gen: dep-ensure ## Ensure all codegen is up to date
-	@GOPATH=$(GOPATH) ./hack/verify-generated.sh
+	@GOPATH=$(GOPATH) PATH=$(retool_bin_path):$(PATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary

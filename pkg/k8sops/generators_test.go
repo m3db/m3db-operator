@@ -23,6 +23,7 @@ package k8sops
 import (
 	"testing"
 
+	crdutils "github.com/ant31/crd-validation/pkg"
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
@@ -37,7 +38,6 @@ import (
 
 	"github.com/kubernetes/utils/pointer"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateCRD(t *testing.T) {
@@ -65,10 +65,13 @@ func TestGenerateCRD(t *testing.T) {
 		},
 	}
 
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
-	newCRD := k.GenerateCRD()
-	require.Equal(t, crd, newCRD)
+	newCRD := GenerateCRD(false)
+	assert.Equal(t, crd, newCRD)
+	assert.Nil(t, newCRD.Spec.Validation)
+
+	newCRD = GenerateCRD(true)
+	expValidation := crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
+	assert.Equal(t, expValidation, newCRD.Spec.Validation)
 }
 
 func TestGenerateStatefulSet(t *testing.T) {
