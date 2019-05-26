@@ -173,6 +173,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 							ReadinessProbe: readiness,
 							SecurityContext: &v1.SecurityContext{
 								RunAsUser: pointer.Int64Ptr(20),
+								Capabilities: &v1.Capabilities{
+									Add: []v1.Capability{v1.Capability("SYS_RESOURCE")},
+								},
 							},
 							Command: []string{
 								"m3dbnode",

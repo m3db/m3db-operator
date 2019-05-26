@@ -39,6 +39,7 @@ import (
 const (
 	podIdentityVolumePath = "/etc/m3db/pod-identity"
 	podIdentityVolumeName = "pod-identity"
+	capabilitySysResource = v1.Capability("SYS_RESOURCE")
 )
 
 var (
@@ -94,6 +95,24 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		},
 	}
 
+	// Add SYS_RESOURCE security capability if not set (required to raise
+	// rlimit nofile from the process in container)
+	specSecurityCtx := cluster.Spec.SecurityContext
+	if specSecurityCtx.Capabilities == nil {
+		specSecurityCtx.Capabilities = &v1.Capabilities{}
+	}
+	hasCapabilitySysResource := false
+	for _, c := range specSecurityCtx.Capabilities.Add {
+		if c == capabilitySysResource {
+			hasCapabilitySysResource = true
+			break
+		}
+	}
+	if !hasCapabilitySysResource {
+		specSecurityCtx.Capabilities.Add =
+			append(specSecurityCtx.Capabilities.Add, capabilitySysResource)
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
@@ -117,7 +136,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					Containers: []v1.Container{
 						{
 							Name:            ssName,
-							SecurityContext: cluster.Spec.SecurityContext,
+							SecurityContext: specSecurityCtx,
 							ReadinessProbe:  probeReady,
 							LivenessProbe:   probeHealth,
 							Command: []string{
