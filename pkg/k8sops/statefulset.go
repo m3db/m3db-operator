@@ -98,6 +98,9 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 	// Add SYS_RESOURCE security capability if not set (required to raise
 	// rlimit nofile from the process in container)
 	specSecurityCtx := cluster.Spec.SecurityContext
+	if specSecurityCtx == nil {
+		specSecurityCtx = &v1.SecurityContext{}
+	}
 	if specSecurityCtx.Capabilities == nil {
 		specSecurityCtx.Capabilities = &v1.Capabilities{}
 	}
