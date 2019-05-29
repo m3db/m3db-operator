@@ -1,4 +1,4 @@
-FROM golang:1.10.4-stretch
+FROM golang:1.12-stretch
 
 RUN mkdir /helm && \
   cd /helm && \

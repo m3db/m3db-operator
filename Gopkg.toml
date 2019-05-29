@@ -83,23 +83,23 @@ source = "github.com/m3db/thrift"
 
 [[override]]
   name = "k8s.io/code-generator"
-  branch = "release-1.11"
+  branch = "release-1.12"
 
 [[override]]
   name = "k8s.io/api"
-  branch = "release-1.11"
+  branch = "release-1.12"
 
 [[override]]
   name = "k8s.io/apimachinery"
-  branch = "release-1.11"
+  branch = "release-1.12"
 
 [[override]]
   name = "k8s.io/apiextensions-apiserver"
-  branch = "release-1.11"
+  branch = "release-1.12"
 
 [[override]]
   name = "k8s.io/client-go"
-  branch = "release-8.0"
+  branch = "release-9.0"
 
 [[constraint]]
 name = "github.com/rakyll/statik"
