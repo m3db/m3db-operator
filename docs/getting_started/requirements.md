@@ -2,7 +2,7 @@
 
 ## Kubernetes Versions
 
-The M3DB operator current targets Kubernetes 1.10 and 1.11. Given the operator's current production use cases at Uber,
+The M3DB operator current targets Kubernetes 1.11 and 1.12. Given the operator's current production use cases at Uber,
 we typically target the two most recent minor Kubernetes versions supported by GKE. We welcome community contributions
 to support more recent versions while meeting the aforementioned GKE targets!
 
