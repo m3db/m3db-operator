@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ import (
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
@@ -41,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/golang/mock/gomock"
 	pkgerrors "github.com/pkg/errors"
@@ -139,7 +142,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 			kubeObjects: objects,
 		})
 
-		c := deps.newController()
+		c := deps.newController(t)
 
 		// Ensure that with no owner references we don't act on these sets
 		children, err := c.getChildStatefulSets(cluster)
@@ -237,9 +240,8 @@ func TestGetParentCluster(t *testing.T) {
 			cluster,
 		},
 	})
+	c := deps.newController(t)
 	defer deps.cleanup()
-
-	c := deps.newController()
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -277,8 +279,8 @@ func TestHandlePodUpdate(t *testing.T) {
 		crdObjects:  []runtime.Object{cluster},
 		kubeObjects: []runtime.Object{pod1},
 	})
+	c := deps.newController(t)
 	defer deps.cleanup()
-	c := deps.newController()
 
 	mockID := &myspec.PodIdentity{
 		Name: "pod1",
@@ -302,7 +304,8 @@ func TestHandlePodUpdate(t *testing.T) {
 func TestClusterEventLoop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	defer deps.cleanup()
-	c := deps.newController()
+
+	c := deps.newController(t)
 
 	cluster := &myspec.M3DBCluster{
 		ObjectMeta: newObjectMeta("foo", nil),
@@ -335,7 +338,8 @@ func TestClusterEventLoop(t *testing.T) {
 func TestPodEventLoop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	defer deps.cleanup()
-	c := deps.newController()
+
+	c := deps.newController(t)
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -413,5 +417,166 @@ func TestValidateIsolationGroups(t *testing.T) {
 		} else {
 			assert.NoError(t, err)
 		}
+	}
+}
+
+func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
+	tests := []struct {
+		name                  string
+		cluster               *metav1.ObjectMeta
+		sets                  []*metav1.ObjectMeta
+		replicationFactor     int
+		expCreateStatefulSets []string
+	}{
+		{
+			name:    "creates missing stateful sets at tail",
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
+		},
+		{
+			name:    "creates missing stateful sets at head and tail",
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep1", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep2"},
+		},
+		{
+			name:    "creates missing stateful sets at head",
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep2", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfgMapName := "configMapName"
+			cluster := &myspec.M3DBCluster{
+				ObjectMeta: *test.cluster,
+				Spec: myspec.ClusterSpec{
+					ReplicationFactor: int32(test.replicationFactor),
+					ConfigMapName:     &cfgMapName,
+				},
+			}
+			cluster.ObjectMeta.UID = "abcd"
+			for i := 0; i < test.replicationFactor; i++ {
+				group := myspec.IsolationGroup{
+					Name:         fmt.Sprintf("group%d", i),
+					NumInstances: 1,
+				}
+				cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
+			}
+
+			objects := make([]runtime.Object, len(test.sets))
+			statefulSets := make([]*appsv1.StatefulSet, len(test.sets))
+			for i, s := range test.sets {
+				set := &appsv1.StatefulSet{
+					ObjectMeta: *s,
+				}
+				// Apply base labels
+				if set.ObjectMeta.Labels == nil {
+					set.ObjectMeta.Labels = make(map[string]string)
+				}
+				for k, v := range labels.BaseLabels(cluster) {
+					set.ObjectMeta.Labels[k] = v
+				}
+				statefulSets[i] = set
+				objects[i] = set
+			}
+
+			deps := newTestDeps(t, &testOpts{
+				kubeObjects: objects,
+			})
+			defer deps.cleanup()
+
+			for _, set := range statefulSets {
+				// Now set the owner refs and ensure we pick up the sets
+				set.SetOwnerReferences([]metav1.OwnerReference{
+					*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+						Group:   myspec.SchemeGroupVersion.Group,
+						Version: myspec.SchemeGroupVersion.Version,
+						Kind:    "m3dbcluster",
+					}),
+				})
+				// Also set the number of ready replicas to as expected
+				replicas := int32(1)
+				set.Spec.Replicas = &replicas
+				set.Status.ReadyReplicas = replicas
+				_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
+				assert.NoError(t, err)
+			}
+
+			c := deps.newController(t)
+
+			// Keep running cluster updates until no more stateful sets required
+			expectedSetsCreated := make(map[string]bool)
+			for _, name := range test.expCreateStatefulSets {
+				expectedSetsCreated[name] = false
+			}
+			for {
+				created := 0
+				for _, v := range expectedSetsCreated {
+					if v {
+						created++
+					}
+				}
+				if created == len(expectedSetsCreated) {
+					// All created
+					break
+				}
+
+				result, err := c.handleClusterUpdate(cluster)
+				require.NoError(t, err)
+				require.Equal(t, actionClusterUpdate, result)
+
+				for _, action := range deps.kubeClient.Actions() {
+					created, ok := action.(kubetesting.CreateActionImpl)
+					if !ok {
+						continue
+					}
+					switch {
+					case created.Verb == "create" &&
+						created.Resource == schema.GroupVersionResource{
+							Group:    "apps",
+							Version:  "v1",
+							Resource: "statefulsets",
+						}:
+
+						set, ok := created.Object.(*appsv1.StatefulSet)
+						require.True(t, ok)
+
+						// Track we created it
+						expectedSetsCreated[set.Name] = true
+
+						// Set owning references for newly created stateful set
+						set.SetOwnerReferences([]metav1.OwnerReference{
+							*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+								Group:   myspec.SchemeGroupVersion.Group,
+								Version: myspec.SchemeGroupVersion.Version,
+								Kind:    "m3dbcluster",
+							}),
+						})
+
+						// Also set the number of ready replicas to as expected
+						replicas := int32(1)
+						set.Spec.Replicas = &replicas
+						set.Status.ReadyReplicas = replicas
+
+						_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
+						require.NoError(t, err)
+					}
+				}
+				deps.kubeClient.ClearActions()
+			}
+		})
 	}
 }
