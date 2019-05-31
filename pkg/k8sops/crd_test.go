@@ -49,41 +49,54 @@ func TestCreateOrUpdateCRD(t *testing.T) {
 	_, err = ext.Get(m3dboperator.Name, metav1.GetOptions{})
 	assert.Error(t, err)
 
+	// Create the CRD.
 	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
 	assert.NoError(t, err)
 
 	_, err = ext.Get(m3dboperator.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
-}
 
-func TestCreateOrUpdateCRD_ErrGet(t *testing.T) {
-	k := newFakeK8sops(t).(*k8sops)
-
-	err := k.CreateOrUpdateCRD("foo", false)
-	assert.Error(t, err)
-
-	k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor("get", "*", func(action ktesting.Action) (bool, runtime.Object, error) {
-		return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
-	})
-	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
-	assert.Contains(t, err.Error(), "could not fetch")
-}
-
-func TestCreateOrUpdateCRD_ErrUpdate(t *testing.T) {
-	k := newFakeK8sops(t).(*k8sops)
-
-	err := k.CreateOrUpdateCRD("foo", false)
-	assert.Error(t, err)
-
+	// Update the CRD.
 	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
 	assert.NoError(t, err)
+}
 
-	k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor("update", "*", func(action ktesting.Action) (bool, runtime.Object, error) {
-		return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
-	})
-	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "error updating")
+func TestCreateOrUpdateCRD_Err(t *testing.T) {
+	for _, test := range []struct {
+		action string
+		expErr string
+	}{
+		{
+			action: "get",
+			expErr: "could not fetch",
+		},
+		{
+			action: "update",
+			expErr: "error updating",
+		},
+		{
+			action: "create",
+			expErr: "error creating",
+		},
+	} {
+		t.Run(test.action, func(t *testing.T) {
+			k := newFakeK8sops(t).(*k8sops)
+
+			k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor(test.action, "*", func(action ktesting.Action) (bool, runtime.Object, error) {
+				return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
+			})
+
+			// Must create CRD first to have an error updating it.
+			if test.action == "update" {
+				err := k.CreateOrUpdateCRD(m3dboperator.Name, false)
+			assert.NoError(t, err)
+			}
+
+			err := k.CreateOrUpdateCRD(m3dboperator.Name, false)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), test.expErr)
+		})
+	}
 }
 
 func TestWaitForCRDReady(t *testing.T) {
