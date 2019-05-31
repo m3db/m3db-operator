@@ -11,6 +11,9 @@ coverage:
     changes:
       default: on
 
+ignore:
+- "pkg/client/**/*"
+
 comment:
   layout: "header, reach, diff, flags, footer"
   behavior: default
