@@ -233,7 +233,7 @@ dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
 	PATH=$(retool_bin_path):$(PATH) dep ensure
 
 .PHONY: kubernetes-gen
-kubernetes-gen: dep-ensure ## Generate boilerplate code for kubernetes packages
+kubernetes-gen: install-codegen-tools dep-ensure ## Generate boilerplate code for kubernetes packages
 	@echo "--- $@"
 	@GOPATH=$(GOPATH) PATH=$(retool_bin_path):$(PATH) ./hack/update-generated.sh
 
