@@ -35,9 +35,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	crdutils "github.com/ant31/crd-validation/pkg"
 	"github.com/kubernetes/utils/pointer"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateCRD(t *testing.T) {
@@ -65,10 +65,13 @@ func TestGenerateCRD(t *testing.T) {
 		},
 	}
 
-	k, err := newFakeK8sops()
-	require.Nil(t, err)
-	newCRD := k.GenerateCRD()
-	require.Equal(t, crd, newCRD)
+	newCRD := GenerateCRD(false)
+	assert.Equal(t, crd, newCRD)
+	assert.Nil(t, newCRD.Spec.Validation)
+
+	newCRD = GenerateCRD(true)
+	expValidation := crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
+	assert.Equal(t, expValidation, newCRD.Spec.Validation)
 }
 
 func TestGenerateStatefulSet(t *testing.T) {

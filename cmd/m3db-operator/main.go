@@ -57,15 +57,17 @@ const (
 )
 
 var (
-	_kubeCfgFile  string
-	_masterURL    string
-	_operatorName = "m3db_operator"
-	_metricsPath  = "/metrics"
-	_metricsPort  = ":8080"
-	_useProxy     bool
-	_debugLog     bool
-	_develLog     bool
-	_humanTime    bool
+	_kubeCfgFile         string
+	_masterURL           string
+	_operatorName        = "m3db_operator"
+	_metricsPath         = "/metrics"
+	_metricsPort         = ":8080"
+	_useProxy            bool
+	_debugLog            bool
+	_develLog            bool
+	_humanTime           bool
+	_manageCRD           bool
+	_enableCRDValidation bool
 )
 
 func init() {
@@ -75,6 +77,9 @@ func init() {
 	flag.BoolVar(&_develLog, "devel", false, "enable development logging mode")
 	flag.BoolVar(&_humanTime, "human-time", false, "print human-friendly timestamps")
 	flag.BoolVar(&_useProxy, "proxy", false, "use kubectl proxy for cluster communication")
+	flag.BoolVar(&_manageCRD, "manage-crd", true, "create and update the operator's CRD specs")
+	// Disabled by default until openAPI validation is more tested.
+	flag.BoolVar(&_enableCRDValidation, "enable-crd-validation", false, "enable openAPI validation of the CR")
 	flag.Parse()
 }
 
@@ -111,13 +116,13 @@ func main() {
 		"environment": env,
 	}
 
-	config := promreporter.Configuration{
+	promCfg := promreporter.Configuration{
 		HandlerPath:   _metricsPath,
 		ListenAddress: _metricsPort,
 		TimerType:     "summary",
 	}
 
-	r, err := config.NewReporter(promreporter.ConfigurationOptions{
+	r, err := promCfg.NewReporter(promreporter.ConfigurationOptions{
 		OnError: func(err error) {
 			if err != nil {
 				logger.Error("prometheus reporter error", zap.Error(err))
@@ -177,7 +182,13 @@ func main() {
 		logger.Fatal("failed to create ID provider", zap.Error(err))
 	}
 
+	config := controller.Configuration{
+		ManageCRD:        _manageCRD,
+		EnableValidation: _enableCRDValidation,
+	}
+
 	opts := []controller.Option{
+		controller.WithConfig(config),
 		controller.WithKubeInformerFactory(kubeInformerFactory),
 		controller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
 		controller.WithPodIdentityProvider(idProvider),
@@ -201,11 +212,6 @@ func main() {
 
 	go kubeInformerFactory.Start(stopCh)
 	go m3dbClusterInformerFactory.Start(stopCh)
-
-	// Init the controller
-	if err := controller.Init(); err != nil {
-		logger.Fatal("failed to init controller", zap.Error(err))
-	}
 
 	// Trap the INT and TERM signals
 	signalChan := make(chan os.Signal, 2)

@@ -22,75 +22,79 @@ package k8sops
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
-// GetCRD will get a CRD
-func (k *k8sops) GetCRD(name string) (*apiextensionsv1beta1.CustomResourceDefinition, error) {
-	crd, err := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Get(name, metav1.GetOptions{})
-	if err != nil {
-		k.logger.Error("could not get CRD", zap.Error(err))
-		return nil, err
+func (k *k8sops) CreateOrUpdateCRD(name string, enableValidation bool) error {
+	if name != myspec.Name {
+		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
-	return crd, nil
+
+	crdClient := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
+	curCRD, err := crdClient.Get(name, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return pkgerrors.WithMessagef(err, "could not fetch CRD '%s'", name)
+	}
+
+	newCRD := GenerateCRD(enableValidation)
+	if apierrors.IsNotFound(err) {
+		_, err := crdClient.Create(newCRD)
+		if err != nil {
+			return pkgerrors.WithMessagef(err, "error creating CRD '%s'", name)
+		}
+		k.logger.Info("created CRD", zap.String("name", name))
+		return nil
+	}
+
+	// CRD exists, update it
+	curCRD.Spec = newCRD.Spec
+	newCRD, err = crdClient.Update(curCRD)
+	if err != nil {
+		return pkgerrors.WithMessagef(err, "error updating CRD '%s'", name)
+	}
+
+	k.logger.Info("updated CRD",
+		zap.String("name", name),
+		zap.String("oldRV", curCRD.ResourceVersion),
+		zap.String("newRV", newCRD.ResourceVersion),
+	)
+
+	return k.waitForCRDReady(name)
 }
 
-// CreateCRD checks if M3DB CRD exists. If not, create
-func (k *k8sops) CreateCRD(name string) error {
-	crd, err := k.GetCRD(name)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			k.logger.Debug("crd is missing, creating it")
-			crdObject := k.GenerateCRD()
-			crd, err := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crdObject)
-			if err != nil {
-				panic(err)
-			}
-			// wait for CRD being established
-			err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-				createdCRD, err := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.GetName(), metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				for _, cond := range createdCRD.Status.Conditions {
-					switch cond.Type {
-					case apiextensionsv1beta1.Established:
-						if cond.Status == apiextensionsv1beta1.ConditionTrue {
-							return true, nil
-						}
-					case apiextensionsv1beta1.NamesAccepted:
-						if cond.Status == apiextensionsv1beta1.ConditionFalse {
-							return false, fmt.Errorf("name conflict: %v", cond.Reason)
-						}
-					}
-				}
-				return false, nil
-			})
-
-			if err != nil {
-				deleteErr := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(myspec.Name, nil)
-				if deleteErr != nil {
-					return errors.NewAggregate([]error{err, deleteErr})
-				}
-				return err
-			}
-
-			k.logger.Info("CRD created")
-		} else {
-			panic(err)
-		}
-	} else {
-		k.logger.Info("CRD already exists", zap.String("name", crd.ObjectMeta.Name))
+// waitForCRDReady waits until we can list resources of the given type,
+// indicating that the resource is ready.
+func (k *k8sops) waitForCRDReady(name string) error {
+	if name != myspec.Name {
+		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
-	return nil
+
+	// wait until we can list resources of our type without getting resource not
+	// found errors.
+	err := wait.Poll(2*time.Second, 5*time.Minute, func() (bool, error) {
+		_, err := k.crdClient.OperatorV1alpha1().M3DBClusters(metav1.NamespaceAll).List(metav1.ListOptions{})
+		if err == nil {
+			return true, nil
+		}
+
+		if se, ok := err.(*apierrors.StatusError); ok {
+			if se.Status().Code == http.StatusNotFound {
+				return false, nil
+			}
+		}
+
+		return false, pkgerrors.WithMessagef(err, "failed to list crd '%s'", name)
+	})
+
+	return pkgerrors.WithMessagef(err, "timed out waiting for CRD '%s' to be registered'", name)
 }

@@ -24,20 +24,14 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 // K8sops provides an interface for various Kubernetes API calls
 type K8sops interface {
-	// GetCRD will get a CRD
-	GetCRD(name string) (*apiextensionsv1beta1.CustomResourceDefinition, error)
-
-	// CreateCRD checks if M3DB CRD exists. If not, create
-	CreateCRD(name string) error
-
-	// GenerateCRD generates the crd object needed for the M3DBCluster
-	GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition
+	// CreateOrUpdateCRD creates the CRD if it does not exist, or updates it to
+	// contain the latest spec if it does exist.
+	CreateOrUpdateCRD(name string, enableValidation bool) error
 
 	// GetService simply gets a service by name
 	GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error)

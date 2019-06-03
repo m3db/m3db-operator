@@ -13,6 +13,8 @@ coverage:
 
 ignore:
 - "pkg/client/**/*"
+- "**/*generated.go"
+- "**/*generated*.go"
 
 comment:
   layout: "header, reach, diff, flags, footer"

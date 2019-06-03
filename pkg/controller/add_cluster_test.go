@@ -57,14 +57,13 @@ func registerValidConfigMap(content string) error {
 
 func TestEnsureService_Base(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
-	k8sops, err := newFakeK8sops()
-	require.NoError(t, err)
+	k8sops := newFakeK8sops(t)
 
 	c := &Controller{
 		k8sclient: k8sops,
 	}
 
-	err = c.ensureServices(cluster)
+	err := c.ensureServices(cluster)
 	assert.NoError(t, err)
 
 	for _, svcName := range []string{"m3dbnode-cluster-simple", "m3coordinator-cluster-simple"} {

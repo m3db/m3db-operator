@@ -33,6 +33,7 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	crdutils "github.com/ant31/crd-validation/pkg"
 	"github.com/kubernetes/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 )
@@ -54,6 +55,7 @@ const (
 	_configurationFileLocation = _configurationDirectory + _configurationFileName
 	_configurationFileName     = "m3.yml"
 	_healthFileName            = "/bin/m3dbnode_bootstrapped.sh"
+	_openAPISpecName           = "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.M3DBCluster"
 )
 
 var (
@@ -82,8 +84,8 @@ var baseCoordinatorPorts = [...]m3dbPort{
 }
 
 // GenerateCRD generates the crd object needed for the M3DBCluster
-func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
-	return &apiextensionsv1beta1.CustomResourceDefinition{
+func GenerateCRD(enableValidation bool) *apiextensionsv1beta1.CustomResourceDefinition {
+	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: m3dboperator.Name,
 		},
@@ -106,6 +108,12 @@ func (k *k8sops) GenerateCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 			},
 		},
 	}
+
+	if enableValidation {
+		crd.Spec.Validation = crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
+	}
+
+	return crd
 }
 
 // GenerateStatefulSet provides a statefulset object for a m3db cluster

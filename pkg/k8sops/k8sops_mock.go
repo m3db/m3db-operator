@@ -31,7 +31,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	v10 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
@@ -58,47 +57,18 @@ func (m *MockK8sops) EXPECT() *MockK8sopsMockRecorder {
 	return m.recorder
 }
 
-// GetCRD mocks base method
-func (m *MockK8sops) GetCRD(name string) (*v1beta1.CustomResourceDefinition, error) {
+// CreateOrUpdateCRD mocks base method
+func (m *MockK8sops) CreateOrUpdateCRD(name string, enableValidation bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCRD", name)
-	ret0, _ := ret[0].(*v1beta1.CustomResourceDefinition)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetCRD indicates an expected call of GetCRD
-func (mr *MockK8sopsMockRecorder) GetCRD(name interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCRD", reflect.TypeOf((*MockK8sops)(nil).GetCRD), name)
-}
-
-// CreateCRD mocks base method
-func (m *MockK8sops) CreateCRD(name string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateCRD", name)
+	ret := m.ctrl.Call(m, "CreateOrUpdateCRD", name, enableValidation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// CreateCRD indicates an expected call of CreateCRD
-func (mr *MockK8sopsMockRecorder) CreateCRD(name interface{}) *gomock.Call {
+// CreateOrUpdateCRD indicates an expected call of CreateOrUpdateCRD
+func (mr *MockK8sopsMockRecorder) CreateOrUpdateCRD(name, enableValidation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateCRD), name)
-}
-
-// GenerateCRD mocks base method
-func (m *MockK8sops) GenerateCRD() *v1beta1.CustomResourceDefinition {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateCRD")
-	ret0, _ := ret[0].(*v1beta1.CustomResourceDefinition)
-	return ret0
-}
-
-// GenerateCRD indicates an expected call of GenerateCRD
-func (mr *MockK8sopsMockRecorder) GenerateCRD() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateCRD", reflect.TypeOf((*MockK8sops)(nil).GenerateCRD))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateOrUpdateCRD), name, enableValidation)
 }
 
 // GetService mocks base method

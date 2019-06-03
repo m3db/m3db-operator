@@ -10,7 +10,7 @@
     },
     {
       "Repository": "github.com/golang/dep/cmd/dep",
-      "Commit": "224a564abe296670b692fe08bb63a3e4c4ad7978"
+      "Commit": "192eb4499a075a59ab6c191a9ba9dac9445625e4"
     },
     {
       "Repository": "golang.org/x/lint/golint",
@@ -31,6 +31,10 @@
     {
       "Repository": "github.com/garethr/kubeval",
       "Commit": "c44f5193dc944abc00e60a1b041ce48b0ae03dfb"
+    },
+    {
+      "Repository": "github.com/kubernetes/kube-openapi/cmd/openapi-gen",
+      "Commit": "b52b5b0f5a7c473a00ca5580c49c83449146ac17"
     }
   ],
   "RetoolVersion": "1.3.7"
