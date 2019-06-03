@@ -173,20 +173,20 @@ const (
 // +k8s:openapi-gen=true
 type ClusterSpec struct {
 	// Image specifies which docker image to use with the cluster
-	Image string `json:"image,omitempty" yaml:"image"`
+	Image string `json:"image,omitempty"`
 
 	// ReplicationFactor defines how many replicas
-	ReplicationFactor int32 `json:"replicationFactor,omitempty" yaml:"replicationFactor"`
+	ReplicationFactor int32 `json:"replicationFactor,omitempty"`
 
 	// NumberOfShards defines how many shards in total
-	NumberOfShards int32 `json:"numberOfShards,omitempty" yaml:"numberOfShards"`
+	NumberOfShards int32 `json:"numberOfShards,omitempty"`
 
 	// IsolationGroups specifies a map of key-value pairs. Defines which isolation groups
 	// to deploy persistent volumes for data nodes
-	IsolationGroups []IsolationGroup `json:"isolationGroups,omitempty" yaml:"isolationGroups"`
+	IsolationGroups []IsolationGroup `json:"isolationGroups,omitempty"`
 
 	// Namespaces specifies the namespaces this cluster will hold.
-	Namespaces []Namespace `json:"namespaces,omitempty" yaml:"namespaces"`
+	Namespaces []Namespace `json:"namespaces,omitempty"`
 
 	// EtcdEndpoints defines the etcd endpoints to use for service discovery. Must
 	// be set if no custom configmap is defined. If set, etcd endpoints will be
@@ -198,23 +198,23 @@ type ClusterSpec struct {
 	// default configmap with template variables for etcd endpoints will be used.
 	// See "Configuring M3DB" in the docs for more.
 	// +optional
-	ConfigMapName *string `json:"configMapName,omitempty" yaml:"configMapName"`
+	ConfigMapName *string `json:"configMapName,omitempty"`
 
 	// PodIdentityConfig sets the configuration for pod identity. If unset only
 	// pod name and UID will be used.
 	// +optional
-	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig,omitempty" yaml:"podIdentityConfig"`
+	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig,omitempty"`
 
 	// Resources defines memory / cpu constraints for each container in the
 	// cluster.
 	// +optional
-	ContainerResources corev1.ResourceRequirements `json:"containerResources,omitempty" yaml:"containerResources"`
+	ContainerResources corev1.ResourceRequirements `json:"containerResources,omitempty"`
 
 	// DataDirVolumeClaimTemplate is the volume claim template for an M3DB
 	// instance's data. It claims PersistentVolumes for cluster storage, volumes
 	// are dynamically provisioned by when the StorageClass is defined.
 	// +optional
-	DataDirVolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"dataDirVolumeClaimTemplate,omitempty" yaml:"dataDirVolumeClaimTemplate"`
+	DataDirVolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"dataDirVolumeClaimTemplate,omitempty"`
 
 	// PodSecurityContext allows the user to specify an optional security context
 	// for pods.
@@ -226,7 +226,7 @@ type ClusterSpec struct {
 
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels"`
+	Labels map[string]string `json:"labels,omitempty"`
 
 	// Tolerations sets the tolerations that will be applied to all M3DB pods.
 	// +optional
