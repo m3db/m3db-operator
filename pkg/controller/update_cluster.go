@@ -224,10 +224,8 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*my
 		Message:        "Created placement",
 	})
 
-	// TODO(schallert): move to UpdateStatus once 1.10 status subresource is out
-	// of alpha.
 	var err error
-	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
+	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).UpdateStatus(cluster)
 	if err != nil {
 		err := fmt.Errorf("error updating cluster placement init status: %v", err)
 		c.logger.Error(err.Error())
@@ -269,7 +267,7 @@ func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.Clu
 	cond.Message = message
 	cluster.Status.UpdateCondition(cond)
 
-	return c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
+	return c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).UpdateStatus(cluster)
 }
 
 // Updates the cluster if there had been a condition that a pod was
