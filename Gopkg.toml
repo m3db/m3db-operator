@@ -129,16 +129,19 @@ version = "3.3.8"
 [[override]]
 name = "github.com/m3db/prometheus_client_golang"
 revision = "8ae269d24972b8695572fa6b2e3718b5ea82d6b4"
+
 [[override]]
 name = "github.com/m3db/prometheus_client_model"
 revision = "8b2299a4bf7d7fc10835527021716d4b4a6e8700"
+
 [[override]]
 name = "github.com/m3db/prometheus_common"
 revision = "25aaa3dff79bb48116615ebe1dea6a494b74ce77"
+
 [[override]]
 name = "github.com/m3db/prometheus_procfs"
 revision = "1878d9fbb537119d24b21ca07effd591627cd160"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/ant31/crd-validation"
+branch = "master"
+name = "github.com/ant31/crd-validation"

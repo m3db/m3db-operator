@@ -23,7 +23,6 @@ package k8sops
 import (
 	"testing"
 
-	crdutils "github.com/ant31/crd-validation/pkg"
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
@@ -36,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	crdutils "github.com/ant31/crd-validation/pkg"
 	"github.com/kubernetes/utils/pointer"
 	"github.com/stretchr/testify/assert"
 )
