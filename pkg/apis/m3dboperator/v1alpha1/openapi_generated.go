@@ -400,6 +400,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"keepEtcdDataOnDelete": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepEtcdDataOnDelete determines whether the operator will remove cluster metadata (placement + namespaces) in etcd when the cluster is deleted. Unless true, etcd data will be cleared when the cluster is deleted.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"configMapName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMapName specifies the ConfigMap to use for this cluster. If unset a default configmap with template variables for etcd endpoints will be used. See \"Configuring M3DB\" in the docs for more.",

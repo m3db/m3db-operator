@@ -345,19 +345,22 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// finalizer is present. If the cluster has been marked for deletion, delete
 	// the placement and namespace.
 	if dts := cluster.ObjectMeta.DeletionTimestamp; dts != nil && !dts.IsZero() {
-		if err := c.deleteAllNamespaces(cluster); err != nil {
-			clusterLogger.Error("error deleting cluster namespaces", zap.Error(err))
-			return err
-		}
+		// Unless explicitly set to keep etcd data, delete it.
+		if !cluster.Spec.KeepEtcdDataOnDelete {
+			if err := c.deleteAllNamespaces(cluster); err != nil {
+				clusterLogger.Error("error deleting cluster namespaces", zap.Error(err))
+				return err
+			}
 
-		if err := c.deletePlacement(cluster); err != nil {
-			clusterLogger.Error("error deleting cluster placement", zap.Error(err))
-			return err
+			if err := c.deletePlacement(cluster); err != nil {
+				clusterLogger.Error("error deleting cluster placement", zap.Error(err))
+				return err
+			}
 		}
 
 		if _, err := c.removeEtcdFinalizer(cluster); err != nil {
 			clusterLogger.Error("error deleting etcd finalizer", zap.Error(err))
-			return pkgerrors.WithMessage(err, "error etcd cluster finalizer")
+			return pkgerrors.WithMessage(err, "error removing etcd cluster finalizer")
 		}
 
 		// Exit the control loop once the cluster is deleted and cleaned up.

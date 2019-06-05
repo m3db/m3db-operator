@@ -194,6 +194,12 @@ type ClusterSpec struct {
 	// +optional
 	EtcdEndpoints []string `json:"etcdEndpoints,omitempty"`
 
+	// KeepEtcdDataOnDelete determines whether the operator will remove cluster
+	// metadata (placement + namespaces) in etcd when the cluster is deleted.
+	// Unless true, etcd data will be cleared when the cluster is deleted.
+	// +optional
+	KeepEtcdDataOnDelete bool `json:"keepEtcdDataOnDelete,omitempty"`
+
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
 	// default configmap with template variables for etcd endpoints will be used.
 	// See "Configuring M3DB" in the docs for more.
