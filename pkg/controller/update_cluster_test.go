@@ -1061,22 +1061,6 @@ func TestDeletePlacement(t *testing.T) {
 }
 
 func TestDeleteAllNamespaces(t *testing.T) {
-	cluster := getFixture("cluster-simple.yaml", t)
-
-	deps := newTestDeps(t, &testOpts{
-		crdObjects: []runtime.Object{cluster},
-	})
-	controller := deps.newController()
-	defer deps.cleanup()
-
-	deps.namespaceClient.EXPECT().List().Return(nil, errors.New("TEST"))
-	err := controller.deleteAllNamespaces(cluster)
-	assert.EqualError(t, pkgerrors.Cause(err), "TEST")
-
-	deps.namespaceClient.EXPECT().List().Return(&admin.NamespaceGetResponse{}, nil)
-	err = controller.deleteAllNamespaces(cluster)
-	assert.EqualError(t, pkgerrors.Cause(err), errNilNamespaceRegistry.Error())
-
 	testResp := &admin.NamespaceGetResponse{
 		Registry: &dbns.Registry{
 			Namespaces: map[string]*dbns.NamespaceOptions{
@@ -1086,17 +1070,46 @@ func TestDeleteAllNamespaces(t *testing.T) {
 		},
 	}
 
-	deps.namespaceClient.EXPECT().List().Return(testResp, nil)
-	deps.namespaceClient.EXPECT().Delete("ns1").Return(nil)
-	deps.namespaceClient.EXPECT().Delete("ns2").Return(errors.New("TEST"))
-	err = controller.deleteAllNamespaces(cluster)
-	assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+	// Need to run 2 tests so the mock recorder gets reset.
+	t.Run("err", func(t *testing.T) {
+		cluster := getFixture("cluster-simple.yaml", t)
+		deps := newTestDeps(t, &testOpts{
+			crdObjects: []runtime.Object{cluster},
+		})
+		controller := deps.newController()
+		defer deps.cleanup()
 
-	deps.namespaceClient.EXPECT().List().Return(testResp, nil)
-	deps.namespaceClient.EXPECT().Delete("ns1").Return(nil)
-	deps.namespaceClient.EXPECT().Delete("ns2").Return(nil)
-	err = controller.deleteAllNamespaces(cluster)
-	assert.NoError(t, err)
+		deps.namespaceClient.EXPECT().List().Return(nil, errors.New("TEST"))
+		err := controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+
+		deps.namespaceClient.EXPECT().List().Return(&admin.NamespaceGetResponse{}, nil)
+		err = controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), errNilNamespaceRegistry.Error())
+
+		deps.namespaceClient.EXPECT().List().Return(testResp, nil)
+		// Because of map iteration order, delete("ns2") may be called and stop
+		// execution before delete("ns1") is called.
+		deps.namespaceClient.EXPECT().Delete("ns1").AnyTimes().Return(nil)
+		deps.namespaceClient.EXPECT().Delete("ns2").Return(errors.New("TEST"))
+		err = controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		cluster := getFixture("cluster-simple.yaml", t)
+		deps := newTestDeps(t, &testOpts{
+			crdObjects: []runtime.Object{cluster},
+		})
+		controller := deps.newController()
+		defer deps.cleanup()
+
+		deps.namespaceClient.EXPECT().List().Return(testResp, nil)
+		deps.namespaceClient.EXPECT().Delete("ns1").Return(nil)
+		deps.namespaceClient.EXPECT().Delete("ns2").Return(nil)
+		err := controller.deleteAllNamespaces(cluster)
+		assert.NoError(t, err)
+	})
 }
 
 func TestStringArrayContains(t *testing.T) {
