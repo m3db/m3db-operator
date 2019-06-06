@@ -339,10 +339,55 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 
 	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
 
+	// https://v1-12.docs.kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/
+	//
+	// If deletion timestamp is zero (cluster hasn't been deleted), make sure our
+	// finalizer is present. If the cluster has been marked for deletion, delete
+	// the placement and namespace.
+	if dts := cluster.ObjectMeta.DeletionTimestamp; dts != nil && !dts.IsZero() {
+		if !stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
+			clusterLogger.Info("no etcd finalizer on cluster, nothing to do")
+			return nil
+		}
+
+		// If cluster is set to preserve data, jump straight to removing the
+		// finalizer.
+		if cluster.Spec.KeepEtcdDataOnDelete {
+			clusterLogger.Info("skipping etcd deletion due to keepEtcdDataOnDelete")
+		} else {
+			if err := c.deleteAllNamespaces(cluster); err != nil {
+				clusterLogger.Error("error deleting cluster namespaces", zap.Error(err))
+				return err
+			}
+
+			if err := c.deletePlacement(cluster); err != nil {
+				clusterLogger.Error("error deleting cluster placement", zap.Error(err))
+				return err
+			}
+		}
+
+		if _, err := c.removeEtcdFinalizer(cluster); err != nil {
+			clusterLogger.Error("error deleting etcd finalizer", zap.Error(err))
+			return pkgerrors.WithMessage(err, "error removing etcd cluster finalizer")
+		}
+
+		// Exit the control loop once the cluster is deleted and cleaned up.
+		clusterLogger.Info("completed finalizer cleanup")
+		return nil
+	}
+
 	if err := validateIsolationGroups(cluster); err != nil {
 		clusterLogger.Error("failed validating isolationgroups", zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, err.Error())
 		return err
+	}
+
+	if !cluster.Spec.KeepEtcdDataOnDelete {
+		var err error
+		cluster, err = c.ensureEtcdFinalizer(cluster)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := c.ensureConfigMap(cluster); err != nil {

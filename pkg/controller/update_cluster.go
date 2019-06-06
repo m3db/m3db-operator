@@ -52,9 +52,10 @@ import (
 )
 
 var (
-	errEmptyPodList      = errors.New("cannot find removal candidate in empty list")
-	errNoPodsInPlacement = errors.New("no pods were found in the placement")
-	errPodNotInPlacement = errors.New("instance not found in placement")
+	errEmptyPodList         = errors.New("cannot find removal candidate in empty list")
+	errNoPodsInPlacement    = errors.New("no pods were found in the placement")
+	errNilNamespaceRegistry = errors.New("nil registry for namespaces")
+	errPodNotInPlacement    = errors.New("instance not found in placement")
 )
 
 // reconcileNamespaces will delete any namespaces currently in the cluster that
@@ -493,6 +494,100 @@ func (c *Controller) findPodInPlacement(cluster *myspec.M3DBCluster, pl placemen
 		return nil, errPodNotInPlacement
 	}
 	return inst, nil
+}
+
+func (c *Controller) updateFinalizers(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+	var err error
+	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
+	if err != nil {
+		return nil, pkgerrors.WithMessage(err, "error updating cluster finalizers")
+	}
+	return cluster, nil
+}
+
+// ensureEtcdFinalizer ensures that the etcd deletion finalizer is present.
+func (c *Controller) ensureEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+	if stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
+		return cluster, nil
+	}
+
+	c.logger.Info("adding etcd finalizer to cluster", zap.String("cluster", cluster.Name))
+	cluster.ObjectMeta.Finalizers = append(cluster.ObjectMeta.Finalizers, labels.EtcdDeletionFinalizer)
+	return c.updateFinalizers(cluster)
+}
+
+// removeEtcdFinalizer ensures the etcd finalizer is absent.
+func (c *Controller) removeEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+	if !stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
+		return cluster, nil
+	}
+
+	finalizers := make([]string, 0, len(cluster.Finalizers))
+	for _, f := range cluster.Finalizers {
+		if f != labels.EtcdDeletionFinalizer {
+			finalizers = append(finalizers, f)
+		}
+	}
+
+	cluster.Finalizers = finalizers
+	return c.updateFinalizers(cluster)
+}
+
+func (c *Controller) deleteAllNamespaces(cluster *myspec.M3DBCluster) error {
+	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
+	clusterLogger.Info("cleaning up cluster namespaces")
+
+	nsClient := c.adminClient.namespaceClientForCluster(cluster)
+	namespaces, err := nsClient.List()
+	if err != nil {
+		return pkgerrors.WithMessage(err, "error listing namespaces for deletion")
+	}
+	if namespaces.Registry == nil {
+		return errNilNamespaceRegistry
+	}
+
+	for name := range namespaces.Registry.Namespaces {
+		if err := nsClient.Delete(name); err != nil {
+			return pkgerrors.WithMessagef(err, "error deleting namespace %s", name)
+		}
+		clusterLogger.Info("deleted namespace during cleanup", zap.String("namespace", name))
+	}
+
+	return nil
+}
+
+func (c *Controller) deletePlacement(cluster *myspec.M3DBCluster) error {
+	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
+	clusterLogger.Info("cleaning up cluster placement")
+
+	// If the placement doesn't exist there's no need to delete it. Can remove
+	// the initial Get() once https://github.com/m3db/m3/pull/1701 is merged and
+	// in a release.
+	plClient := c.adminClient.placementClientForCluster(cluster)
+	_, err := plClient.Get()
+	if err != nil {
+		// If the placement is not found there's nothing to do.
+		if pkgerrors.Cause(err) == m3admin.ErrNotFound {
+			return nil
+		}
+		return pkgerrors.WithMessage(err, "error fetching placement to delete")
+	}
+
+	if err := plClient.Delete(); err != nil {
+		return pkgerrors.WithMessagef(err, "error deleting placement for cluster %s", cluster.Name)
+	}
+
+	clusterLogger.Info("deleted cluster placement")
+	return nil
+}
+
+func stringArrayContains(arr []string, s string) bool {
+	for _, str := range arr {
+		if str == s {
+			return true
+		}
+	}
+	return false
 }
 
 func sortPods(pods []*corev1.Pod) ([]podID, error) {

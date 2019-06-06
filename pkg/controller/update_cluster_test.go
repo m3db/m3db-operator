@@ -30,7 +30,9 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
@@ -51,6 +53,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	ktesting "k8s.io/client-go/testing"
 )
 
 type namespaceMatcher struct {
@@ -975,4 +978,182 @@ func TestFindPodToRemove(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, pods[1], pod)
 	assert.Equal(t, pl.Instances()[1], inst)
+}
+
+func TestEtcdFinalizer(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+
+	controller := deps.newController()
+	defer deps.cleanup()
+
+	// Mock the API to return errors so we know we don't hit in in
+	// stringArrayContains checks.
+	returnError := func() {
+		controller.crdClient.(*crdfake.Clientset).PrependReactor("update", "m3dbclusters", func(action ktesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("test")
+		})
+	}
+
+	reactorChain := []ktesting.Reactor{}
+	for _, r := range controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain {
+		reactorChain = append(reactorChain, r)
+	}
+	// Helper to restore the reactor chain.
+	noError := func() {
+		controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain = reactorChain
+	}
+
+	cluster2, err := controller.ensureEtcdFinalizer(cluster.DeepCopy())
+	assert.NoError(t, err)
+	assert.True(t, stringArrayContains(cluster2.ObjectMeta.Finalizers, labels.EtcdDeletionFinalizer))
+
+	// Flip the API to return errors so we know we don't hit Update() once there's
+	// already a finalizer on the cluster.
+	returnError()
+	_, err = controller.ensureEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.EqualError(t, pkgerrors.Cause(err), "test")
+	noError()
+
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	assert.Empty(t, cluster2.Finalizers)
+
+	// API returns errors again and we know we don't hit it once the finalizer is
+	// removed.
+	returnError()
+	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	noError()
+
+	// Ensure we only remove the finalizer we care about.
+	cluster2 = cluster.DeepCopy()
+	cluster2.Finalizers = []string{"foo"}
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
+
+	cluster2 = cluster.DeepCopy()
+	cluster2.Finalizers = []string{"foo", labels.EtcdDeletionFinalizer}
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
+}
+
+func TestDeletePlacement(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	controller := deps.newController()
+	defer deps.cleanup()
+
+	deps.placementClient.EXPECT().Get().Return(nil, errors.New("TEST"))
+	err := controller.deletePlacement(cluster)
+	assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+
+	deps.placementClient.EXPECT().Get().Return(nil, m3admin.ErrNotFound)
+	err = controller.deletePlacement(cluster)
+	assert.NoError(t, err)
+
+	deps.placementClient.EXPECT().Get().Return(placement.NewPlacement(), nil)
+	deps.placementClient.EXPECT().Delete().Return(errors.New("TEST2"))
+	err = controller.deletePlacement(cluster)
+	assert.EqualError(t, pkgerrors.Cause(err), "TEST2")
+
+	deps.placementClient.EXPECT().Get().Return(placement.NewPlacement(), nil)
+	deps.placementClient.EXPECT().Delete().Return(nil)
+	err = controller.deletePlacement(cluster)
+	assert.NoError(t, err)
+}
+
+func TestDeleteAllNamespaces(t *testing.T) {
+	testResp := &admin.NamespaceGetResponse{
+		Registry: &dbns.Registry{
+			Namespaces: map[string]*dbns.NamespaceOptions{
+				"ns1": nil,
+				"ns2": nil,
+			},
+		},
+	}
+
+	// Need to run 2 tests so the mock recorder gets reset.
+	t.Run("err", func(t *testing.T) {
+		cluster := getFixture("cluster-simple.yaml", t)
+		deps := newTestDeps(t, &testOpts{
+			crdObjects: []runtime.Object{cluster},
+		})
+		controller := deps.newController()
+		defer deps.cleanup()
+
+		deps.namespaceClient.EXPECT().List().Return(nil, errors.New("TEST"))
+		err := controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+
+		deps.namespaceClient.EXPECT().List().Return(&admin.NamespaceGetResponse{}, nil)
+		err = controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), errNilNamespaceRegistry.Error())
+
+		deps.namespaceClient.EXPECT().List().Return(testResp, nil)
+		// Because of map iteration order, delete("ns2") may be called and stop
+		// execution before delete("ns1") is called.
+		deps.namespaceClient.EXPECT().Delete("ns1").AnyTimes().Return(nil)
+		deps.namespaceClient.EXPECT().Delete("ns2").Return(errors.New("TEST"))
+		err = controller.deleteAllNamespaces(cluster)
+		assert.EqualError(t, pkgerrors.Cause(err), "TEST")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		cluster := getFixture("cluster-simple.yaml", t)
+		deps := newTestDeps(t, &testOpts{
+			crdObjects: []runtime.Object{cluster},
+		})
+		controller := deps.newController()
+		defer deps.cleanup()
+
+		deps.namespaceClient.EXPECT().List().Return(testResp, nil)
+		deps.namespaceClient.EXPECT().Delete("ns1").Return(nil)
+		deps.namespaceClient.EXPECT().Delete("ns2").Return(nil)
+		err := controller.deleteAllNamespaces(cluster)
+		assert.NoError(t, err)
+	})
+}
+
+func TestStringArrayContains(t *testing.T) {
+	tests := []struct {
+		arr   []string
+		s     string
+		found bool
+	}{
+		{
+			arr:   nil,
+			s:     "foo",
+			found: false,
+		},
+		{
+			arr:   []string{},
+			s:     "foo",
+			found: false,
+		},
+		{
+			arr:   []string{"foo", "bar"},
+			s:     "foo",
+			found: true,
+		},
+		{
+			arr:   []string{"foo", "bar"},
+			s:     "baz",
+			found: false,
+		},
+	}
+
+	for _, test := range tests {
+		found := stringArrayContains(test.arr, test.s)
+		assert.Equal(t, test.found, found, "expected to find %s in %v", test.s, test.arr)
+	}
 }

@@ -45,6 +45,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | isolationGroups | IsolationGroups specifies a map of key-value pairs. Defines which isolation groups to deploy persistent volumes for data nodes | [][IsolationGroup](#isolationgroup) | false |
 | namespaces | Namespaces specifies the namespaces this cluster will hold. | [][Namespace](#namespace) | false |
 | etcdEndpoints | EtcdEndpoints defines the etcd endpoints to use for service discovery. Must be set if no custom configmap is defined. If set, etcd endpoints will be templated in to the default configmap template. | []string | false |
+| keepEtcdDataOnDelete | KeepEtcdDataOnDelete determines whether the operator will remove cluster metadata (placement + namespaces) in etcd when the cluster is deleted. Unless true, etcd data will be cleared when the cluster is deleted. | bool | false |
 | configMapName | ConfigMapName specifies the ConfigMap to use for this cluster. If unset a default configmap with template variables for etcd endpoints will be used. See \"Configuring M3DB\" in the docs for more. | *string | false |
 | podIdentityConfig | PodIdentityConfig sets the configuration for pod identity. If unset only pod name and UID will be used. | *PodIdentityConfig | false |
 | containerResources | Resources defines memory / cpu constraints for each container in the cluster. | [corev1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#resourcerequirements-v1-core) | false |
