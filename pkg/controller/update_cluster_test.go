@@ -993,43 +993,55 @@ func TestEtcdFinalizer(t *testing.T) {
 	// stringArrayContains checks.
 	returnError := func() {
 		controller.crdClient.(*crdfake.Clientset).PrependReactor("update", "m3dbclusters", func(action ktesting.Action) (bool, runtime.Object, error) {
-			return true, &myspec.M3DBCluster{}, errors.New("test")
+			return true, nil, errors.New("test")
 		})
 	}
 
+	reactorChain := []ktesting.Reactor{}
+	for _, r := range controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain {
+		reactorChain = append(reactorChain, r)
+	}
+	// Helper to restore the reactor chain.
 	noError := func() {
-		controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain = []ktesting.Reactor{}
+		controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain = reactorChain
 	}
 
-	cluster, err := controller.ensureEtcdFinalizer(cluster.DeepCopy())
+	cluster2, err := controller.ensureEtcdFinalizer(cluster.DeepCopy())
 	assert.NoError(t, err)
-	assert.True(t, stringArrayContains(cluster.ObjectMeta.Finalizers, labels.EtcdDeletionFinalizer))
+	assert.True(t, stringArrayContains(cluster2.ObjectMeta.Finalizers, labels.EtcdDeletionFinalizer))
 
 	// Flip the API to return errors so we know we don't hit Update() once there's
 	// already a finalizer on the cluster.
 	returnError()
-	_, err = controller.ensureEtcdFinalizer(cluster.DeepCopy())
+	_, err = controller.ensureEtcdFinalizer(cluster2.DeepCopy())
 	assert.NoError(t, err)
-	_, err = controller.removeEtcdFinalizer(cluster.DeepCopy())
+	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
 	assert.EqualError(t, pkgerrors.Cause(err), "test")
 	noError()
 
-	cluster, err = controller.removeEtcdFinalizer(cluster.DeepCopy())
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
 	assert.NoError(t, err)
-	assert.Empty(t, cluster.Finalizers)
+	assert.Empty(t, cluster2.Finalizers)
 
 	// API returns errors again and we know we don't hit it once the finalizer is
 	// removed.
 	returnError()
-	_, err = controller.removeEtcdFinalizer(cluster.DeepCopy())
+	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
 	assert.NoError(t, err)
 	noError()
 
 	// Ensure we only remove the finalizer we care about.
-	cluster.Finalizers = []string{"foo"}
-	_, err = controller.removeEtcdFinalizer(cluster.DeepCopy())
+	cluster2 = cluster.DeepCopy()
+	cluster2.Finalizers = []string{"foo"}
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"foo"}, cluster.Finalizers)
+	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
+
+	cluster2 = cluster.DeepCopy()
+	cluster2.Finalizers = []string{"foo", labels.EtcdDeletionFinalizer}
+	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
 }
 
 func TestDeletePlacement(t *testing.T) {
