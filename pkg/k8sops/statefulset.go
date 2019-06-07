@@ -71,7 +71,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(_probePort),
+				Port:   intstr.FromInt(PortM3DBHTTPNode),
 				Path:   _probePathHealth,
 				Scheme: v1.URISchemeHTTP,
 			},
@@ -83,8 +83,10 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
 		Handler: v1.Handler{
-			Exec: &v1.ExecAction{
-				Command: []string{_healthFileName},
+			HTTPGet: &v1.HTTPGetAction{
+				Port:   intstr.FromInt(PortM3DBHTTPNode),
+				Path:   _probePathReady,
+				Scheme: v1.URISchemeHTTP,
 			},
 		},
 	}
