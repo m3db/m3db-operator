@@ -120,8 +120,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 
 	baseSS := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   ssName,
-			Labels: labels,
+			Name:        ssName,
+			Labels:      labels,
+			Annotations: annotations.BaseAnnotations(fixture),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(fixture, schema.GroupVersionKind{
 					Group:   myspec.SchemeGroupVersion.Group,
