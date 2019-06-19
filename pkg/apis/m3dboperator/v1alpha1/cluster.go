@@ -234,6 +234,10 @@ type ClusterSpec struct {
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
 	Labels map[string]string `json:"labels,omitempty"`
 
+	// Annotations sets the base annotations that will be applied to resources created by
+	// the cluster.
+	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations"`
+
 	// Tolerations sets the tolerations that will be applied to all M3DB pods.
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`

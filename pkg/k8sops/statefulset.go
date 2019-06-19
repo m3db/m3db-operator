@@ -24,6 +24,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -62,6 +64,8 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		objLabels[k] = v
 	}
 
+	objAnnotations := annotations.BaseAnnotations(cluster)
+
 	// TODO(schallert): we're currently using the health of the coordinator for
 	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
 	// to the dbnode's health endpoint once fixed.
@@ -93,8 +97,9 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   ssName,
-			Labels: objLabels,
+			Name:        ssName,
+			Labels:      objLabels,
+			Annotations: objAnnotations,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: HeadlessServiceName(clusterName),
