@@ -24,9 +24,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
-
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
