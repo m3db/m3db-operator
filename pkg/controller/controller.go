@@ -71,14 +71,6 @@ var (
 	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
 
-type handleClusterUpdateResult uint
-
-const (
-	noopClusterUpdate handleClusterUpdateResult = iota
-	waitClusterUpdate
-	actionClusterUpdate
-)
-
 // Configuration contains parameters for the controller.
 type Configuration struct {
 	// ManageCRD indicates whether the controller should create and update specs
@@ -334,15 +326,12 @@ func (c *Controller) handleClusterEvent(key string) error {
 		return errors.New("got nil cluster for " + key)
 	}
 
-	_, err = c.handleClusterUpdate(cluster)
-	return err
+	return c.handleClusterUpdate(cluster)
 }
 
 // We are guaranteed by handleClusterEvent that we will never be passed a nil
 // cluster here.
-func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClusterUpdateResult, error) {
-	var result handleClusterUpdateResult
-
+func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// MUST create a deep copy of the cluster or risk corrupting cache! Technically
 	// only need if we modify, but we frequently do that so let's deep copy to
 	// start and remove unnecessary calls later to optimize if we want.
@@ -358,7 +347,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	if dts := cluster.ObjectMeta.DeletionTimestamp; dts != nil && !dts.IsZero() {
 		if !stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
 			clusterLogger.Info("no etcd finalizer on cluster, nothing to do")
-			return result, nil
+			return nil
 		}
 
 		// If cluster is set to preserve data, jump straight to removing the
@@ -368,54 +357,54 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		} else {
 			if err := c.deleteAllNamespaces(cluster); err != nil {
 				clusterLogger.Error("error deleting cluster namespaces", zap.Error(err))
-				return result, err
+				return err
 			}
 
 			if err := c.deletePlacement(cluster); err != nil {
 				clusterLogger.Error("error deleting cluster placement", zap.Error(err))
-				return result, err
+				return err
 			}
 		}
 
 		if _, err := c.removeEtcdFinalizer(cluster); err != nil {
 			clusterLogger.Error("error deleting etcd finalizer", zap.Error(err))
-			return result, pkgerrors.WithMessage(err, "error removing etcd cluster finalizer")
+			return pkgerrors.WithMessage(err, "error removing etcd cluster finalizer")
 		}
 
 		// Exit the control loop once the cluster is deleted and cleaned up.
 		clusterLogger.Info("completed finalizer cleanup")
-		return result, nil
+		return nil
 	}
 
 	if err := validateIsolationGroups(cluster); err != nil {
 		clusterLogger.Error("failed validating isolationgroups", zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, err.Error())
-		return result, err
+		return err
 	}
 
 	if !cluster.Spec.KeepEtcdDataOnDelete {
 		var err error
 		cluster, err = c.ensureEtcdFinalizer(cluster)
 		if err != nil {
-			return result, err
+			return err
 		}
 	}
 
 	if err := c.ensureConfigMap(cluster); err != nil {
 		clusterLogger.Error("failed to ensure configmap", zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, "failed to ensure configmap: %s", err.Error())
-		return result, err
+		return err
 	}
 
 	// Per https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#statefulsetspec-v1-apps,
 	// headless service MUST exist before statefulset.
 	if err := c.ensureServices(cluster); err != nil {
-		return result, err
+		return err
 	}
 
 	if len(cluster.Spec.IsolationGroups) == 0 {
 		// nothing to do, no groups to create in
-		return result, nil
+		return nil
 	}
 
 	// copy since we sort the array
@@ -425,7 +414,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 
 	childrenSets, err := c.getChildStatefulSets(cluster)
 	if err != nil {
-		return result, err
+		return err
 	}
 
 	childrenSetsByName := make(map[string]*appsv1.StatefulSet)
@@ -436,8 +425,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
 			// TODO(schallert): figure out what to do if replicas is not set
 			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
-			result = waitClusterUpdate
-			return result, nil
+			return nil
 		}
 	}
 
@@ -448,24 +436,24 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		if !exists {
 			sts, err := k8sops.GenerateStatefulSet(cluster, isoGroups[i].Name, isoGroups[i].NumInstances)
 			if err != nil {
-				return result, err
+				return err
 			}
 
 			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
 			if err != nil {
 				c.logger.Error(err.Error())
-				return result, err
+				return err
 			}
 
 			c.logger.Info("created statefulset", zap.String("name", name))
-			return actionClusterUpdate, nil
+			return nil
 		}
 	}
 
 	if err := c.reconcileNamespaces(cluster); err != nil {
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, "failed to create namespace: %s", err)
 		c.logger.Error("error reconciling namespaces", zap.Error(err))
-		return result, err
+		return err
 	}
 
 	if len(cluster.Spec.Namespaces) == 0 {
@@ -476,7 +464,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	if !cluster.Status.HasInitializedPlacement() {
 		cluster, err = c.validatePlacementWithStatus(cluster)
 		if err != nil {
-			return result, err
+			return err
 		}
 	}
 
@@ -486,12 +474,12 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	selector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
 	if err != nil {
-		return result, fmt.Errorf("error listing pods: %v", err)
+		return fmt.Errorf("error listing pods: %v", err)
 	}
 
 	placement, err := c.adminClient.placementClientForCluster(cluster).Get()
 	if err != nil {
-		return result, fmt.Errorf("error fetching active placement: %v", err)
+		return fmt.Errorf("error fetching active placement: %v", err)
 	}
 
 	c.logger.Info("found placement", zap.Int("currentPods", len(pods)), zap.Int("placementInsts", placement.NumInstances()))
@@ -506,28 +494,27 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	if ln := len(unavailInsts); ln > 0 {
 		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
 		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", ln)
-		result = waitClusterUpdate
-		return result, nil
+		return nil
 	}
 
 	// Determine if any sets aren't at their desired replica count. Maybe we can
 	// reuse the set objects from above but being paranoid for now.
 	childrenSets, err = c.getChildStatefulSets(cluster)
 	if err != nil {
-		return result, nil
+		return nil
 	}
 
 	// check if any pods inside the cluster need to be swapped in
 	leavingInstanceID, podToReplace, err := c.checkPodsForReplacement(cluster, pods, placement)
 	if err != nil {
-		return result, nil
+		return nil
 	}
 
 	if podToReplace != nil {
 		err = c.replacePodInPlacement(cluster, placement, leavingInstanceID, podToReplace)
 		if err != nil {
 			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: "+leavingInstanceID)
-			return result, err
+			return err
 		}
 		c.recorder.NormalEvent(cluster, eventer.ReasonSuccessfulUpdate, "successfully replaced instance: "+leavingInstanceID)
 	}
@@ -535,16 +522,16 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	for _, set := range childrenSets {
 		zone, ok := set.Labels[labels.IsolationGroup]
 		if !ok {
-			return result, fmt.Errorf("statefulset %s has no isolation-group label", set.Name)
+			return fmt.Errorf("statefulset %s has no isolation-group label", set.Name)
 		}
 
 		group, ok := myspec.IsolationGroups(isoGroups).GetByName(zone)
 		if !ok {
-			return result, fmt.Errorf("zone %s not found in cluster isoGroups %v", zone, isoGroups)
+			return fmt.Errorf("zone %s not found in cluster isoGroups %v", zone, isoGroups)
 		}
 
 		if set.Spec.Replicas == nil {
-			return result, fmt.Errorf("set %s has unset spec replica", set.Name)
+			return fmt.Errorf("set %s has unset spec replica", set.Name)
 		}
 
 		// Number of pods we want in the group.
@@ -572,10 +559,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 			// absent from the placement, add pods to placement.
 			if inPlacement < current {
 				setLogger.Info("expanding placement for set")
-				if err := c.expandPlacementForSet(cluster, set, group, placement); err != nil {
-					return result, err
-				}
-				return actionClusterUpdate, nil
+				return c.expandPlacementForSet(cluster, set, group, placement)
 			}
 		}
 
@@ -583,10 +567,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		// trigger a remove so that we can shrink the set.
 		if inPlacement > desired {
 			setLogger.Info("remove instance from placement for set")
-			if err := c.shrinkPlacementForSet(cluster, set, placement); err != nil {
-				return result, err
-			}
-			return actionClusterUpdate, nil
+			return c.shrinkPlacementForSet(cluster, set, placement)
 		}
 
 		var newCount int32
@@ -600,15 +581,15 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		set.Spec.Replicas = pointer.Int32Ptr(newCount)
 		set, err = c.kubeClient.AppsV1().StatefulSets(set.Namespace).Update(set)
 		if err != nil {
-			return result, fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
+			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
 		}
 
-		return actionClusterUpdate, nil
+		return nil
 	}
 
 	placement, err = c.adminClient.placementClientForCluster(cluster).Get()
 	if err != nil {
-		return result, fmt.Errorf("error fetching placement: %v", err)
+		return fmt.Errorf("error fetching placement: %v", err)
 	}
 
 	// TODO(celina): possibly do a replacement check here
@@ -616,7 +597,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 	// See if we need to clean up the pod bootstrapping status.
 	cluster, err = c.reconcileBootstrappingStatus(cluster, placement)
 	if err != nil {
-		return result, fmt.Errorf("error reconciling bootstrap status: %v", err)
+		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
 	c.logger.Info("nothing to do",
@@ -625,7 +606,7 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) (handleClu
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
-	return noopClusterUpdate, nil
+	return nil
 }
 
 func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placement.Instance {

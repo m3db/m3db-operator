@@ -544,7 +544,7 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 			var done bool
 			for i := 0; i < 5; i++ {
-				_, err := c.handleClusterUpdate(cluster)
+				err := c.handleClusterUpdate(cluster)
 				require.NoError(t, err)
 
 				expectedMu.Lock()
