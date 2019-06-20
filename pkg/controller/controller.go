@@ -501,13 +501,13 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// reuse the set objects from above but being paranoid for now.
 	childrenSets, err = c.getChildStatefulSets(cluster)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// check if any pods inside the cluster need to be swapped in
 	leavingInstanceID, podToReplace, err := c.checkPodsForReplacement(cluster, pods, placement)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if podToReplace != nil {
