@@ -23,6 +23,7 @@ package controller
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	ktesting "k8s.io/client-go/testing"
 	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/golang/mock/gomock"
@@ -429,8 +431,12 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 		expCreateStatefulSets []string
 	}{
 		{
-			name:    "creates missing stateful sets at tail",
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			name: "creates missing stateful sets at tail",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
 			sets: []*metav1.ObjectMeta{
 				newMeta("cluster1-rep0", nil),
 			},
@@ -438,8 +444,12 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 			expCreateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
 		},
 		{
-			name:    "creates missing stateful sets at head and tail",
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			name: "creates missing stateful sets at head and tail",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
 			sets: []*metav1.ObjectMeta{
 				newMeta("cluster1-rep1", nil),
 			},
@@ -447,8 +457,12 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep2"},
 		},
 		{
-			name:    "creates missing stateful sets at head",
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			name: "creates missing stateful sets at head",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
 			sets: []*metav1.ObjectMeta{
 				newMeta("cluster1-rep2", nil),
 			},
@@ -475,6 +489,7 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 				}
 				cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
 			}
+			cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
 
 			objects := make([]runtime.Object, len(test.sets))
 			statefulSets := make([]*appsv1.StatefulSet, len(test.sets))
@@ -491,92 +506,57 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 				}
 				statefulSets[i] = set
 				objects[i] = set
-			}
-
-			deps := newTestDeps(t, &testOpts{
-				kubeObjects: objects,
-			})
-			defer deps.cleanup()
-
-			for _, set := range statefulSets {
-				// Now set the owner refs and ensure we pick up the sets
-				set.SetOwnerReferences([]metav1.OwnerReference{
+				set.OwnerReferences = []metav1.OwnerReference{
 					*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
 						Group:   myspec.SchemeGroupVersion.Group,
 						Version: myspec.SchemeGroupVersion.Version,
 						Kind:    "m3dbcluster",
 					}),
-				})
-				// Also set the number of ready replicas to as expected
-				replicas := int32(1)
-				set.Spec.Replicas = &replicas
-				set.Status.ReadyReplicas = replicas
-				_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
-				assert.NoError(t, err)
+				}
 			}
 
+			deps := newTestDeps(t, &testOpts{
+				crdObjects: []runtime.Object{
+					&myspec.M3DBCluster{
+						ObjectMeta: *test.cluster,
+					},
+				},
+				kubeObjects: objects,
+			})
+			defer deps.cleanup()
 			c := deps.newController(t)
 
 			// Keep running cluster updates until no more stateful sets required
+			var expectedMu sync.Mutex
 			expectedSetsCreated := make(map[string]bool)
 			for _, name := range test.expCreateStatefulSets {
 				expectedSetsCreated[name] = false
 			}
-			for {
-				created := 0
-				for _, v := range expectedSetsCreated {
-					if v {
-						created++
-					}
-				}
-				if created == len(expectedSetsCreated) {
-					// All created
-					break
-				}
 
-				result, err := c.handleClusterUpdate(cluster)
+			c.kubeClient.(*kubefake.Clientset).PrependReactor("create", "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
+				cluster := action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
+				name := cluster.Name
+				expectedMu.Lock()
+				expectedSetsCreated[name] = true
+				expectedMu.Unlock()
+				return true, cluster, nil
+			})
+
+			var done bool
+			for i := 0; i < 5; i++ {
+				_, err := c.handleClusterUpdate(cluster)
 				require.NoError(t, err)
-				require.Equal(t, actionClusterUpdate, result)
 
-				for _, action := range deps.kubeClient.Actions() {
-					created, ok := action.(kubetesting.CreateActionImpl)
-					if !ok {
-						continue
-					}
-					switch {
-					case created.Verb == "create" &&
-						created.Resource == schema.GroupVersionResource{
-							Group:    "apps",
-							Version:  "v1",
-							Resource: "statefulsets",
-						}:
-
-						set, ok := created.Object.(*appsv1.StatefulSet)
-						require.True(t, ok)
-
-						// Track we created it
-						expectedSetsCreated[set.Name] = true
-
-						// Set owning references for newly created stateful set
-						set.SetOwnerReferences([]metav1.OwnerReference{
-							*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
-								Group:   myspec.SchemeGroupVersion.Group,
-								Version: myspec.SchemeGroupVersion.Version,
-								Kind:    "m3dbcluster",
-							}),
-						})
-
-						// Also set the number of ready replicas to as expected
-						replicas := int32(1)
-						set.Spec.Replicas = &replicas
-						set.Status.ReadyReplicas = replicas
-
-						_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
-						require.NoError(t, err)
-					}
+				expectedMu.Lock()
+				created := len(expectedSetsCreated)
+				expectedMu.Unlock()
+				if created != len(test.expCreateStatefulSets) {
+					time.Sleep(100 * time.Millisecond)
+					continue
 				}
-				deps.kubeClient.ClearActions()
+				done = true
 			}
+			assert.True(t, done, "expected all sets to be created")
 		})
 	}
 }
