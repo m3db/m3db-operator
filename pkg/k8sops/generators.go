@@ -26,6 +26,7 @@ import (
 
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -195,11 +196,12 @@ func GenerateM3DBService(cluster *myspec.M3DBCluster) (*v1.Service, error) {
 
 	svcLabels := labels.BaseLabels(cluster)
 	svcLabels[labels.Component] = labels.ComponentM3DBNode
-
+	svcAnnotations := annotations.BaseAnnotations(cluster)
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   HeadlessServiceName(cluster.Name),
-			Labels: svcLabels,
+			Name:        HeadlessServiceName(cluster.Name),
+			Labels:      svcLabels,
+			Annotations: svcAnnotations,
 		},
 		Spec: v1.ServiceSpec{
 			Selector:  svcLabels,
