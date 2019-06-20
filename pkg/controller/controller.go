@@ -417,7 +417,9 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
+	childrenSetsByName := make(map[string]*appsv1.StatefulSet)
 	for _, sts := range childrenSets {
+		childrenSetsByName[sts.Name] = sts
 		// if any of the statefulsets aren't ready, wait until they are as we'll get
 		// another event (ready == bootstrapped)
 		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
@@ -427,26 +429,25 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		}
 	}
 
-	// At this point all existing statefulsets are bootstrapped.
+	// Create any missing statefulsets, at this point all existing stateful sets are bootstrapped.
+	for i := 0; i < len(isoGroups); i++ {
+		name := k8sops.StatefulSetName(cluster.Name, i)
+		_, exists := childrenSetsByName[name]
+		if !exists {
+			sts, err := k8sops.GenerateStatefulSet(cluster, isoGroups[i].Name, isoGroups[i].NumInstances)
+			if err != nil {
+				return err
+			}
 
-	if len(childrenSets) != len(isoGroups) {
-		nextID := len(childrenSets)
-		// create a statefulset
+			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
+			if err != nil {
+				c.logger.Error(err.Error())
+				return err
+			}
 
-		name := fmt.Sprintf("%s-%d", cluster.Name, nextID)
-		sts, err := k8sops.GenerateStatefulSet(cluster, isoGroups[nextID].Name, isoGroups[nextID].NumInstances)
-		if err != nil {
-			return err
+			c.logger.Info("created statefulset", zap.String("name", name))
+			return nil
 		}
-
-		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
-		if err != nil {
-			c.logger.Error(err.Error())
-			return err
-		}
-
-		c.logger.Info("created statefulset", zap.String("name", name))
-		return nil
 	}
 
 	if err := c.reconcileNamespaces(cluster); err != nil {
@@ -488,7 +489,6 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		if !inst.IsAvailable() {
 			unavailInsts = append(unavailInsts, inst.ID())
 		}
-
 	}
 
 	if ln := len(unavailInsts); ln > 0 {

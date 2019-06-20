@@ -28,6 +28,7 @@ import (
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
@@ -70,7 +71,8 @@ type testDeps struct {
 	closed            int32
 }
 
-func (deps *testDeps) newController() *Controller {
+func (deps *testDeps) newController(t *testing.T) *Controller {
+	logger := zap.NewNop()
 	m := newMultiAdminClient(nil, zap.NewNop())
 	m.nsClientFn = func(...namespace.Option) (namespace.Client, error) {
 		return deps.namespaceClient, nil
@@ -78,12 +80,20 @@ func (deps *testDeps) newController() *Controller {
 	m.plClientFn = func(...placement.Option) (placement.Client, error) {
 		return deps.placementClient, nil
 	}
+	k8sopsClient, err := k8sops.New(
+		k8sops.WithKClient(deps.kubeClient),
+		k8sops.WithCRDClient(deps.crdClient),
+		k8sops.WithLogger(logger))
+
+	require.NoError(t, err)
+
 	return &Controller{
-		logger:      zap.NewNop(),
+		logger:      logger,
 		scope:       tally.NoopScope,
 		clock:       deps.clock,
 		adminClient: m,
 
+		k8sclient:     k8sopsClient,
 		kubeClient:    deps.kubeClient,
 		crdClient:     deps.crdClient,
 		podIDProvider: deps.idProvider,

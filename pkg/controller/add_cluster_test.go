@@ -76,11 +76,11 @@ func TestEnsureService_Base(t *testing.T) {
 func TestEnsureConfigMap(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	deps := newTestDeps(t, &testOpts{})
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	require.NoError(t, registerValidConfigMap("my_config_data"))
 
-	controller := deps.newController()
 	err := controller.ensureConfigMap(cluster)
 	assert.NoError(t, err)
 
@@ -99,11 +99,10 @@ func TestEnsureConfigMap(t *testing.T) {
 func TestEnsureConfigMap_Update(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	deps := newTestDeps(t, &testOpts{})
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	require.NoError(t, registerValidConfigMap("my_config_data"))
-
-	controller := deps.newController()
 
 	err := controller.ensureConfigMap(cluster)
 	assert.NoError(t, err)

@@ -21,7 +21,9 @@
 package controller
 
 import (
+	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +31,7 @@ import (
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
@@ -41,6 +44,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	ktesting "k8s.io/client-go/testing"
+	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/golang/mock/gomock"
 	pkgerrors "github.com/pkg/errors"
@@ -139,7 +144,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 			kubeObjects: objects,
 		})
 
-		c := deps.newController()
+		c := deps.newController(t)
 
 		// Ensure that with no owner references we don't act on these sets
 		children, err := c.getChildStatefulSets(cluster)
@@ -237,9 +242,8 @@ func TestGetParentCluster(t *testing.T) {
 			cluster,
 		},
 	})
+	c := deps.newController(t)
 	defer deps.cleanup()
-
-	c := deps.newController()
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -277,8 +281,8 @@ func TestHandlePodUpdate(t *testing.T) {
 		crdObjects:  []runtime.Object{cluster},
 		kubeObjects: []runtime.Object{pod1},
 	})
+	c := deps.newController(t)
 	defer deps.cleanup()
-	c := deps.newController()
 
 	mockID := &myspec.PodIdentity{
 		Name: "pod1",
@@ -302,7 +306,8 @@ func TestHandlePodUpdate(t *testing.T) {
 func TestClusterEventLoop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	defer deps.cleanup()
-	c := deps.newController()
+
+	c := deps.newController(t)
 
 	cluster := &myspec.M3DBCluster{
 		ObjectMeta: newObjectMeta("foo", nil),
@@ -335,7 +340,8 @@ func TestClusterEventLoop(t *testing.T) {
 func TestPodEventLoop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	defer deps.cleanup()
-	c := deps.newController()
+
+	c := deps.newController(t)
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -413,5 +419,144 @@ func TestValidateIsolationGroups(t *testing.T) {
 		} else {
 			assert.NoError(t, err)
 		}
+	}
+}
+
+func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
+	tests := []struct {
+		name                  string
+		cluster               *metav1.ObjectMeta
+		sets                  []*metav1.ObjectMeta
+		replicationFactor     int
+		expCreateStatefulSets []string
+	}{
+		{
+			name: "creates missing stateful sets at tail",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
+		},
+		{
+			name: "creates missing stateful sets at head and tail",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep1", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep2"},
+		},
+		{
+			name: "creates missing stateful sets at head",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep2", nil),
+			},
+			replicationFactor:     3,
+			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfgMapName := "configMapName"
+			cluster := &myspec.M3DBCluster{
+				ObjectMeta: *test.cluster,
+				Spec: myspec.ClusterSpec{
+					ReplicationFactor: int32(test.replicationFactor),
+					ConfigMapName:     &cfgMapName,
+				},
+			}
+			cluster.ObjectMeta.UID = "abcd"
+			for i := 0; i < test.replicationFactor; i++ {
+				group := myspec.IsolationGroup{
+					Name:         fmt.Sprintf("group%d", i),
+					NumInstances: 1,
+				}
+				cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
+			}
+			cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
+
+			objects := make([]runtime.Object, len(test.sets))
+			statefulSets := make([]*appsv1.StatefulSet, len(test.sets))
+			for i, s := range test.sets {
+				set := &appsv1.StatefulSet{
+					ObjectMeta: *s,
+				}
+				// Apply base labels
+				if set.ObjectMeta.Labels == nil {
+					set.ObjectMeta.Labels = make(map[string]string)
+				}
+				for k, v := range labels.BaseLabels(cluster) {
+					set.ObjectMeta.Labels[k] = v
+				}
+				statefulSets[i] = set
+				objects[i] = set
+				set.OwnerReferences = []metav1.OwnerReference{
+					*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+						Group:   myspec.SchemeGroupVersion.Group,
+						Version: myspec.SchemeGroupVersion.Version,
+						Kind:    "m3dbcluster",
+					}),
+				}
+			}
+
+			deps := newTestDeps(t, &testOpts{
+				crdObjects: []runtime.Object{
+					&myspec.M3DBCluster{
+						ObjectMeta: *test.cluster,
+					},
+				},
+				kubeObjects: objects,
+			})
+			defer deps.cleanup()
+			c := deps.newController(t)
+
+			// Keep running cluster updates until no more stateful sets required
+			var expectedMu sync.Mutex
+			expectedSetsCreated := make(map[string]bool)
+			for _, name := range test.expCreateStatefulSets {
+				expectedSetsCreated[name] = false
+			}
+
+			c.kubeClient.(*kubefake.Clientset).PrependReactor("create", "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
+				cluster := action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
+				name := cluster.Name
+				expectedMu.Lock()
+				expectedSetsCreated[name] = true
+				expectedMu.Unlock()
+				return true, cluster, nil
+			})
+
+			var done bool
+			for i := 0; i < 5; i++ {
+				err := c.handleClusterUpdate(cluster)
+				require.NoError(t, err)
+
+				expectedMu.Lock()
+				created := len(expectedSetsCreated)
+				expectedMu.Unlock()
+				if created != len(test.expCreateStatefulSets) {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				done = true
+			}
+			assert.True(t, done, "expected all sets to be created")
+		})
 	}
 }

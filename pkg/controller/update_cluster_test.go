@@ -70,13 +70,11 @@ func (namespaceMatcher) String() string {
 
 func TestReconcileNamespaces(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
-
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
 	nsMock := deps.namespaceClient
-
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	registry := &dbns.Registry{
@@ -104,8 +102,7 @@ func TestPruneNamespaces(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 	nsMock := deps.namespaceClient
-
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{
@@ -142,8 +139,7 @@ func TestCreateNamespaces(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 	nsMock := deps.namespaceClient
-
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
@@ -246,7 +242,7 @@ func TestSetPodBootstrappingStatus(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	cluster, err := controller.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "foo", "bar")
@@ -263,7 +259,7 @@ func TestSetStatus(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 		clock:      fakeClock,
 	})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	const cond = myspec.ClusterConditionPlacementInitialized
@@ -299,7 +295,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	const cond = myspec.ClusterConditionPodBootstrapping
@@ -314,8 +310,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 
 	pl := newPl(shard.Initializing)
 
-	var err error
-	cluster, err = controller.reconcileBootstrappingStatus(cluster, pl)
+	cluster, err := controller.reconcileBootstrappingStatus(cluster, pl)
 	assert.NoError(t, err)
 	_, ok := cluster.Status.GetCondition(cond)
 	assert.False(t, ok)
@@ -335,7 +330,7 @@ func TestAddPodToPlacement(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	pod := &corev1.Pod{
@@ -471,7 +466,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 	})
 	placementMock := deps.placementClient
 	idProvider := deps.idProvider
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	identifyPods(idProvider, pods, nil)
@@ -493,7 +488,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 
 func TestExpandPlacementForSet_Nop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
@@ -515,7 +510,7 @@ func TestExpandPlacementForSet_Nop(t *testing.T) {
 func TestExpandPlacementForSet_Err(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
 	idProvider := deps.idProvider
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	cluster := getFixture("cluster-3-zones.yaml", t)
@@ -543,7 +538,7 @@ func TestShrinkPlacementForSet(t *testing.T) {
 		kubeObjects: objectsFromPods(pods...),
 	})
 	placementMock := deps.placementClient
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	identifyPods(deps.idProvider, pods, nil)
@@ -579,7 +574,7 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 	placementMock := deps.placementClient
 	defer deps.cleanup()
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 
 	placementMock.EXPECT().Get().AnyTimes()
 
@@ -625,7 +620,7 @@ func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 	placementMock := deps.placementClient
 	defer deps.cleanup()
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 
 	idProvider := deps.idProvider
 	expInsts := []string{
@@ -736,7 +731,7 @@ func TestCheckPodsForReplacement(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
@@ -782,7 +777,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
@@ -836,7 +831,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
@@ -903,7 +898,7 @@ func TestFindPodInPlacement(t *testing.T) {
 				crdObjects: []runtime.Object{cluster},
 			})
 
-			controller := deps.newController()
+			controller := deps.newController(t)
 			idProvider := deps.idProvider
 			defer deps.cleanup()
 
@@ -940,7 +935,7 @@ func TestFindPodToRemove(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
@@ -986,7 +981,7 @@ func TestEtcdFinalizer(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 	})
 
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	// Mock the API to return errors so we know we don't hit in in
@@ -1050,7 +1045,7 @@ func TestDeletePlacement(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
-	controller := deps.newController()
+	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	deps.placementClient.EXPECT().Get().Return(nil, errors.New("TEST"))
@@ -1088,7 +1083,7 @@ func TestDeleteAllNamespaces(t *testing.T) {
 		deps := newTestDeps(t, &testOpts{
 			crdObjects: []runtime.Object{cluster},
 		})
-		controller := deps.newController()
+		controller := deps.newController(t)
 		defer deps.cleanup()
 
 		deps.namespaceClient.EXPECT().List().Return(nil, errors.New("TEST"))
@@ -1113,7 +1108,7 @@ func TestDeleteAllNamespaces(t *testing.T) {
 		deps := newTestDeps(t, &testOpts{
 			crdObjects: []runtime.Object{cluster},
 		})
-		controller := deps.newController()
+		controller := deps.newController(t)
 		defer deps.cleanup()
 
 		deps.namespaceClient.EXPECT().List().Return(testResp, nil)
