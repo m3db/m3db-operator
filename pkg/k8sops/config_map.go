@@ -46,6 +46,7 @@ var (
 type configData struct {
 	Env       string
 	Endpoints []string
+	CarbonIngester bool
 }
 
 // GenerateDefaultConfigMap creates a ConfigMap for the clusters with the
@@ -77,10 +78,13 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 	config := &configData{
 		Env:       DefaultM3ClusterEnvironmentName(cluster),
 		Endpoints: cluster.Spec.EtcdEndpoints,
+		CarbonIngester: cluster.Spec.EnableCarbonIngester,
 	}
 
 	buf := &bytes.Buffer{}
-	tmpl.Execute(buf, &config)
+	if err:= tmpl.Execute(buf, &config); err != nil {
+		return nil, err
+	}
 
 	ownerRef := GenerateOwnerRef(cluster)
 

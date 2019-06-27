@@ -8,6 +8,7 @@ spec:
   image: fake.fake/fake/m3dbnode:latest
   replicationFactor: 3
   numberOfShards: 8
+  enableCarbonIngester: true
   isolationGroups:
     - name: us-fake1-a
       numInstances: 1

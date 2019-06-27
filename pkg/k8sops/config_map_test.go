@@ -75,6 +75,9 @@ func TestGenerateDefaultConfigMap(t *testing.T) {
 	assert.Contains(t, data, `env: "foo/m3db-cluster"`)
 	assert.Contains(t, data, `- "ep0"`)
 	assert.Contains(t, data, `- "ep1"`)
+	assert.Contains(t, data, `carbon:`)
+	assert.Contains(t, data, `ingester:`)
+	assert.Contains(t, data, `listenAddress: "0.0.0.0:7204"`)
 }
 
 func TestGenerateDefaultConfigMap_Err(t *testing.T) {

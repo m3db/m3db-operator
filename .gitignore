@@ -3,6 +3,7 @@
 
 # Dev artifacts
 .vscode/
+.idea
 
 # Binaries for programs and plugins
 *.so

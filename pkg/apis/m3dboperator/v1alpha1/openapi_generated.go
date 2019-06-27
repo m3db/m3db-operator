@@ -407,6 +407,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"enableCarbonIngester": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableCarbonIngester enables the listener port for the carbon ingester",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"configMapName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMapName specifies the ConfigMap to use for this cluster. If unset a default configmap with template variables for etcd endpoints will be used. See \"Configuring M3DB\" in the docs for more.",

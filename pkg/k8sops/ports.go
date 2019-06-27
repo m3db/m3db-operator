@@ -33,4 +33,5 @@ const (
 
 	PortM3Coordinator        = 7201
 	PortM3CoordinatorMetrics = 7203
+	PortM3CoordinatorCarbon  = 7204
 )
