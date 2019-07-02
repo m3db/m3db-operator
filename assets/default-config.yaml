@@ -18,6 +18,9 @@ coordinator:
     extended: none
   tagOptions:
     idScheme: quoted
+  carbon:
+    ingester:
+      listenAddress: "0.0.0.0:7204"
 
 db:
   logging:

@@ -200,6 +200,10 @@ type ClusterSpec struct {
 	// +optional
 	KeepEtcdDataOnDelete bool `json:"keepEtcdDataOnDelete,omitempty"`
 
+	// EnableCarbonIngester enables the listener port for the carbon ingester
+	// +optional
+	EnableCarbonIngester bool `json:"enableCarbonIngester,omitempty"`
+
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
 	// default configmap with template variables for etcd endpoints will be used.
 	// See "Configuring M3DB" in the docs for more.

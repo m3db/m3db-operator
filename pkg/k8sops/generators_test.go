@@ -190,7 +190,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 									},
 								},
 							},
-							Ports: generateContainerPorts(),
+							Ports: generateContainerPorts(fixture),
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      _dataVolumeName,
@@ -380,7 +380,7 @@ func TestGenerateM3DBService(t *testing.T) {
 		},
 		Spec: v1.ServiceSpec{
 			Selector:  baseLabels,
-			Ports:     generateM3DBServicePorts(),
+			Ports:     generateM3DBServicePorts(cluster),
 			ClusterIP: v1.ClusterIPNone,
 			Type:      v1.ServiceTypeClusterIP,
 		},
@@ -419,7 +419,7 @@ func TestGenerateCoordinatorService(t *testing.T) {
 		},
 		Spec: v1.ServiceSpec{
 			Selector: selectLabels,
-			Ports:    generateCoordinatorServicePorts(),
+			Ports:    generateCoordinatorServicePorts(cluster),
 			Type:     v1.ServiceTypeClusterIP,
 		},
 	}
