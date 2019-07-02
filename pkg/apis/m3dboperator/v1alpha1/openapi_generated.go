@@ -451,6 +451,19 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},
+					"imagePullSecrets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImagePullSecrets will be added to every pod.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+									},
+								},
+							},
+						},
+					},
 					"labels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Labels sets the base labels that will be applied to resources created by the cluster. // TODO(schallert): design doc on labeling scheme.",
@@ -505,7 +518,7 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.IsolationGroup", "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.Namespace", "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.PodIdentityConfig", "k8s.io/api/core/v1.PersistentVolumeClaim", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration"},
+			"github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.IsolationGroup", "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.Namespace", "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1.PodIdentityConfig", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PersistentVolumeClaim", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 

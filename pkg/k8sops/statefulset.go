@@ -113,6 +113,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 				Spec: v1.PodSpec{
 					PriorityClassName: cluster.Spec.PriorityClassName,
 					SecurityContext:   cluster.Spec.PodSecurityContext,
+					ImagePullSecrets:  cluster.Spec.ImagePullSecrets,
 					Containers: []v1.Container{
 						{
 							Name:            ssName,
