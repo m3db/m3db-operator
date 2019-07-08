@@ -146,6 +146,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 					SecurityContext: &v1.PodSecurityContext{
 						FSGroup: pointer.Int64Ptr(10),
 					},
+					ImagePullSecrets: []v1.LocalObjectReference{
+						{Name: "secret1"},
+					},
 					Affinity: &v1.Affinity{
 						NodeAffinity: &v1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{

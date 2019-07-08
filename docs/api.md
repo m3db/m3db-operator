@@ -53,6 +53,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | dataDirVolumeClaimTemplate | DataDirVolumeClaimTemplate is the volume claim template for an M3DB instance's data. It claims PersistentVolumes for cluster storage, volumes are dynamically provisioned by when the StorageClass is defined. | *[corev1.PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#persistentvolumeclaim-v1-core) | false |
 | podSecurityContext | PodSecurityContext allows the user to specify an optional security context for pods. | *corev1.PodSecurityContext | false |
 | securityContext | SecurityContext allows the user to specify a container-level security context. | *corev1.SecurityContext | false |
+| imagePullSecrets | ImagePullSecrets will be added to every pod. | [][corev1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#localobjectreference-v1-core) | false |
 | labels | Labels sets the base labels that will be applied to resources created by the cluster. // TODO(schallert): design doc on labeling scheme. | map[string]string | false |
 | annotations | Annotations sets the base annotations that will be applied to resources created by the cluster. | map[string]string | false |
 | tolerations | Tolerations sets the tolerations that will be applied to all M3DB pods. | []corev1.Toleration | false |

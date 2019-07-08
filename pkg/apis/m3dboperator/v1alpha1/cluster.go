@@ -234,6 +234,9 @@ type ClusterSpec struct {
 	// context.
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
+	// ImagePullSecrets will be added to every pod.
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
 	Labels map[string]string `json:"labels,omitempty"`

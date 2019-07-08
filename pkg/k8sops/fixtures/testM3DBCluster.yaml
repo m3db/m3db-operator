@@ -9,6 +9,8 @@ spec:
   replicationFactor: 3
   numberOfShards: 8
   enableCarbonIngester: true
+  imagePullSecrets:
+  - name: secret1
   isolationGroups:
     - name: us-fake1-a
       numInstances: 1
