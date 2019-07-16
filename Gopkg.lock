@@ -85,6 +85,14 @@
   version = "v2.9.4"
 
 [[projects]]
+  digest = "1:46ddeb9dd35d875ac7568c4dc1fc96ce424e034bdbb984239d8ffc151398ec01"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = ""
+  revision = "026c730a0dcc5d11f93f1cf1cc65b01247ea7b6f"
+  version = "v4.5.0"
+
+[[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -1033,6 +1041,7 @@
     "github.com/ant31/crd-validation/pkg",
     "github.com/apache/thrift/lib/go/thrift",
     "github.com/coreos/bbolt",
+    "github.com/evanphx/json-patch",
     "github.com/go-openapi/spec",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/golang/mock/gomock",

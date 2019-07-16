@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -44,6 +45,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -53,6 +55,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/kubernetes/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
@@ -578,8 +581,27 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 		}
 		setLogger.Info("resizing set, desired != current", zap.Int32("newSize", newCount))
 
+		setBytes, err := json.Marshal(set)
+		if err != nil {
+			return err
+		}
+
 		set.Spec.Replicas = pointer.Int32Ptr(newCount)
-		set, err = c.kubeClient.AppsV1().StatefulSets(set.Namespace).Update(set)
+
+		setModifiedBytes, err := json.Marshal(set)
+		if err != nil {
+			return err
+		}
+
+		patchBytes, err := jsonpatch.CreateMergePatch(setBytes, setModifiedBytes)
+		if err != nil {
+			return err
+		}
+
+		set, err = c.kubeClient.
+			AppsV1().
+			StatefulSets(set.Namespace).
+			Patch(set.Name, types.MergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
 		}
@@ -761,6 +783,11 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 
 	pod = pod.DeepCopy()
 
+	podBytes, err := json.Marshal(pod)
+	if err != nil {
+		return err
+	}
+
 	podLogger := c.logger.With(zap.String("pod", pod.Name))
 	podLogger.Debug("processing pod")
 
@@ -801,7 +828,22 @@ func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
 		pod.Annotations = make(map[string]string)
 	}
 	pod.Annotations[podidentity.AnnotationKeyPodIdentity] = idStr
-	_, err = c.kubeClient.CoreV1().Pods(pod.Namespace).Update(pod)
+
+	podModifiedBytes, err := json.Marshal(pod)
+	if err != nil {
+		return err
+	}
+
+	// NB(r): See reference of use in the AddLabelToPod of postgres operator:
+	// https://github.com/CrunchyData/postgres-operator/blob/7e867ebf211b488def26dfaf10d7b2b5bbd6f5f6/kubeapi/pod.go#L108
+	patchBytes, err := jsonpatch.CreateMergePatch(podBytes, podModifiedBytes)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.kubeClient.CoreV1().
+		Pods(pod.Namespace).
+		Patch(pod.Name, types.MergePatchType, patchBytes)
 	if err != nil {
 		podLogger.Error("error updating pod annotation", zap.Error(err))
 		return err
