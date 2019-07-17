@@ -21,18 +21,15 @@
 package namespace
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"net/url"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
-	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
 )
 
@@ -104,11 +101,7 @@ func NewClient(opts ...Option) (Client, error) {
 // Create will create a namespace
 func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
 	url := n.url + namespaceBaseURL
-	data, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	_, err = n.client.DoHTTPRequest("POST", url, bytes.NewBuffer(data))
+	err := n.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 	if err != nil {
 		return err
 	}
@@ -118,25 +111,16 @@ func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
 
 // List will retrieve all namespaces
 func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
-	url := n.url + namespaceBaseURL
-	resp, err := n.client.DoHTTPRequest("GET", url, nil)
+	var (
+		url  = n.url + namespaceBaseURL
+		resp = &admin.NamespaceGetResponse{}
+	)
+	err := n.client.DoHTTPJSONPBRequest(http.MethodGet, url, nil, resp)
 	if err != nil {
 		return nil, err
 	}
-	data := &admin.NamespaceGetResponse{}
-	defer func() {
-		ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-	}()
 
-	um := &jsonpb.Unmarshaler{
-		AllowUnknownFields: true,
-	}
-	if err := um.Unmarshal(resp.Body, data); err != nil {
-		return nil, err
-	}
-
-	if data.Registry == nil {
+	if resp.Registry == nil {
 		n.logger.Error("nil registry from coordinator")
 		return nil, errors.New("nil registry from coordinator")
 	}
@@ -148,7 +132,7 @@ func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 // Delete will delete a namespace
 func (n *namespaceClient) Delete(namespace string) error {
 	url := fmt.Sprintf(n.url+namespaceDeleteFmt, namespace)
-	_, err := n.client.DoHTTPRequest("DELETE", url, nil)
+	err := n.client.DoHTTPJSONPBRequest(http.MethodDelete, url, nil, nil)
 	if err != nil {
 		return err
 	}

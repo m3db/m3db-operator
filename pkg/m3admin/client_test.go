@@ -21,6 +21,8 @@
 package m3admin
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -28,6 +30,10 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/m3db/m3/src/dbnode/generated/proto/namespace"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
+
+	"github.com/gogo/protobuf/proto"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -136,6 +142,67 @@ func TestClient_DoHTTPRequest_Err(t *testing.T) {
 			cl := NewClient(WithHTTPClient(retry))
 			_, err := cl.DoHTTPRequest("GET", s.URL, nil)
 			assert.Equal(t, test.expErr, pkgerrors.Cause(err))
+		})
+	}
+}
+
+func TestClient_DoHTTPJSONPBRequest(t *testing.T) {
+	marshal := func(m proto.Message) []byte {
+		buf := bytes.NewBuffer(nil)
+		require.NoError(t, JSONPBMarshal(buf, m))
+		return buf.Bytes()
+	}
+
+	addJSONField := func(data []byte, key string, value interface{}) []byte {
+		var r map[string]interface{}
+		require.NoError(t, json.Unmarshal(data, &r))
+		r[key] = value
+		data, err := json.Marshal(r)
+		require.NoError(t, err)
+		return data
+	}
+
+	for _, test := range []struct {
+		name        string
+		respBytes   []byte
+		respMessage proto.Message
+		expErr      bool
+	}{
+		{
+			name: "unmarshal valid",
+			respBytes: marshal(&admin.NamespaceGetResponse{
+				Registry: &namespace.Registry{},
+			}),
+			respMessage: &admin.NamespaceGetResponse{},
+		},
+		{
+			name: "unmarshal valid with unknown field",
+			respBytes: addJSONField(marshal(&admin.NamespaceGetResponse{
+				Registry: &namespace.Registry{},
+			}), "foo", "bar"),
+			respMessage: &admin.NamespaceGetResponse{},
+		},
+		{
+			name:        "unmarshal invalid",
+			respBytes:   []byte(`{"registry":"not_object"}`),
+			respMessage: &admin.NamespaceGetResponse{},
+			expErr:      true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Log("server sends", string(test.respBytes))
+				w.Write(test.respBytes)
+			}))
+			defer s.Close()
+
+			cl := NewClient()
+			err := cl.DoHTTPJSONPBRequest(http.MethodGet, s.URL, nil, test.respMessage)
+			if test.expErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

@@ -21,11 +21,8 @@
 package placement
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -34,7 +31,6 @@ import (
 	m3placement "github.com/m3db/m3/src/cluster/placement"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
-	"github.com/gogo/protobuf/jsonpb"
 	"go.uber.org/zap"
 )
 
@@ -70,11 +66,7 @@ func NewClient(opts ...Option) (Client, error) {
 // Init will create the placement
 func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 	url := p.url + placementInitURL
-	data, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
+	err := p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 	if err != nil {
 		return err
 	}
@@ -85,7 +77,7 @@ func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 // Delete will delete all current placements
 func (p *placementClient) Delete() error {
 	url := p.url + placementBaseURL
-	_, err := p.client.DoHTTPRequest(http.MethodDelete, url, nil)
+	err := p.client.DoHTTPJSONPBRequest(http.MethodDelete, url, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -95,41 +87,30 @@ func (p *placementClient) Delete() error {
 
 // Get will get current placement
 func (p *placementClient) Get() (m3placement.Placement, error) {
-	url := p.url + placementBaseURL
-	resp, err := p.client.DoHTTPRequest(http.MethodGet, url, nil)
+	var (
+		url  = p.url + placementBaseURL
+		resp = &admin.PlacementGetResponse{}
+	)
+	err := p.client.DoHTTPJSONPBRequest(http.MethodGet, url, nil, resp)
 	if err != nil {
 		return nil, err
 	}
-	data := &admin.PlacementGetResponse{}
-	defer func() {
-		ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-	}()
 
-	um := &jsonpb.Unmarshaler{
-		AllowUnknownFields: true,
-	}
-	if err := um.Unmarshal(resp.Body, data); err != nil {
-		return nil, err
-	}
-	if data.Placement == nil {
+	if resp.Placement == nil {
 		return nil, errors.New("nil placement fetch")
 	}
-	p.logger.Debug("placement retreived")
-	return m3placement.NewPlacementFromProto(data.Placement)
+	p.logger.Info("placement retreived")
+	return m3placement.NewPlacementFromProto(resp.Placement)
 }
 
 // Add will add an instance to the current placement
 func (p *placementClient) Add(instance placementpb.Instance) error {
 	url := p.url + placementBaseURL
-	request := &admin.PlacementAddRequest{
+	req := &admin.PlacementAddRequest{
 		Instances: []*placementpb.Instance{&instance},
 	}
-	data, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
+
+	err := p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 	if err != nil {
 		return err
 	}
@@ -139,23 +120,14 @@ func (p *placementClient) Add(instance placementpb.Instance) error {
 
 func (p *placementClient) Remove(id string) error {
 	url := fmt.Sprintf(p.url+placementRemoveFmt, id)
-	_, err := p.client.DoHTTPRequest(http.MethodDelete, url, nil)
-	return err
+	return p.client.DoHTTPJSONPBRequest(http.MethodDelete, url, nil, nil)
 }
 
 func (p *placementClient) Replace(leavingInstanceID string, newInst placementpb.Instance) error {
 	url := p.url + placementReplaceURL
-
 	req := &admin.PlacementReplaceRequest{
 		LeavingInstanceIDs: []string{leavingInstanceID},
 		Candidates:         []*placementpb.Instance{&newInst},
 	}
-
-	data, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-
-	_, err = p.client.DoHTTPRequest(http.MethodPost, url, bytes.NewBuffer(data))
-	return err
+	return p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 }
