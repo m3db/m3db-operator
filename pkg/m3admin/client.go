@@ -60,10 +60,6 @@ type client struct {
 	environment string
 }
 
-type nullLogger struct{}
-
-func (nullLogger) Printf(string, ...interface{}) {}
-
 // NewClient returns a new m3admin client.
 func NewClient(clientOpts ...Option) Client {
 	opts := &options{}
@@ -85,7 +81,7 @@ func NewClient(clientOpts ...Option) Client {
 	}
 
 	// We do our own request logging, silence their logger.
-	client.client.Logger = nullLogger{}
+	client.client.Logger.SetOutput(ioutil.Discard)
 	client.client.ErrorHandler = retryhttp.PassthroughErrorHandler
 
 	return client

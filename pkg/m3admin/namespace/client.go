@@ -126,7 +126,7 @@ func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 	}
 
 	n.logger.Debug("namespace retrieved")
-	return data, nil
+	return resp, nil
 }
 
 // Delete will delete a namespace
