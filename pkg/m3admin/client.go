@@ -85,7 +85,7 @@ func NewClient(clientOpts ...Option) Client {
 	}
 
 	// We do our own request logging, silence their logger.
-	client.client.Logger.SetOutput(ioutil.Discard)
+	client.client.Logger = nullLogger{}
 	client.client.ErrorHandler = retryhttp.PassthroughErrorHandler
 
 	return client
