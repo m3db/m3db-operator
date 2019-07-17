@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 )
 
@@ -68,4 +69,18 @@ func (m *MockClient) DoHTTPRequest(action, url string, data *bytes.Buffer) (*htt
 func (mr *MockClientMockRecorder) DoHTTPRequest(action, url, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPRequest), action, url, data)
+}
+
+// DoHTTPJSONPBRequest mocks base method
+func (m *MockClient) DoHTTPJSONPBRequest(action, url string, request, response proto.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DoHTTPJSONPBRequest", action, url, request, response)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DoHTTPJSONPBRequest indicates an expected call of DoHTTPJSONPBRequest
+func (mr *MockClientMockRecorder) DoHTTPJSONPBRequest(action, url, request, response interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPJSONPBRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPJSONPBRequest), action, url, request, response)
 }
