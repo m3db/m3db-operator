@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 
+	"github.com/gogo/protobuf/proto"
 	retryhttp "github.com/hashicorp/go-retryablehttp"
 	pkgerrors "github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -50,6 +51,7 @@ var (
 // Client is an m3admin client.
 type Client interface {
 	DoHTTPRequest(action, url string, data *bytes.Buffer) (*http.Response, error)
+	DoHTTPJSONPBRequest(action, url string, request, response proto.Message) error
 }
 
 type client struct {
@@ -165,6 +167,41 @@ func (c *client) DoHTTPRequest(
 	}
 
 	return nil, pkgerrors.WithMessage(ErrNotOk, errMsg)
+}
+
+// DoHTTPJSONPBRequest is a helper for performing a request and
+// parsing the response as a JSONPB message into the response.
+// Both request and response are optional and can be emitted if
+// not wanting to either send or receive message.
+func (c *client) DoHTTPJSONPBRequest(
+	action, url string,
+	request proto.Message,
+	response proto.Message,
+) error {
+	var data *bytes.Buffer
+	if request != nil {
+		data = bytes.NewBuffer(nil)
+		if err := JSONPBMarshal(data, request); err != nil {
+			return err
+		}
+	}
+
+	r, err := c.DoHTTPRequest(action, url, data)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		ioutil.ReadAll(r.Body)
+		r.Body.Close()
+	}()
+
+	if response == nil {
+		// Discard the body since nothing to decode into.
+		return nil
+	}
+
+	return JSONPBUnmarshal(r.Body, response)
 }
 
 func parseResponseError(r *http.Response) (string, error) {

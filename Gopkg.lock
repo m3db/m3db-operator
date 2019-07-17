@@ -1044,6 +1044,7 @@
     "github.com/evanphx/json-patch",
     "github.com/go-openapi/spec",
     "github.com/gogo/protobuf/jsonpb",
+    "github.com/gogo/protobuf/proto",
     "github.com/golang/mock/gomock",
     "github.com/golang/mock/mockgen",
     "github.com/hashicorp/go-retryablehttp",
