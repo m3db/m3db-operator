@@ -35,7 +35,7 @@ When running on GKE, the user applying the manifests will need the ability to al
 installation. Use the following `ClusterRoleBinding` with the user name provided by gcloud:
 
 ```
-kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=<name@domain.com>
+kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value core/account)
 ```
 
 ### Installing the M3DB Operator
