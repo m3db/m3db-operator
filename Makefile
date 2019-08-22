@@ -117,9 +117,9 @@ test-all: clean-all install-ci-tools verify-gen lint metalint test-all-gen bins 
 	@echo "--- $@"
 
 .PHONY: test
-test: test-base
+test: install-ci-tools test-base
 	@echo "--- $@"
-	gocov convert $(coverfile) | gocov report
+	@PATH=$(combined_bin_paths):$(PATH) gocov convert $(coverfile) | gocov report
 
 .PHONY: test-e2e
 test-e2e:

@@ -35,6 +35,10 @@
     {
       "Repository": "github.com/kubernetes/kube-openapi/cmd/openapi-gen",
       "Commit": "b52b5b0f5a7c473a00ca5580c49c83449146ac17"
+    },
+    {
+      "Repository": "github.com/axw/gocov",
+      "Commit": "b6eca663ebb7e7ef9798914d19f53ba2c6f74c96"
     }
   ],
   "RetoolVersion": "1.3.7"
