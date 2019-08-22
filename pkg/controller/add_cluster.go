@@ -21,10 +21,12 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
@@ -32,6 +34,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"go.uber.org/zap"
 )
@@ -111,8 +114,24 @@ func (c *Controller) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
+	cmBytes, err := json.Marshal(cm)
+	if err != nil {
+		return err
+	}
+
 	cm.Data = wantCM.Data
-	_, err = cmClient.Update(cm)
+
+	cmModifiedBytes, err := json.Marshal(cm)
+	if err != nil {
+		return err
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(cmBytes, cmModifiedBytes)
+	if err != nil {
+		return err
+	}
+
+	_, err = cmClient.Patch(cm.Name, types.MergePatchType, patchBytes)
 	if err != nil {
 		c.logger.Error("error updating configmap", zap.Error(err))
 	} else {
