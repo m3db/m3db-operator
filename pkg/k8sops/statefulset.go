@@ -47,8 +47,6 @@ var (
 	errEmptyNodeAffinityValues = errors.New("node affinity term values cannot be empty")
 )
 
-// NewBaseProbe returns a probe configured for default ports.
-
 // NewBaseStatefulSet returns a base configured stateful set.
 func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBCluster, instanceCount int32) *appsv1.StatefulSet {
 	ic := instanceCount
@@ -95,25 +93,15 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		},
 	}
 
-	// Add SYS_RESOURCE security capability if not set (required to raise
+	// If security context is nil, add one with SYS_RESOURCE (required to raise
 	// rlimit nofile from the process in container)
 	specSecurityCtx := cluster.Spec.SecurityContext
 	if specSecurityCtx == nil {
-		specSecurityCtx = &v1.SecurityContext{}
-	}
-	if specSecurityCtx.Capabilities == nil {
-		specSecurityCtx.Capabilities = &v1.Capabilities{}
-	}
-	hasCapabilitySysResource := false
-	for _, c := range specSecurityCtx.Capabilities.Add {
-		if c == capabilitySysResource {
-			hasCapabilitySysResource = true
-			break
+		specSecurityCtx = &v1.SecurityContext{
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{capabilitySysResource},
+			},
 		}
-	}
-	if !hasCapabilitySysResource {
-		specSecurityCtx.Capabilities.Add =
-			append(specSecurityCtx.Capabilities.Add, capabilitySysResource)
 	}
 
 	return &appsv1.StatefulSet{
