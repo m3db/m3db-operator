@@ -39,14 +39,13 @@ import (
 const (
 	podIdentityVolumePath = "/etc/m3db/pod-identity"
 	podIdentityVolumeName = "pod-identity"
+	capabilitySysResource = v1.Capability("SYS_RESOURCE")
 )
 
 var (
 	errEmptyNodeAffinityKey    = errors.New("node affinity term key cannot be empty")
 	errEmptyNodeAffinityValues = errors.New("node affinity term values cannot be empty")
 )
-
-// NewBaseProbe returns a probe configured for default ports.
 
 // NewBaseStatefulSet returns a base configured stateful set.
 func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBCluster, instanceCount int32) *appsv1.StatefulSet {
@@ -94,6 +93,17 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		},
 	}
 
+	// If security context is nil, add one with SYS_RESOURCE (required to raise
+	// rlimit nofile from the process in container)
+	specSecurityCtx := cluster.Spec.SecurityContext
+	if specSecurityCtx == nil {
+		specSecurityCtx = &v1.SecurityContext{
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{capabilitySysResource},
+			},
+		}
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
@@ -117,7 +127,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					Containers: []v1.Container{
 						{
 							Name:            ssName,
-							SecurityContext: cluster.Spec.SecurityContext,
+							SecurityContext: specSecurityCtx,
 							ReadinessProbe:  probeReady,
 							LivenessProbe:   probeHealth,
 							Command: []string{

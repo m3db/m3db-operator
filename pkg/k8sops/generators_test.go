@@ -353,6 +353,21 @@ func TestGenerateStatefulSet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
 	assert.Equal(t, ss, newSS)
+
+	// Make sure nil security context adds one with SYS_RESOURCE
+	ss = baseSS.DeepCopy()
+	ss.Spec.Template.Spec.Containers[0].SecurityContext = &v1.SecurityContext{
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{v1.Capability("SYS_RESOURCE")},
+		},
+	}
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.SecurityContext = nil
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
 }
 
 func TestGenerateM3DBService(t *testing.T) {
