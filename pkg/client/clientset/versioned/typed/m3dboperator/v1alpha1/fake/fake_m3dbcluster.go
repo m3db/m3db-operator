@@ -135,7 +135,7 @@ func (c *FakeM3DBClusters) DeleteCollection(options *v1.DeleteOptions, listOptio
 // Patch applies the patch and returns the patched m3DBCluster.
 func (c *FakeM3DBClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.M3DBCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(m3dbclustersResource, c.ns, name, data, subresources...), &v1alpha1.M3DBCluster{})
+		Invokes(testing.NewPatchSubresourceAction(m3dbclustersResource, c.ns, name, pt, data, subresources...), &v1alpha1.M3DBCluster{})
 
 	if obj == nil {
 		return nil, err

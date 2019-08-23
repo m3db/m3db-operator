@@ -10,7 +10,7 @@
     },
     {
       "Repository": "github.com/golang/dep/cmd/dep",
-      "Commit": "192eb4499a075a59ab6c191a9ba9dac9445625e4"
+      "Commit": "1f7c19e5f52f49ffb9f956f64c010be14683468b"
     },
     {
       "Repository": "golang.org/x/lint/golint",

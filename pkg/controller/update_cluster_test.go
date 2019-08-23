@@ -481,7 +481,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 	err = controller.expandPlacementForSet(cluster, set, group, pl)
 	assert.NoError(t, err)
 
-	cluster, err = deps.crdClient.Operator().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = deps.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.True(t, cluster.Status.HasPodBootstrapping())
 }
