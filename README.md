@@ -43,7 +43,7 @@ kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-ad
 With Helm:
 
 ```
-helm repo add m3db https://s3.amazonaws.com/m3-helm-charts-repository/stable;
+helm repo add m3db https://m3-helm-charts.storage.googleapis.com/stable;
 helm install m3db/m3db-operator --namespace m3db-operator
 ```
 
