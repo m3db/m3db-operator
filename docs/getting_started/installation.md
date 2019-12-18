@@ -7,7 +7,7 @@ Be sure to take a look at the [requirements](requirements) before installing the
 1. Add the `m3db-operator` repo:
 
 ```
-helm repo add m3db https://s3.amazonaws.com/m3-helm-charts-repository/stable
+helm repo add m3db https://m3-helm-charts.storage.googleapis.com/stable
 ```
 
 2. Install the `m3db-operator` chart:
