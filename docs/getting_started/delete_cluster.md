@@ -6,7 +6,7 @@ kubectl delete m3dbcluster simple-cluster
 ```
 
 By default, the operator will delete the placement and namespaces associated with a cluster before the CRD resource
-deleted. If you do NOT want this behavior, set `keepEtcdDataOnDelete` to `true` on your cluster spec.
+deleted. If you do **not** want this behavior, set `keepEtcdDataOnDelete` to `true` on your cluster spec.
 
 Under the hood, the operator uses Kubernetes [finalizers] to ensure the cluster CRD is not deleted until the operator
 has had a chance to do cleanup.
