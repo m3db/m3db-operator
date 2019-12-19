@@ -5,8 +5,8 @@ Delete your M3DB cluster with `kubectl`:
 kubectl delete m3dbcluster simple-cluster
 ```
 
-By default, the operator will delete the placement and namespaces associated with a cluster before it's deleted. If you
-do NOT want this behavior, set `keepEtcdDataOnDelete` to `true` on your cluster spec.
+By default, the operator will delete the placement and namespaces associated with a cluster before the CRD resource
+deleted. If you do NOT want this behavior, set `keepEtcdDataOnDelete` to `true` on your cluster spec.
 
 Under the hood, the operator uses Kubernetes [finalizers] to ensure the cluster CRD is not deleted until the operator
 has had a chance to do cleanup.
@@ -31,5 +31,11 @@ metadata:
   name: m3db-cluster
 ...
 ```
+
+Note that if you do this, you'll have to manually remove the relevant data in etcd. For a cluster in namespace `$NS`
+with name `$CLUSTER`, the keys are:
+
+- `_sd.placement/$NS/$CLUSTER/m3db`
+- `_kv/$NS/$CLUSTER/m3db.node.namespaces`
 
 [finalizers]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#finalizers
