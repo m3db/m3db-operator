@@ -11,7 +11,7 @@ do NOT want this behavior, set `keepEtcdDataOnDelete` to `true` on your cluster 
 Under the hood, the operator uses Kubernetes [finalizers] to ensure the cluster CRD is not deleted until the operator
 has had a chance to do cleanup.
 
-## Debugging a Stuck Cluster Deletion
+## Debugging Stuck Cluster Deletion
 
 If for some reason the operator is unable to delete the placement and namespace for the cluster, the cluster CRD itself
 will be stuck in a state where it can not be deleted, due to the way finalizers work in Kubernetes. The operator might
