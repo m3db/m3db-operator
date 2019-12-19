@@ -168,24 +168,6 @@ $ kubectl exec simple-cluster-rep2-0 -- curl -sSf localhost:9002/health
 {"ok":true,"status":"up","bootstrapped":true}
 ```
 
-## Deleting a Cluster
-
-Delete your M3DB cluster with `kubectl`:
-```
-kubectl delete m3dbcluster simple-cluster
-```
-
-After deleting a cluster you'll have to delete the metadata in etcd if you want to reuse the same etcd cluster for a new
-M3DB cluster. On our roadmap is to add a finalizer to `m3dbcluster` API objects to allow the operator to clean up their
-data in etcd. Until then, you'll have to do so manually:
-
-**WARNING**: This will delete all data in your etcd cluster. If you are using this cluster for anything other than M3DB,
-you will want to delete only the relevant keys (generally anything containing the string `m3db`).
-
-```
-kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --prefix ""
-```
-
 [pod-identity]: ../configuration/pod_identity
 [local-volumes]: https://kubernetes.io/blog/2018/04/13/local-persistent-volumes-beta/
 [node-affinity]: ../configuration/node_affinity
