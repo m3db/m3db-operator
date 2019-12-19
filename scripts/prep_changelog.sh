@@ -18,7 +18,7 @@ done
 sort "$NUMS" | uniq | while read -r NUM; do
   EXPR="s@(#${NUM})@([#${NUM}][$NUM])@g"
   if [[ "$(uname)" == "Darwin" ]]; then
-    sed -i"" -e "$EXPR" CHANGELOG.md
+    sed -i '' -e "$EXPR" CHANGELOG.md
   else
     sed -i "$EXPR" CHANGELOG.md
   fi

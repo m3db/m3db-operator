@@ -19,7 +19,7 @@ opeator will delete the metadata associated with an M3DB cluster from etcd when 
 * [FEATURE] Support custom annotations ([#155][155])
 * [ENHANCEMENT] Always create missing stateful sets ([#148][148])
 * [ENHANCEMENT] Use dbnode health/bootstrap endpoints ([#135][135])
-* [FEATURE] Clear data in etcd on cluster delete ([#154][154])
+* [FEATURE] Clear data in etcd on cluster delete ([#154][154]) ([#181][181])
 * [ENHANCEMENT] Continuously reconcile operator CRD ([#149][149])
 * [ENHANCEMENT] Use CRD status subresource ([#152][152])
 * [DOCS] Update 0.2.0 breaking changes ([#146][146])
@@ -153,3 +153,4 @@ If using a custom configmap, this same change will require a modification to you
 [163]: https://github.com/m3db/m3db-operator/pull/163
 [167]: https://github.com/m3db/m3db-operator/pull/167
 [169]: https://github.com/m3db/m3db-operator/pull/169
+[181]: https://github.com/m3db/m3db-operator/pull/181
