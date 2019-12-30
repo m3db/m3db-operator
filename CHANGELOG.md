@@ -7,7 +7,7 @@ endpoints, using `PATCH` to do partial updates to non-operator owned resources, 
 default should make operated clusters work in more environments with no changes.
 
 Users that have had etcd-related issues when deleting and recreating M3DB clusters will also be happy, as by default the
-opeator will delete the metadata associated with an M3DB cluster from etcd when a cluster is deleted. Users can set
+operator will delete the metadata associated with an M3DB cluster from etcd when a cluster is deleted. Users can set
 `keepEtcdDataOnDelete` to `true` on their cluster specs to disable this behavior.
 
 * [ENHNACEMENT] Use Kubernetes 1.14 libraries ([#167][167])
