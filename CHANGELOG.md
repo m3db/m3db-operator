@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0
+
+0.3.0 is focused on some behind the scenes reliability improvements. Changes such as using purpose-build M3DB health
+endpoints, using `PATCH` to do partial updates to non-operator owned resources, and giving M3DB pods `SYS_RESOURCE` by
+default should make operated clusters work in more environments with no changes.
+
+Users that have had etcd-related issues when deleting and recreating M3DB clusters will also be happy, as by default the
+operator will delete the metadata associated with an M3DB cluster from etcd when a cluster is deleted. Users can set
+`keepEtcdDataOnDelete` to `true` on their cluster specs to disable this behavior.
+
+* [ENHNACEMENT] Use Kubernetes 1.14 libraries ([#167][167])
+* [ENHANCEMENT] Add SYS_RESOURCE if security context not set ([#147][147])
+* [BUGFIX] Use patch instead of update for resources not owned by operator ([#162][162])
+* [ENHANCEMENT] Add HTTP JSONPB request method to client and update callers ([#163][163])
+* [ENHANCEMENT] Support image pull secrets ([#160][160])
+* [FEATURE] Add carbon ingester port config to cluster spec ([#158][158])
+* [FEATURE] Support custom annotations ([#155][155])
+* [ENHANCEMENT] Always create missing stateful sets ([#148][148])
+* [ENHANCEMENT] Use dbnode health/bootstrap endpoints ([#135][135])
+* [FEATURE] Clear data in etcd on cluster delete ([#154][154]) ([#181][181])
+* [ENHANCEMENT] Continuously reconcile operator CRD ([#149][149])
+* [ENHANCEMENT] Use CRD status subresource ([#152][152])
+* [DOCS] Update 0.2.0 breaking changes ([#146][146])
+* [ENHANCEMENT] Add better error messages for time parsing from yaml for namespaces ([#144][144])
+* [BUGFIX] Fix 0.2.0 migration script ([#143][143])
+* [DOCS] Include prometheus monitoring instructions ([#140][140])
+
 ## 0.2.0
 
 The theme of this release is usability improvements and more granular control over node placement.
@@ -107,3 +134,23 @@ If using a custom configmap, this same change will require a modification to you
 [119]: https://github.com/m3db/m3db-operator/pull/119
 [125]: https://github.com/m3db/m3db-operator/pull/125
 [131]: https://github.com/m3db/m3db-operator/pull/131
+[135]: https://github.com/m3db/m3db-operator/pull/135
+[140]: https://github.com/m3db/m3db-operator/pull/140
+[141]: https://github.com/m3db/m3db-operator/pull/141
+[143]: https://github.com/m3db/m3db-operator/pull/143
+[144]: https://github.com/m3db/m3db-operator/pull/144
+[146]: https://github.com/m3db/m3db-operator/pull/146
+[147]: https://github.com/m3db/m3db-operator/pull/147
+[148]: https://github.com/m3db/m3db-operator/pull/148
+[149]: https://github.com/m3db/m3db-operator/pull/149
+[150]: https://github.com/m3db/m3db-operator/pull/150
+[152]: https://github.com/m3db/m3db-operator/pull/152
+[154]: https://github.com/m3db/m3db-operator/pull/154
+[155]: https://github.com/m3db/m3db-operator/pull/155
+[158]: https://github.com/m3db/m3db-operator/pull/158
+[160]: https://github.com/m3db/m3db-operator/pull/160
+[162]: https://github.com/m3db/m3db-operator/pull/162
+[163]: https://github.com/m3db/m3db-operator/pull/163
+[167]: https://github.com/m3db/m3db-operator/pull/167
+[169]: https://github.com/m3db/m3db-operator/pull/169
+[181]: https://github.com/m3db/m3db-operator/pull/181
