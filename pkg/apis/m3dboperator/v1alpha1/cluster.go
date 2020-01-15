@@ -254,7 +254,7 @@ type ClusterSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// NodeEndpointFormat allows overriding of the endpoint used for a node in the
-	// M3DB placement. Defaults to "{{ .PodName }}.{{ .Service }}:{{ .Port }}".
+	// M3DB placement. Defaults to "{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}".
 	// Useful if access to the cluster from other namespaces is desired. See "Node
 	// Endpoint" docs for full variables available.
 	// +optional
