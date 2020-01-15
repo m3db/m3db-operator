@@ -252,6 +252,13 @@ type ClusterSpec struct {
 	// PriorityClassName sets the priority class for all M3DB pods.
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// NodeEndpointFormat allows overriding of the endpoint used for a node in the
+	// M3DB placement. Defaults to "{{ .PodName }}.{{ .Service }}:{{ .Port }}".
+	// Useful if access to the cluster from other namespaces is desired. See "Node
+	// Endpoint" docs for full variables available.
+	// +optional
+	NodeEndpointFormat string `json:"nodeEndpointFormat,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

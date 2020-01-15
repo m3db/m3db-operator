@@ -49,7 +49,7 @@ func TestPlacementInstanceFromPod(t *testing.T) {
 
 	idProvider := podidentity.NewMockProvider(mc)
 	podID := &myspec.PodIdentity{Name: "pod-a"}
-	idProvider.EXPECT().Identity(pod, cluster).Return(podID, nil)
+	idProvider.EXPECT().Identity(pod, cluster).Return(podID, nil).AnyTimes()
 
 	_, err := PlacementInstanceFromPod(cluster, pod, idProvider)
 	assert.Error(t, err)
@@ -71,4 +71,23 @@ func TestPlacementInstanceFromPod(t *testing.T) {
 	inst, err := PlacementInstanceFromPod(cluster, pod, idProvider)
 	assert.NoError(t, err)
 	assert.Equal(t, expInst, inst)
+
+	t.Run("CustomFmt", func(t *testing.T) {
+		pod.ObjectMeta.Namespace = "my_ns"
+		cluster.Spec.NodeEndpointFormat = "{{ .PodName }}.{{ .M3DBService }}.{{ .PodNamespace }}:{{ .Port }}"
+
+		expInst := &placementpb.Instance{
+			Id:             `{"name":"pod-a"}`,
+			IsolationGroup: "zone-a",
+			Zone:           "embedded",
+			Weight:         100,
+			Hostname:       "pod-a.m3dbnode-cluster-a",
+			Endpoint:       "pod-a.m3dbnode-cluster-a.my_ns:9000",
+			Port:           9000,
+		}
+
+		inst, err := PlacementInstanceFromPod(cluster, pod, idProvider)
+		assert.NoError(t, err)
+		assert.Equal(t, expInst, inst)
+	})
 }
