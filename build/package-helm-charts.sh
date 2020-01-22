@@ -8,19 +8,28 @@ CHART_DIRECTORY="$(pwd)/helm"
 CHARTS=( m3db-operator )
 REPO_NAME="m3-charts-push"
 HELM_PACKAGE_DIRECTORY=$(mktemp -d)
+HELMTMP=$(mktemp -d)
+
+function cleanup() {
+  rm -rf "${HELM_PACKAGE_DIRECTORY}"
+  rm -rf "$HELMTMP"
+}
+
+trap cleanup EXIT
 
 # Helm
-HELM_URL=https://storage.googleapis.com/kubernetes-helm
-HELM_TARBALL=helm-v2.14.3-linux-amd64.tar.gz
-HELM_EXTRACTED_ARCHIVE="$(pwd)/linux-amd64/"
+HELM_URL=https://get.helm.sh/helm-v3.0.2-linux-amd64.tar.gz
+HELM_TARBALL="helm.tgz"
 
 install_helm () {
   # Download and install helm
-  curl -o "${HELM_TARBALL}" "${HELM_URL}/${HELM_TARBALL}"
-  tar zxvf ${HELM_TARBALL}
-  PATH=${PATH}:${HELM_EXTRACTED_ARCHIVE}
+  (
+    cd "$HELMTMP"
+    wget -q -O $HELM_TARBALL "$HELM_URL"
+    tar zxvf $HELM_TARBALL
+  )
+  PATH="${PATH}:${HELMTMP}/linux-amd64/bin"
   export PATH
-  rm -f ${HELM_TARBALL}
 
   # Install helm gcs plugin if not installed
   if [[ $(helm plugin list | grep "^gcs") == "" ]]; then
@@ -35,7 +44,6 @@ package_helm () {
   do
     (
       # Package
-      helm init --client-only
       helm repo add "${REPO_NAME}" "${BUCKET}"
       helm package "${CHART_DIRECTORY}/${CHART_NAME}" -d "${HELM_PACKAGE_DIRECTORY}"
 
@@ -46,15 +54,8 @@ package_helm () {
   done
 }
 
-cleanup () {
-  rm -rf "${HELM_PACKAGE_DIRECTORY}"
-  rm -rf "${HELM_EXTRACTED_ARCHIVE}"
-}
-
 if ! command -v helm; then
   install_helm
 fi
 
 package_helm
-
-cleanup
