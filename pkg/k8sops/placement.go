@@ -22,6 +22,8 @@ package k8sops
 
 import (
 	"fmt"
+	"strings"
+	"text/template"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
@@ -30,11 +32,22 @@ import (
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 
 	corev1 "k8s.io/api/core/v1"
+
+	pkgerrors "github.com/pkg/errors"
 )
 
 const (
-	_zoneEmbedded = "embedded"
+	_zoneEmbedded             = "embedded"
+	defaultM3DBPort           = 9000
+	defaultNodeEndpointFormat = "{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}"
 )
+
+type endpointContext struct {
+	PodName      string
+	M3DBService  string
+	PodNamespace string
+	Port         uint32
+}
 
 // PlacementInstanceFromPod creates a new m3cluster placement instance given a
 // pod spec.
@@ -54,18 +67,35 @@ func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod, idPr
 		return nil, err
 	}
 
-	setService := HeadlessServiceName(cluster.Name)
-	hostname := pod.Name + "." + setService
+	epFmt := cluster.Spec.NodeEndpointFormat
+	if epFmt == "" {
+		epFmt = defaultNodeEndpointFormat
+	}
 
-	// TODO(schallert): dynamic zone, portname consts
+	str := &strings.Builder{}
+	epCtx := endpointContext{
+		PodName:      pod.Name,
+		PodNamespace: pod.Namespace,
+		M3DBService:  HeadlessServiceName(cluster.Name),
+		Port:         defaultM3DBPort,
+	}
+
+	tmpl, err := template.New("nodeEndpoint").Parse(epFmt)
+	if err != nil {
+		return nil, pkgerrors.WithMessage(err, "cannot construct node endpoint template")
+	}
+	if err := tmpl.Execute(str, epCtx); err != nil {
+		return nil, pkgerrors.WithMessage(err, "cannot execute node endpoint template")
+	}
+
 	instance := &placementpb.Instance{
 		Id:             idStr,
 		IsolationGroup: isoGroup,
 		Zone:           _zoneEmbedded,
 		Weight:         100,
-		Hostname:       hostname,
-		Endpoint:       fmt.Sprintf("%s:%d", hostname, 9000),
-		Port:           9000,
+		Hostname:       pod.Name + "." + epCtx.M3DBService,
+		Endpoint:       str.String(),
+		Port:           defaultM3DBPort,
 	}
 
 	return instance, nil

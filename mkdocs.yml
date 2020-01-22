@@ -65,4 +65,5 @@ pages:
     - "Pod Identity": "configuration/pod_identity.md"
     - "Namespaces": "configuration/namespaces.md"
     - "Node Affinity & Cluster Topology": "configuration/node_affinity.md"
+    - "Node Endpoint": "configuration/node_endpoint.md"
   - "API": "api.md"
