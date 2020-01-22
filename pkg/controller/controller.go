@@ -32,8 +32,8 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
@@ -56,7 +56,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/kubernetes/utils/pointer"
+	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -84,35 +84,44 @@ type Configuration struct {
 	EnableValidation bool
 }
 
-// Controller object
-type Controller struct {
-	lock          *sync.Mutex
-	logger        *zap.Logger
-	clock         clock.Clock
-	scope         tally.Scope
-	config        Configuration
-	k8sclient     k8sops.K8sops
-	podIDProvider podidentity.Provider
-	adminClient   *multiAdminClient
-	doneCh        chan struct{}
+type controllerBase struct {
+	lock   *sync.Mutex
+	logger *zap.Logger
+	clock  clock.Clock
+	scope  tally.Scope
+	config Configuration
+	doneCh chan struct{}
+
+	adminClient *multiAdminClient
 
 	kubeClient kubernetes.Interface
 	crdClient  clientset.Interface
 
-	clusterLister      clusterlisters.M3DBClusterLister
-	clustersSynced     cache.InformerSynced
 	statefulSetLister  appslisters.StatefulSetLister
 	statefulSetsSynced cache.InformerSynced
 	podLister          corelisters.PodLister
 	podsSynced         cache.InformerSynced
 
-	clusterWorkQueue workqueue.RateLimitingInterface
-	podWorkQueue     workqueue.RateLimitingInterface
-	recorder         eventer.Poster
+	podWorkQueue workqueue.RateLimitingInterface
+
+	recorder eventer.Poster
 }
 
-// New creates new instance of Controller
-func New(opts ...Option) (*Controller, error) {
+// M3DBController object
+type M3DBController struct {
+	controllerBase
+
+	k8sclient     m3db.K8sops
+	podIDProvider podidentity.Provider
+
+	clusterLister  clusterlisters.M3DBClusterLister
+	clustersSynced cache.InformerSynced
+
+	clusterWorkQueue workqueue.RateLimitingInterface
+}
+
+// NewM3DBController creates new instance of Controller
+func NewM3DBController(opts ...Option) (*M3DBController, error) {
 	options := &options{}
 
 	for _, o := range opts {
@@ -155,31 +164,37 @@ func New(opts ...Option) (*Controller, error) {
 		return nil, err
 	}
 
-	p := &Controller{
-		lock:          &sync.Mutex{},
-		logger:        logger,
-		scope:         scope,
-		config:        options.config,
-		clock:         clock.RealClock{},
+	p := &M3DBController{
+		controllerBase: controllerBase{
+			lock:   &sync.Mutex{},
+			logger: logger,
+			scope:  scope,
+			config: options.config,
+			clock:  clock.RealClock{},
+
+			adminClient: multiClient,
+			doneCh:      make(chan struct{}),
+
+			kubeClient: kubeClient,
+			crdClient:  crdClient,
+
+			statefulSetLister:  statefulSetInformer.Lister(),
+			statefulSetsSynced: statefulSetInformer.Informer().HasSynced,
+			podLister:          podInformer.Lister(),
+			podsSynced:         podInformer.Informer().HasSynced,
+
+			podWorkQueue: podWorkQueue,
+			// TODO(celina): figure out if we actually need a recorder for each namespace
+			recorder: r,
+		},
+
 		k8sclient:     kclient,
 		podIDProvider: options.podIDProvider,
-		adminClient:   multiClient,
-		doneCh:        make(chan struct{}),
 
-		kubeClient: kubeClient,
-		crdClient:  crdClient,
-
-		clusterLister:      m3dbClusterInformer.Lister(),
-		clustersSynced:     m3dbClusterInformer.Informer().HasSynced,
-		statefulSetLister:  statefulSetInformer.Lister(),
-		statefulSetsSynced: statefulSetInformer.Informer().HasSynced,
-		podLister:          podInformer.Lister(),
-		podsSynced:         podInformer.Informer().HasSynced,
+		clusterLister:  m3dbClusterInformer.Lister(),
+		clustersSynced: m3dbClusterInformer.Informer().HasSynced,
 
 		clusterWorkQueue: clusterWorkQueue,
-		podWorkQueue:     podWorkQueue,
-		// TODO(celina): figure out if we actually need a recorder for each namespace
-		recorder: r,
 	}
 
 	m3dbClusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -226,13 +241,13 @@ func New(opts ...Option) (*Controller, error) {
 }
 
 // Run drives the controller event loop.
-func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
+func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.clusterWorkQueue.ShutDown()
 
 	c.logger.Info("starting Operator controller")
 	if c.config.ManageCRD {
-		if err := c.k8sclient.CreateOrUpdateCRD(m3dboperator.Name, c.config.EnableValidation); err != nil {
+		if err := c.k8sclient.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, c.config.EnableValidation); err != nil {
 			return pkgerrors.WithMessage(err, "could not create or update CRD")
 		}
 	}
@@ -255,7 +270,7 @@ func (c *Controller) Run(nWorkers int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) enqueueCluster(obj interface{}) {
+func (c *M3DBController) enqueueCluster(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -266,12 +281,12 @@ func (c *Controller) enqueueCluster(obj interface{}) {
 	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
-func (c *Controller) runClusterLoop() {
+func (c *M3DBController) runClusterLoop() {
 	for c.processClusterQueueItem() {
 	}
 }
 
-func (c *Controller) processClusterQueueItem() bool {
+func (c *M3DBController) processClusterQueueItem() bool {
 	obj, shutdown := c.clusterWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
@@ -307,7 +322,7 @@ func (c *Controller) processClusterQueueItem() bool {
 	return true
 }
 
-func (c *Controller) handleClusterEvent(key string) error {
+func (c *M3DBController) handleClusterEvent(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
@@ -334,7 +349,7 @@ func (c *Controller) handleClusterEvent(key string) error {
 
 // We are guaranteed by handleClusterEvent that we will never be passed a nil
 // cluster here.
-func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 	// MUST create a deep copy of the cluster or risk corrupting cache! Technically
 	// only need if we modify, but we frequently do that so let's deep copy to
 	// start and remove unnecessary calls later to optimize if we want.
@@ -434,10 +449,10 @@ func (c *Controller) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
 
 	// Create any missing statefulsets, at this point all existing stateful sets are bootstrapped.
 	for i := 0; i < len(isoGroups); i++ {
-		name := k8sops.StatefulSetName(cluster.Name, i)
+		name := m3db.StatefulSetName(cluster.Name, i)
 		_, exists := childrenSetsByName[name]
 		if !exists {
-			sts, err := k8sops.GenerateStatefulSet(cluster, isoGroups[i].Name, isoGroups[i].NumInstances)
+			sts, err := m3db.GenerateStatefulSet(cluster, isoGroups[i].Name, isoGroups[i].NumInstances)
 			if err != nil {
 				return err
 			}
@@ -643,7 +658,7 @@ func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placemen
 
 // This func is currently read-only, but if we end up modifying statefulsets
 // we'll have to deepcopy.
-func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
+func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
 	labels := labels.BaseLabels(cluster)
 	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(klabels.Set(labels).AsSelector())
 	if err != nil {
@@ -661,7 +676,7 @@ func (c *Controller) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv
 	return childrenSets, nil
 }
 
-func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
+func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -698,7 +713,7 @@ func (c *Controller) handleStatefulSetUpdate(obj interface{}) {
 	c.enqueueCluster(cluster)
 }
 
-func (c *Controller) enqueuePod(obj interface{}) {
+func (c *M3DBController) enqueuePod(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -709,12 +724,12 @@ func (c *Controller) enqueuePod(obj interface{}) {
 	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
-func (c *Controller) runPodLoop() {
+func (c *M3DBController) runPodLoop() {
 	for c.processPodQueueItem() {
 	}
 }
 
-func (c *Controller) processPodQueueItem() bool {
+func (c *M3DBController) processPodQueueItem() bool {
 	obj, shutdown := c.podWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
@@ -750,7 +765,7 @@ func (c *Controller) processPodQueueItem() bool {
 	return true
 }
 
-func (c *Controller) handlePodEvent(key string) error {
+func (c *M3DBController) handlePodEvent(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		c.logger.Error("invalid resource key", zap.Error(err))
@@ -775,7 +790,7 @@ func (c *Controller) handlePodEvent(key string) error {
 	return c.handlePodUpdate(pod)
 }
 
-func (c *Controller) handlePodUpdate(pod *corev1.Pod) error {
+func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 	// We only process pods that are members of m3db clusters.
 	if _, found := getClusterValue(pod); !found {
 		return nil
@@ -864,7 +879,7 @@ func getClusterValue(pod *corev1.Pod) (string, bool) {
 	return cluster, true
 }
 
-func (c *Controller) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster, error) {
 	clusterName, found := getClusterValue(pod)
 	if !found {
 		return nil, errOrphanedPod

@@ -27,7 +27,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -52,16 +52,16 @@ func getFixture(filename string, t *testing.T) *myspec.M3DBCluster {
 	return spec
 }
 
-func newFakeK8sops(t *testing.T) k8sops.K8sops {
+func newFakeK8sops(t *testing.T) m3db.K8sops {
 	logger := zap.NewNop()
 	kubeCli := kubeFake.NewSimpleClientset()
 	kubeExt := kubeExtFake.NewSimpleClientset()
 	crdCli := clientsetFake.NewSimpleClientset()
-	k, err := k8sops.New(
-		k8sops.WithCRDClient(crdCli),
-		k8sops.WithExtClient(kubeExt),
-		k8sops.WithKClient(kubeCli),
-		k8sops.WithLogger(logger),
+	k, err := m3db.New(
+		m3db.WithCRDClient(crdCli),
+		m3db.WithExtClient(kubeExt),
+		m3db.WithKClient(kubeCli),
+		m3db.WithLogger(logger),
 	)
 	require.NoError(t, err)
 	return k

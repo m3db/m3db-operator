@@ -25,7 +25,7 @@ import (
 
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	kubeinformers "k8s.io/client-go/informers"
@@ -44,7 +44,7 @@ type options struct {
 	logger                     *zap.Logger
 	scope                      tally.Scope
 	config                     Configuration
-	kclient                    k8sops.K8sops
+	kclient                    m3db.K8sops
 	podIDProvider              podidentity.Provider
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
@@ -74,7 +74,7 @@ func WithLogger(l *zap.Logger) Option {
 }
 
 // WithKClient sets the k8sops client.
-func WithKClient(kc k8sops.K8sops) Option {
+func WithKClient(kc m3db.K8sops) Option {
 	return optionFn(func(o *options) {
 		o.kclient = kc
 	})

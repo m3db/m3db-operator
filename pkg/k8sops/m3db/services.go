@@ -34,7 +34,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"

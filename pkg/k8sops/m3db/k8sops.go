@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	genclient "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"

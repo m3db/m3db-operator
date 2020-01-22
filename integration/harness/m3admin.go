@@ -26,19 +26,19 @@ import (
 	"fmt"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 )
 
 // NewPlacementClient constructs an m3admin placement client for the tests.
 func (h *Harness) NewPlacementClient(cluster *myspec.M3DBCluster) (placement.Client, error) {
-	svc, err := k8sops.GenerateCoordinatorService(cluster)
+	svc, err := m3db.GenerateCoordinatorService(cluster)
 	if err != nil {
 		return nil, err
 	}
 
-	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
+	env := m3db.DefaultM3ClusterEnvironmentName(cluster)
 	adminCl := m3admin.NewClient(
 		m3admin.WithEnvironment(env),
 	)

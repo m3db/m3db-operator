@@ -31,7 +31,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -396,7 +396,7 @@ func objectsFromPods(pods ...*corev1.Pod) []runtime.Object {
 func placementFromPods(t *testing.T, cluster *myspec.M3DBCluster, pods []*corev1.Pod, idProvider podidentity.Provider) placement.Placement {
 	insts := make([]placement.Instance, len(pods))
 	for i, pod := range pods {
-		instPb, err := k8sops.PlacementInstanceFromPod(cluster, pod, idProvider)
+		instPb, err := m3db.PlacementInstanceFromPod(cluster, pod, idProvider)
 		require.NoError(t, err)
 		inst, err := placement.NewInstanceFromProto(instPb)
 		require.NoError(t, err)
@@ -455,7 +455,7 @@ func identifyPods(idProvider *podidentity.MockProvider, pods []*corev1.Pod, opts
 func TestExpandPlacementForSet(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 	set.Status.ReadyReplicas = 3
 
@@ -474,7 +474,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 	pl := placementFromPods(t, cluster, pods[:2], idProvider)
 	group := cluster.Spec.IsolationGroups[0]
 
-	instPb, err := k8sops.PlacementInstanceFromPod(cluster, pods[2], idProvider)
+	instPb, err := m3db.PlacementInstanceFromPod(cluster, pods[2], idProvider)
 	require.NoError(t, err)
 
 	placementMock.EXPECT().Add(*instPb)
@@ -493,7 +493,7 @@ func TestExpandPlacementForSet_Nop(t *testing.T) {
 	defer deps.cleanup()
 
 	cluster := getFixture("cluster-3-zones.yaml", t)
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 3)
@@ -514,7 +514,7 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 	defer deps.cleanup()
 
 	cluster := getFixture("cluster-3-zones.yaml", t)
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 2)
@@ -530,7 +530,7 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 func TestShrinkPlacementForSet(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	pods := podsForClusterSet(cluster, set, 3)
@@ -607,7 +607,7 @@ func (p placementInstancesMatcher) String() string {
 
 func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 	cluster := getFixture("cluster-3-zones.yaml", t)
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 	set.Status.ReadyReplicas = 3
 	pods := podsForClusterSet(cluster, set, 3)
@@ -735,7 +735,7 @@ func TestCheckPodsForReplacement(t *testing.T) {
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	// normal pods in the placement
@@ -781,7 +781,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	podsForPlacement := podsForClusterSet(cluster, set, 3)
@@ -835,7 +835,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 
 	podsForPlacement := podsForClusterSet(cluster, set, 3)
@@ -902,7 +902,7 @@ func TestFindPodInPlacement(t *testing.T) {
 			idProvider := deps.idProvider
 			defer deps.cleanup()
 
-			set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+			set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 			require.NoError(t, err)
 			pods := podsForClusterSet(cluster, set, 3)
 			identifyPods(idProvider, pods, &identifyPodOptions{doErr: test.doErr})
@@ -939,7 +939,7 @@ func TestFindPodToRemove(t *testing.T) {
 	idProvider := deps.idProvider
 	defer deps.cleanup()
 
-	set, err := k8sops.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 	require.NoError(t, err)
 	pods := podsForClusterSet(cluster, set, 3)
 	identifyPods(idProvider, pods, nil)

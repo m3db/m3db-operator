@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	"testing"
@@ -37,14 +37,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
-	"github.com/kubernetes/utils/pointer"
+	"k8s.io/utils/pointer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateCRD(t *testing.T) {
 	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: m3dboperator.Name,
+			Name: m3dboperator.M3DBClustersName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 			Group: m3dboperator.GroupName,
@@ -57,8 +57,8 @@ func TestGenerateCRD(t *testing.T) {
 			},
 			Scope: apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural: m3dboperator.ResourcePlural,
-				Kind:   m3dboperator.ResourceKind,
+				Plural: m3dboperator.M3DBClusterResourcePlural,
+				Kind:   m3dboperator.M3DBClusterResourceKind,
 			},
 			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
 				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},

@@ -18,20 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
-// Port represents a port number.
-type Port int32
+import (
+	"testing"
 
-// Ports used by M3DB nodes and coordinator nodes.
-const (
-	PortM3DBNodeClient  Port = 9000
-	PortM3DBNodeCluster      = 9001
-	PortM3DBHTTPNode         = 9002
-	PortM3DBHTTPCluster      = 9003
-	PortM3DBDebug            = 9004
-
-	PortM3Coordinator        = 7201
-	PortM3CoordinatorMetrics = 7203
-	PortM3CoordinatorCarbon  = 7204
+	"github.com/stretchr/testify/require"
 )
+
+func TestService(t *testing.T) {
+	const svcName = "m3dbnode-m3db-cluster"
+	fixture := getFixture("testM3DBCluster.yaml", t)
+	svcCfg, err := GenerateM3DBService(fixture)
+	require.NoError(t, err)
+	k := newFakeK8sops(t)
+	svc, err := k.GetService(fixture, svcName)
+	require.Nil(t, svc)
+	require.NotNil(t, err)
+	err = k.EnsureService(fixture, svcCfg)
+	require.Nil(t, err)
+	svc, err = k.GetService(fixture, svcName)
+	require.NotNil(t, svc)
+	require.Nil(t, err)
+	err = k.EnsureService(fixture, svcCfg)
+	require.Nil(t, err)
+	err = k.DeleteService(fixture, svcName)
+	require.Nil(t, err)
+	err = k.DeleteService(fixture, svcName)
+	require.NotNil(t, err)
+}

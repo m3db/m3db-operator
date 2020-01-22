@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	"errors"
@@ -46,18 +46,18 @@ func TestCreateOrUpdateCRD(t *testing.T) {
 
 	ext := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
 	// Ensure CRD didn't exist before but exists after
-	_, err = ext.Get(m3dboperator.Name, metav1.GetOptions{})
+	_, err = ext.Get(m3dboperator.M3DBClustersName, metav1.GetOptions{})
 	assert.Error(t, err)
 
 	// Create the CRD.
-	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
+	err = k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
 	assert.NoError(t, err)
 
-	_, err = ext.Get(m3dboperator.Name, metav1.GetOptions{})
+	_, err = ext.Get(m3dboperator.M3DBClustersName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	// Update the CRD.
-	err = k.CreateOrUpdateCRD(m3dboperator.Name, false)
+	err = k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
 	assert.NoError(t, err)
 }
 
@@ -88,11 +88,11 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 
 			// Must create CRD first to have an error updating it.
 			if test.action == "update" {
-				err := k.CreateOrUpdateCRD(m3dboperator.Name, false)
+				err := k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
 				assert.NoError(t, err)
 			}
 
-			err := k.CreateOrUpdateCRD(m3dboperator.Name, false)
+			err := k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), test.expErr)
 		})
@@ -105,13 +105,13 @@ func TestWaitForCRDReady(t *testing.T) {
 	err := k.waitForCRDReady("foo")
 	assert.Error(t, err)
 
-	err = k.waitForCRDReady(m3dboperator.Name)
+	err = k.waitForCRDReady(m3dboperator.M3DBClustersName)
 	assert.NoError(t, err)
 
 	k.crdClient.(*clientsetFake.Clientset).Fake.PrependReactor("list", "m3dbclusters", func(action ktesting.Action) (bool, runtime.Object, error) {
 		return true, &myspec.M3DBClusterList{}, errors.New("test")
 	})
 
-	err = k.waitForCRDReady(m3dboperator.Name)
+	err = k.waitForCRDReady(m3dboperator.M3DBClustersName)
 	assert.Error(t, err)
 }

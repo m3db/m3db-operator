@@ -31,8 +31,8 @@ import (
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
@@ -61,7 +61,7 @@ var (
 // reconcileNamespaces will delete any namespaces currently in the cluster that
 // aren't part of the cluster spec, and create any that are present in the spec
 // but not in the cluster.
-func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
 	resp, err := c.adminClient.namespaceClientForCluster(cluster).List()
 	if err != nil {
 		c.logger.Error("failed to get namespace", zap.Error(err))
@@ -78,7 +78,7 @@ func (c *Controller) reconcileNamespaces(cluster *myspec.M3DBCluster) error {
 
 // createNamespaces will attempt to create in the cluster all namespaces which
 // are present in the spec but not the cluster.
-func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+func (c *M3DBController) createNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
 	toCreate := namespacesToCreate(registry, cluster.Spec.Namespaces)
 	for _, ns := range toCreate {
 		req, err := namespace.RequestFromSpec(ns)
@@ -107,7 +107,7 @@ func (c *Controller) createNamespaces(cluster *myspec.M3DBCluster, registry *dbn
 
 // pruneNamespaces will delete any namespaces in the m3db cluster that aren't
 // in the spec.
-func (c *Controller) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+func (c *M3DBController) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
 	toDelete := namespacesToDelete(registry, cluster.Spec.Namespaces)
 	for _, ns := range toDelete {
 		err := c.adminClient.namespaceClientForCluster(cluster).Delete(ns)
@@ -161,7 +161,7 @@ func namespacesToDelete(registry *dbns.Registry, specNs []myspec.Namespace) (toD
 	return
 }
 
-func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	plClient := c.adminClient.placementClientForCluster(cluster)
 	_, err := plClient.Get()
 	if err == nil {
@@ -201,7 +201,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*
 	}
 
 	for _, pod := range pods {
-		instance, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
+		instance, err := m3db.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func (c *Controller) validatePlacementWithStatus(cluster *myspec.M3DBCluster) (*
 	return c.setStatusPlacementCreated(cluster)
 }
 
-func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	cluster.Status.UpdateCondition(myspec.ClusterCondition{
 		Type:           myspec.ClusterConditionPlacementInitialized,
 		Status:         corev1.ConditionTrue,
@@ -239,14 +239,14 @@ func (c *Controller) setStatusPlacementCreated(cluster *myspec.M3DBCluster) (*my
 	return cluster, nil
 }
 
-func (c *Controller) setStatusPodBootstrapping(cluster *myspec.M3DBCluster,
+func (c *M3DBController) setStatusPodBootstrapping(cluster *myspec.M3DBCluster,
 	status corev1.ConditionStatus,
 	reason, message string) (*myspec.M3DBCluster, error) {
 
 	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, status, reason, message)
 }
 
-func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.ClusterConditionType,
+func (c *M3DBController) setStatus(cluster *myspec.M3DBCluster, condition myspec.ClusterConditionType,
 	status corev1.ConditionStatus, reason, message string) (*myspec.M3DBCluster, error) {
 
 	cond, ok := cluster.Status.GetCondition(condition)
@@ -273,7 +273,7 @@ func (c *Controller) setStatus(cluster *myspec.M3DBCluster, condition myspec.Clu
 
 // Updates the cluster if there had been a condition that a pod was
 // bootstrapping but no pods are currently bootstrapping.
-func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, placement placement.Placement) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, placement placement.Placement) (*myspec.M3DBCluster, error) {
 	for _, inst := range placement.Instances() {
 		if !inst.IsAvailable() {
 			return cluster, nil
@@ -284,9 +284,9 @@ func (c *Controller) reconcileBootstrappingStatus(cluster *myspec.M3DBCluster, p
 		"BootstrapComplete", "no bootstraps in progress")
 }
 
-func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
+func (c *M3DBController) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
 	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
-	inst, err := k8sops.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
+	inst, err := m3db.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
 	if err != nil {
 		err := fmt.Errorf("error creating instance for pod %s", pod.Name)
 		c.logger.Error(err.Error())
@@ -312,7 +312,7 @@ func (c *Controller) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.
 	return nil
 }
 
-func (c *Controller) checkPodsForReplacement(
+func (c *M3DBController) checkPodsForReplacement(
 	cluster *myspec.M3DBCluster,
 	pods []*corev1.Pod,
 	pl placement.Placement) (string, *corev1.Pod, error) {
@@ -349,7 +349,7 @@ func (c *Controller) checkPodsForReplacement(
 	return "", nil, nil
 }
 
-func (c *Controller) replacePodInPlacement(
+func (c *M3DBController) replacePodInPlacement(
 	cluster *myspec.M3DBCluster,
 	pl placement.Placement,
 	leavingInstanceID string,
@@ -357,7 +357,7 @@ func (c *Controller) replacePodInPlacement(
 
 	c.logger.Info("replacing pod in placement", zap.String("pod", leavingInstanceID))
 
-	newInst, err := k8sops.PlacementInstanceFromPod(cluster, newPod, c.podIDProvider)
+	newInst, err := m3db.PlacementInstanceFromPod(cluster, newPod, c.podIDProvider)
 	if err != nil {
 		err := fmt.Errorf("error creating instance from replacement pod %s: %v", newPod.Name, err)
 		c.logger.Error(err.Error())
@@ -384,7 +384,7 @@ func (c *Controller) replacePodInPlacement(
 
 // expandPlacementForSet takes a StatefulSet that has pods in it which need to
 // be added to the placement and chooses a pod to expand to the placement.
-func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet,
+func (c *M3DBController) expandPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet,
 	group myspec.IsolationGroup, placement placement.Placement) error {
 
 	existInsts := instancesInIsoGroup(placement, group.Name)
@@ -429,7 +429,7 @@ func (c *Controller) expandPlacementForSet(cluster *myspec.M3DBCluster, set *app
 // shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and
 // removes the last pod in the StatefulSet from the active placement, enabling
 // the StatefulSet size to be decreased once the remove completes.
-func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement) error {
+func (c *M3DBController) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement) error {
 	selector := klabels.SelectorFromSet(set.Labels)
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
 	if err != nil {
@@ -451,7 +451,7 @@ func (c *Controller) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *app
 // with the highest ordinal number in the stateful set AND in the placement, so
 // that we remove from the placement the pod that will be deleted when the set
 // size is scaled down.
-func (c *Controller) findPodInstanceToRemove(cluster *myspec.M3DBCluster, pl placement.Placement, pods []*corev1.Pod) (*corev1.Pod, placement.Instance, error) {
+func (c *M3DBController) findPodInstanceToRemove(cluster *myspec.M3DBCluster, pl placement.Placement, pods []*corev1.Pod) (*corev1.Pod, placement.Instance, error) {
 	if len(pods) == 0 {
 		return nil, nil, errEmptyPodList
 	}
@@ -480,7 +480,7 @@ func (c *Controller) findPodInstanceToRemove(cluster *myspec.M3DBCluster, pl pla
 
 // findPodInPlacement looks up a pod in the placement. Equality is based on
 // whether a pods identity matches a placement instance's ID.
-func (c *Controller) findPodInPlacement(cluster *myspec.M3DBCluster, pl placement.Placement, pod *corev1.Pod) (placement.Instance, error) {
+func (c *M3DBController) findPodInPlacement(cluster *myspec.M3DBCluster, pl placement.Placement, pod *corev1.Pod) (placement.Instance, error) {
 	id, err := c.podIDProvider.Identity(pod, cluster)
 	if err != nil {
 		return nil, err
@@ -496,7 +496,7 @@ func (c *Controller) findPodInPlacement(cluster *myspec.M3DBCluster, pl placemen
 	return inst, nil
 }
 
-func (c *Controller) updateFinalizers(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) updateFinalizers(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	var err error
 	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Update(cluster)
 	if err != nil {
@@ -506,7 +506,7 @@ func (c *Controller) updateFinalizers(cluster *myspec.M3DBCluster) (*myspec.M3DB
 }
 
 // ensureEtcdFinalizer ensures that the etcd deletion finalizer is present.
-func (c *Controller) ensureEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) ensureEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	if stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
 		return cluster, nil
 	}
@@ -517,7 +517,7 @@ func (c *Controller) ensureEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M
 }
 
 // removeEtcdFinalizer ensures the etcd finalizer is absent.
-func (c *Controller) removeEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
+func (c *M3DBController) removeEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M3DBCluster, error) {
 	if !stringArrayContains(cluster.Finalizers, labels.EtcdDeletionFinalizer) {
 		return cluster, nil
 	}
@@ -533,7 +533,7 @@ func (c *Controller) removeEtcdFinalizer(cluster *myspec.M3DBCluster) (*myspec.M
 	return c.updateFinalizers(cluster)
 }
 
-func (c *Controller) deleteAllNamespaces(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) deleteAllNamespaces(cluster *myspec.M3DBCluster) error {
 	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
 	clusterLogger.Info("cleaning up cluster namespaces")
 
@@ -556,7 +556,7 @@ func (c *Controller) deleteAllNamespaces(cluster *myspec.M3DBCluster) error {
 	return nil
 }
 
-func (c *Controller) deletePlacement(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) deletePlacement(cluster *myspec.M3DBCluster) error {
 	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
 	clusterLogger.Info("cleaning up cluster placement")
 
