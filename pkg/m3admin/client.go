@@ -50,8 +50,8 @@ var (
 
 // Client is an m3admin client.
 type Client interface {
-	DoHTTPRequest(action, url string, data *bytes.Buffer) (*http.Response, error)
-	DoHTTPJSONPBRequest(action, url string, request, response proto.Message) error
+	DoHTTPRequest(action, url string, data *bytes.Buffer, opts ...RequestOption) (*http.Response, error)
+	DoHTTPJSONPBRequest(action, url string, request, response proto.Message, opts ...RequestOption) error
 }
 
 type client struct {
@@ -95,9 +95,13 @@ func NewClient(clientOpts ...Option) Client {
 func (c *client) DoHTTPRequest(
 	action, url string,
 	data *bytes.Buffer,
+	options ...RequestOption,
 ) (*http.Response, error) {
-
 	l := c.logger.With(zap.String("action", action), zap.String("url", url))
+	opts := &reqOptions{}
+	for _, o := range options {
+		o.execute(opts)
+	}
 
 	var request *retryhttp.Request
 	var err error
@@ -113,6 +117,12 @@ func (c *client) DoHTTPRequest(
 		request, err = retryhttp.NewRequest(action, url, data)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	if opts.headers != nil {
+		for k, v := range opts.headers {
+			request.Header.Add(k, v)
 		}
 	}
 
@@ -177,6 +187,7 @@ func (c *client) DoHTTPJSONPBRequest(
 	action, url string,
 	request proto.Message,
 	response proto.Message,
+	opts ...RequestOption,
 ) error {
 	var data *bytes.Buffer
 	if request != nil {
@@ -186,7 +197,7 @@ func (c *client) DoHTTPJSONPBRequest(
 		}
 	}
 
-	r, err := c.DoHTTPRequest(action, url, data)
+	r, err := c.DoHTTPRequest(action, url, data, opts...)
 	if err != nil {
 		return err
 	}

@@ -113,6 +113,32 @@ func TestClient_DoHTTPRequest_Header(t *testing.T) {
 	assert.Equal(t, []byte("hello"), readAll(resp.Body))
 }
 
+func TestClient_DoHTTPRequest_PerRequestHeader(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("test-header") != "test-val" {
+			w.WriteHeader(500)
+			return
+		}
+		w.Write([]byte("hello"))
+	}))
+	defer s.Close()
+
+	readAll := func(r io.Reader) []byte {
+		data, err := ioutil.ReadAll(r)
+		assert.NoError(t, err)
+		return data
+	}
+
+	cl := newTestClient(WithHTTPClient(devNullRetry()))
+	_, err := cl.DoHTTPRequest("GET", s.URL, nil)
+	assert.Error(t, err)
+
+	resp, err := cl.DoHTTPRequest("GET", s.URL, nil, WithHeader("test-header", "test-val"))
+	require.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, []byte("hello"), readAll(resp.Body))
+}
+
 func TestClient_DoHTTPRequest_Err(t *testing.T) {
 	for _, test := range []struct {
 		code   int

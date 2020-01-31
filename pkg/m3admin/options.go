@@ -66,3 +66,28 @@ func WithEnvironment(e string) Option {
 		o.environment = e
 	})
 }
+
+// RequestOption defines a per-request option.
+type RequestOption interface {
+	execute(*reqOptions)
+}
+
+type reqOptionFn func(o *reqOptions)
+
+func (f reqOptionFn) execute(o *reqOptions) {
+	f(o)
+}
+
+type reqOptions struct {
+	headers map[string]string
+}
+
+// WithHeader adds a header to a request. It can be specified multiple times.
+func WithHeader(name, value string) RequestOption {
+	return reqOptionFn(func(o *reqOptions) {
+		if o.headers == nil {
+			o.headers = make(map[string]string)
+		}
+		o.headers[name] = value
+	})
+}

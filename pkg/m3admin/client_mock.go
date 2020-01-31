@@ -57,30 +57,40 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // DoHTTPRequest mocks base method
-func (m *MockClient) DoHTTPRequest(action, url string, data *bytes.Buffer) (*http.Response, error) {
+func (m *MockClient) DoHTTPRequest(action, url string, data *bytes.Buffer, opts ...RequestOption) (*http.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DoHTTPRequest", action, url, data)
+	varargs := []interface{}{action, url, data}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DoHTTPRequest", varargs...)
 	ret0, _ := ret[0].(*http.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DoHTTPRequest indicates an expected call of DoHTTPRequest
-func (mr *MockClientMockRecorder) DoHTTPRequest(action, url, data interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) DoHTTPRequest(action, url, data interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPRequest), action, url, data)
+	varargs := append([]interface{}{action, url, data}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPRequest), varargs...)
 }
 
 // DoHTTPJSONPBRequest mocks base method
-func (m *MockClient) DoHTTPJSONPBRequest(action, url string, request, response proto.Message) error {
+func (m *MockClient) DoHTTPJSONPBRequest(action, url string, request, response proto.Message, opts ...RequestOption) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DoHTTPJSONPBRequest", action, url, request, response)
+	varargs := []interface{}{action, url, request, response}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DoHTTPJSONPBRequest", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DoHTTPJSONPBRequest indicates an expected call of DoHTTPJSONPBRequest
-func (mr *MockClientMockRecorder) DoHTTPJSONPBRequest(action, url, request, response interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) DoHTTPJSONPBRequest(action, url, request, response interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPJSONPBRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPJSONPBRequest), action, url, request, response)
+	varargs := append([]interface{}{action, url, request, response}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoHTTPJSONPBRequest", reflect.TypeOf((*MockClient)(nil).DoHTTPJSONPBRequest), varargs...)
 }
