@@ -19,7 +19,6 @@ ADD . /go/src/github.com/m3db/m3db-operator
 # Build m3dbnode binary
 RUN cd /go/src/github.com/m3db/m3db-operator/ && \
     git submodule update --init      && \
-    dep ensure && \
     make m3db-operator
 
 # stage 2: lightweight "release"
