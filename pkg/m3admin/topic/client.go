@@ -76,7 +76,6 @@ func (t *topicClient) Init(name string, req *admin.TopicInitRequest) error {
 
 // Delete deletes a specific topic.
 func (t *topicClient) Delete(topicName string) error {
-	// TODO(schallert): stupid header
 	url := t.url + topicBaseURL
 	err := t.client.DoHTTPJSONPBRequest(http.MethodDelete, url, nil, nil, withTopicName(topicName))
 	if err != nil {
