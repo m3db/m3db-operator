@@ -28,7 +28,7 @@ import (
 	crdfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
@@ -71,7 +71,7 @@ type testDeps struct {
 	closed            int32
 }
 
-func (deps *testDeps) newController(t *testing.T) *Controller {
+func (deps *testDeps) newController(t *testing.T) *M3DBController {
 	logger := zap.NewNop()
 	m := newMultiAdminClient(nil, zap.NewNop())
 	m.nsClientFn = func(...namespace.Option) (namespace.Client, error) {
@@ -80,31 +80,35 @@ func (deps *testDeps) newController(t *testing.T) *Controller {
 	m.plClientFn = func(...placement.Option) (placement.Client, error) {
 		return deps.placementClient, nil
 	}
-	k8sopsClient, err := k8sops.New(
-		k8sops.WithKClient(deps.kubeClient),
-		k8sops.WithCRDClient(deps.crdClient),
-		k8sops.WithLogger(logger))
+	k8sopsClient, err := m3db.New(
+		m3db.WithKClient(deps.kubeClient),
+		m3db.WithCRDClient(deps.crdClient),
+		m3db.WithLogger(logger))
 
 	require.NoError(t, err)
 
-	return &Controller{
-		logger:      logger,
-		scope:       tally.NoopScope,
-		clock:       deps.clock,
-		adminClient: m,
+	return &M3DBController{
+		controllerBase: controllerBase{
+			logger:      logger,
+			scope:       tally.NoopScope,
+			clock:       deps.clock,
+			adminClient: m,
+
+			kubeClient: deps.kubeClient,
+			crdClient:  deps.crdClient,
+
+			podWorkQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName),
+			podLister:    deps.podLister,
+
+			statefulSetLister: deps.statefulSetLister,
+			recorder:          eventer.NewNopPoster(),
+		},
 
 		k8sclient:     k8sopsClient,
-		kubeClient:    deps.kubeClient,
-		crdClient:     deps.crdClient,
 		podIDProvider: deps.idProvider,
 
-		clusterWorkQueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), clusterWorkQueueName),
-		podWorkQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName),
-		clusterLister:     deps.crdLister,
-		statefulSetLister: deps.statefulSetLister,
-		podLister:         deps.podLister,
-
-		recorder: eventer.NewNopPoster(),
+		clusterWorkQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), clusterWorkQueueName),
+		clusterLister:    deps.crdLister,
 	}
 }
 

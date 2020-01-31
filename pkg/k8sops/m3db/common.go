@@ -18,32 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
-	"testing"
+	"fmt"
 
-	"github.com/stretchr/testify/require"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func TestService(t *testing.T) {
-	const svcName = "m3dbnode-m3db-cluster"
-	fixture := getFixture("testM3DBCluster.yaml", t)
-	svcCfg, err := GenerateM3DBService(fixture)
-	require.NoError(t, err)
-	k := newFakeK8sops(t)
-	svc, err := k.GetService(fixture, svcName)
-	require.Nil(t, svc)
-	require.NotNil(t, err)
-	err = k.EnsureService(fixture, svcCfg)
-	require.Nil(t, err)
-	svc, err = k.GetService(fixture, svcName)
-	require.NotNil(t, svc)
-	require.Nil(t, err)
-	err = k.EnsureService(fixture, svcCfg)
-	require.Nil(t, err)
-	err = k.DeleteService(fixture, svcName)
-	require.Nil(t, err)
-	err = k.DeleteService(fixture, svcName)
-	require.NotNil(t, err)
+const (
+	headlessServicePrefix    = "m3dbnode-"
+	coordinatorServicePrefix = "m3coordinator-"
+)
+
+// StatefulSetName provides a formatted string to use for naming StatefulSets
+func StatefulSetName(clusterName string, stsID int) string {
+	return fmt.Sprintf("%s-rep%d", clusterName, stsID)
+}
+
+// HeadlessServiceName returns a name for the cluster's headless service.
+func HeadlessServiceName(clusterName string) string {
+	return headlessServicePrefix + clusterName
+}
+
+// CoordinatorServiceName returns a name for a cluster's coordinator service.
+func CoordinatorServiceName(clusterName string) string {
+	return coordinatorServicePrefix + clusterName
+}
+
+// TODO(schallert): should figure out a better way to abstract this other than
+// exposing all of CoreV1()
+func (k *k8sops) Events(namespace string) typedcorev1.EventInterface {
+	return k.kclient.CoreV1().Events(namespace)
 }

@@ -1,5 +1,5 @@
 # stage 1: build
-FROM golang:1.12-alpine AS builder
+FROM golang:1.13-alpine AS builder
 LABEL maintainer="The m3db-operator Authors <m3db@googlegroups.com>"
 
 # Install CA certs for curl
@@ -19,7 +19,6 @@ ADD . /go/src/github.com/m3db/m3db-operator
 # Build m3dbnode binary
 RUN cd /go/src/github.com/m3db/m3db-operator/ && \
     git submodule update --init      && \
-    dep ensure && \
     make m3db-operator
 
 # stage 2: lightweight "release"

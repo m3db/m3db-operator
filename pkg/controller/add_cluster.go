@@ -28,7 +28,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,13 +43,13 @@ var (
 	errEmptyConfigMap = errors.New("ConfigMapName cannot be empty if non-nil")
 )
 
-func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
-	coordSvc, err := k8sops.GenerateCoordinatorService(cluster)
+func (c *M3DBController) ensureServices(cluster *myspec.M3DBCluster) error {
+	coordSvc, err := m3db.GenerateCoordinatorService(cluster)
 	if err != nil {
 		return err
 	}
 
-	m3dbSvc, err := k8sops.GenerateM3DBService(cluster)
+	m3dbSvc, err := m3db.GenerateM3DBService(cluster)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (c *Controller) ensureServices(cluster *myspec.M3DBCluster) error {
 
 // ensureConfigMap creates the default configmap for the cluster if none is
 // specified in the cluster spec.
-func (c *Controller) ensureConfigMap(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 	if cluster.Spec.ConfigMapName != nil {
 		if *cluster.Spec.ConfigMapName == "" {
 			return errEmptyConfigMap
@@ -82,7 +82,7 @@ func (c *Controller) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 		return nil
 	}
 
-	wantCM, err := k8sops.GenerateDefaultConfigMap(cluster)
+	wantCM, err := m3db.GenerateDefaultConfigMap(cluster)
 	if err != nil {
 		return err
 	}

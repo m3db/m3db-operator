@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	"bytes"
@@ -44,8 +44,8 @@ var (
 )
 
 type configData struct {
-	Env       string
-	Endpoints []string
+	Env            string
+	Endpoints      []string
 	CarbonIngester bool
 }
 
@@ -76,13 +76,13 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 	}
 
 	config := &configData{
-		Env:       DefaultM3ClusterEnvironmentName(cluster),
-		Endpoints: cluster.Spec.EtcdEndpoints,
+		Env:            DefaultM3ClusterEnvironmentName(cluster),
+		Endpoints:      cluster.Spec.EtcdEndpoints,
 		CarbonIngester: cluster.Spec.EnableCarbonIngester,
 	}
 
 	buf := &bytes.Buffer{}
-	if err:= tmpl.Execute(buf, &config); err != nil {
+	if err := tmpl.Execute(buf, &config); err != nil {
 		return nil, err
 	}
 
@@ -109,8 +109,9 @@ func defaultConfigMapName(clusterName string) string {
 // topology and runtime configuration will be stored. This ensures that multiple
 // m3db clusters won't conflict with each other when sharing a backing etcd
 // store.
-func DefaultM3ClusterEnvironmentName(cluster *myspec.M3DBCluster) string {
-	return cluster.Namespace + "/" + cluster.Name
+func DefaultM3ClusterEnvironmentName(obj metav1.ObjectMetaAccessor) string {
+	m := obj.GetObjectMeta()
+	return m.GetNamespace() + "/" + m.GetName()
 }
 
 // Build the volume for the pod and the volumeMount for the container containing

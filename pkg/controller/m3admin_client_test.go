@@ -40,10 +40,10 @@ import (
 
 func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
 	m := newMultiAdminClient(nil, zap.NewNop())
-	m.clusterKeyFn = func(cl *myspec.M3DBCluster, url string) string {
-		return cl.Name
+	m.clusterKeyFn = func(cl metav1.ObjectMetaAccessor, url string) string {
+		return cl.GetObjectMeta().GetName()
 	}
-	m.clusterURLFn = func(*myspec.M3DBCluster) string {
+	m.clusterURLFn = func(metav1.ObjectMetaAccessor) string {
 		return url
 	}
 	m.adminClientFn = func(...m3admin.Option) m3admin.Client {

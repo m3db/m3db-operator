@@ -33,7 +33,7 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3x/instrument"
@@ -157,11 +157,11 @@ func main() {
 	}
 
 	// Create k8sops client
-	k8sclient, err := k8sops.New(
-		k8sops.WithLogger(logger),
-		k8sops.WithCRDClient(crdClient),
-		k8sops.WithKClient(kubeClient),
-		k8sops.WithExtClient(kubeExt))
+	k8sclient, err := m3db.New(
+		m3db.WithLogger(logger),
+		m3db.WithCRDClient(crdClient),
+		m3db.WithKClient(kubeClient),
+		m3db.WithExtClient(kubeExt))
 	if err != nil {
 		logger.Fatal("failed to create k8sclient", zap.Error(err))
 	}
@@ -205,7 +205,7 @@ func main() {
 	}
 
 	// Create controller
-	controller, err := controller.New(opts...)
+	controller, err := controller.NewM3DBController(opts...)
 	if err != nil {
 		logger.Fatal("failed to create controller", zap.Error(err))
 	}

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
-	"github.com/kubernetes/utils/pointer"
+	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 )
 
@@ -88,7 +88,7 @@ var carbonListenerPort = m3dbPort{"coord-carbon", PortM3CoordinatorCarbon, v1.Pr
 func GenerateCRD(enableValidation bool) *apiextensionsv1beta1.CustomResourceDefinition {
 	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: m3dboperator.Name,
+			Name: m3dboperator.M3DBClustersName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 			Group: m3dboperator.GroupName,
@@ -101,8 +101,8 @@ func GenerateCRD(enableValidation bool) *apiextensionsv1beta1.CustomResourceDefi
 			},
 			Scope: apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural: m3dboperator.ResourcePlural,
-				Kind:   m3dboperator.ResourceKind,
+				Plural: m3dboperator.M3DBClusterResourcePlural,
+				Kind:   m3dboperator.M3DBClusterResourceKind,
 			},
 			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
 				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},

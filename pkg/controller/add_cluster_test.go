@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kubernetes/utils/pointer"
+	"k8s.io/utils/pointer"
 	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,7 +59,7 @@ func TestEnsureService_Base(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	k8sops := newFakeK8sops(t)
 
-	c := &Controller{
+	c := &M3DBController{
 		k8sclient: k8sops,
 	}
 

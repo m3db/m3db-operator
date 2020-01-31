@@ -30,8 +30,8 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
@@ -69,7 +69,7 @@ func TestNew(t *testing.T) {
 
 	kubeClient := kubefake.NewSimpleClientset()
 	crdClient := clientsetfake.NewSimpleClientset()
-	client := k8sops.NewMockK8sops(mc)
+	client := m3db.NewMockK8sops(mc)
 	idProvider := podidentity.NewMockProvider(mc)
 	testOpts := []Option{
 		WithScope(tally.NoopScope),
@@ -82,7 +82,7 @@ func TestNew(t *testing.T) {
 		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
 	}
 
-	controller, err := New(testOpts...)
+	controller, err := NewM3DBController(testOpts...)
 	assert.NoError(t, err)
 	assert.NotNil(t, controller)
 }

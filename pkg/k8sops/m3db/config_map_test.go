@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
 	"archive/zip"
@@ -28,7 +28,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/kubernetes/utils/pointer"
+	"k8s.io/utils/pointer"
 	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ func registerValidConfigMap() error {
 	if err != nil {
 		return err
 	}
-	data, err := ioutil.ReadFile("../../assets/default-config.tmpl")
+	data, err := ioutil.ReadFile("../../../assets/default-config.tmpl")
 	if err != nil {
 		return err
 	}

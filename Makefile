@@ -48,9 +48,8 @@ metalint_exclude     := .excludemetalint
 gopath_prefix        := $(GOPATH)/src
 package_root         := github.com/m3db/m3db-operator
 package_path         := $(gopath_prefix)/$(package_root)
-retool_bin_path      := $(package_path)/_tools/bin
-combined_bin_paths   := $(retool_bin_path):$(GOBIN)
-retool_package       := github.com/twitchtv/retool
+tools_bin_path       := $(abspath ./_tools/bin)
+combined_bin_paths   := $(tools_bin_path):$(GOBIN)
 vendor_prefix        := vendor
 mockgen_package      := github.com/golang/mock/mockgen
 mocks_output_dir     := generated/mocks
@@ -74,14 +73,9 @@ out:
 define CMD_RULES
 
 .PHONY: $(CMD)
-$(CMD)-no-deps:
-	@echo "--- $(CMD)"
+$(CMD):
+	@echo "--- make $(CMD)"
 	go build -ldflags '$(GO_BUILD_LDFLAGS)' -o $(OUTPUT_DIR)/$(CMD) ./cmd/$(CMD)
-
-$(CMD): dep-ensure $(CMD)-no-deps
-
-$(CMD)-linux-amd64-no-deps:
-	$(LINUX_AMD64_ENV) make $(CMD)-no-deps
 
 $(CMD)-linux-amd64:
 	$(LINUX_AMD64_ENV) make $(CMD)
@@ -95,12 +89,12 @@ bins: $(CMDS)
 bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
 
 .PHONY: lint
-lint: install-codegen-tools
+lint: install-tools
 	@echo "--- $@"
 	PATH=$(combined_bin_paths):$(PATH) $(lint_check)
 
 .PHONY: metalint
-metalint: install-codegen-tools dep-ensure install-gometalinter
+metalint: install-tools install-gometalinter
 	@echo "--- $@"
 	@(PATH=$(combined_bin_paths):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
 
@@ -113,11 +107,16 @@ test-xml: test-base
 	@rm $(coverfile) &> /dev/null
 
 .PHONY: test-all
-test-all: clean-all install-ci-tools verify-gen lint metalint test-all-gen bins test
+test-all: clean-all install-tools verify-gen lint metalint test-all-gen bins test
 	@echo "--- $@"
 
 .PHONY: test
-test: install-ci-tools test-base
+test: install-tools test-base
+	@echo "--- $@"
+	@PATH=$(combined_bin_paths):$(PATH) gocov convert $(coverfile) | gocov report
+
+.PHONY: test-no-deps
+test-no-deps: test-base
 	@echo "--- $@"
 	@PATH=$(combined_bin_paths):$(PATH) gocov convert $(coverfile) | gocov report
 
@@ -133,58 +132,38 @@ testhtml: test-base
 	@rm -f $(test_log) &> /dev/null
 
 .PHONY: test-ci-unit
-test-ci-unit: install-ci-tools test-base verify-gen
+test-ci-unit: install-tools test-base verify-gen
 	@echo "--- $@"
 	$(codecov_push) $(coverfile)
 
-.PHONY: install-ci-tools
-install-ci-tools: install-codegen-tools dep-ensure install-mockgen
+.PHONY: install-tools
+install-tools:
 	@echo "--- $@"
-	@which gocov > /dev/null || go get github.com/axw/gocov/gocov
-
-# NB(prateek): cannot use retool for mock-gen, as mock-gen reflection mode requires
-# it's full source code be present in the GOPATH at runtime.
-.PHONY: install-mockgen
-install-mockgen:
-	@echo "--- $@"
-	@which mockgen >/dev/null || (                                                     \
-		rm -rf $(gopath_prefix)/$(mockgen_package)                                    && \
-		mkdir -p $(shell dirname $(gopath_prefix)/$(mockgen_package))                 && \
-		cp -r $(vendor_prefix)/$(mockgen_package) $(gopath_prefix)/$(mockgen_package) && \
-		go get golang.org/x/tools/go/packages																					&& \
-		go install $(mockgen_package)                                                    \
-	)
-
-.PHONY: install-retool
-install-retool:
-	@which retool >/dev/null || go get $(retool_package)
-
-.PHONY: install-codegen-tools
-install-codegen-tools: install-retool
-	@echo "--- Installing retool dependencies"
-	@PATH=$(combined_bin_paths):$(PATH) retool sync >/dev/null 2>/dev/null
-	@PATH=$(combined_bin_paths):$(PATH) retool build >/dev/null 2>/dev/null
+	GOBIN=$(tools_bin_path) go install github.com/axw/gocov
+	GOBIN=$(tools_bin_path) go install github.com/garethr/kubeval
+	GOBIN=$(tools_bin_path) go install github.com/golang/mock/mockgen
+	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/badtime
+	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/importorder
+	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/utilities/genclean
+	GOBIN=$(tools_bin_path) go install github.com/m3db/tools/update-license
+	GOBIN=$(tools_bin_path) go install github.com/rakyll/statik
+	GOBIN=$(tools_bin_path) go install golang.org/x/lint/golint
+	GOBIN=$(tools_bin_path) go install k8s.io/kube-openapi/cmd/openapi-gen
 
 .PHONY: install-gometalinter
 install-gometalinter:
-	@mkdir -p $(retool_bin_path)
+	@mkdir -p $(tools_bin_path)
 	@echo "--- Installing gometalinter"
-	./scripts/install-gometalinter.sh -b $(retool_bin_path) -d $(GOMETALINT_VERSION)
-
-.PHONY: install-proto-bin
-install-proto-bin: install-codegen-tools
-	@echo "--- $@, Installing protobuf binaries"
-	@echo Note: the protobuf compiler v3.0.0 can be downloaded from https://github.com/google/protobuf/releases or built from source at https://github.com/google/protobuf.
-	go install $(package_root)/$(vendor_prefix)/$(protoc_go_package)
+	./scripts/install-gometalinter.sh -b $(tools_bin_path) -d $(GOMETALINT_VERSION)
 
 .PHONY: mock-gen
-mock-gen: install-ci-tools mock-gen-no-deps
+mock-gen: install-tools mock-gen-no-deps
 	@echo "--- $@"
 
 .PHONY: license-gen
 license-gen:
 	@echo "--- :apache: $@"
-	@find $(SELF_DIR)/pkg/$(SUBDIR) $(SELF_DIR)/integration -name '*.go' | PATH=$(retool_bin_path):$(PATH) xargs -I{} update-license {}
+	@find $(SELF_DIR)/pkg/$(SUBDIR) $(SELF_DIR)/integration -name '*.go' | PATH=$(tools_bin_path):$(PATH) xargs -I{} update-license {}
 
 .PHONY: mock-gen-no-deps
 mock-gen-no-deps:
@@ -197,7 +176,7 @@ export LICENSE_HEADER
 asset-gen:
 	@echo "--- $@"
 	@echo generating assets
-	PATH=$(retool_bin_path):$(PATH) statik -src $(SELF_DIR)/assets -dest $(SELF_DIR)/pkg/ -p assets -f -m -c "$$LICENSE_HEADER"
+	PATH=$(tools_bin_path):$(PATH) statik -src $(SELF_DIR)/assets -dest $(SELF_DIR)/pkg/ -p assets -f -m -c "$$LICENSE_HEADER"
 
 # NB(schallert): order matters -- we want license generation after all else.
 .PHONY: all-gen
@@ -227,19 +206,16 @@ clean-all: clean ## Clean-all cleans all build dependencies.
 all: clean-all kubernetes-gen lint metalint test-ci-unit bins
 	@echo "$@ successfully finished"
 
-.PHONY: dep-ensure
-dep-ensure: install-codegen-tools ## Run dep ensure to generate vendor directory
-	@echo "--- $@"
-	PATH=$(retool_bin_path):$(PATH) dep ensure
-
 .PHONY: kubernetes-gen
-kubernetes-gen: install-codegen-tools dep-ensure ## Generate boilerplate code for kubernetes packages
+kubernetes-gen: install-tools ## Generate boilerplate code for kubernetes packages
 	@echo "--- $@"
-	@GOPATH=$(GOPATH) PATH=$(retool_bin_path):$(PATH) ./hack/update-generated.sh
+	## pull in correct version of script
+	go mod vendor
+	@GOPATH=$(GOPATH) PATH=$(tools_bin_path):$(PATH) ./hack/update-generated.sh
 
 .PHONY: verify-gen
-verify-gen: dep-ensure ## Ensure all codegen is up to date
-	@GOPATH=$(GOPATH) PATH=$(retool_bin_path):$(PATH) ./hack/verify-generated.sh
+verify-gen: ## Ensure all codegen is up to date
+	@GOPATH=$(GOPATH) PATH=$(tools_bin_path):$(PATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker
 build-docker: ## Build m3db-operator docker image with go binary
@@ -250,10 +226,10 @@ build-docker: ## Build m3db-operator docker image with go binary
 helm-bundle-no-deps:
 	@echo "--- $@"
 	@helm template --namespace default helm/m3db-operator > bundle.yaml
-	@PATH=$(retool_bin_path):$(PATH) kubeval -v=1.12.0 bundle.yaml
+	@PATH=$(tools_bin_path):$(PATH) kubeval -v=1.12.0 bundle.yaml
 
 .PHONY: helm-bundle
-helm-bundle: install-codegen-tools helm-bundle-no-deps
+helm-bundle: install-tools helm-bundle-no-deps
 
 .PHONY: publish-helm-charts
 publish-helm-charts: ## pushes a new version of the helm chart

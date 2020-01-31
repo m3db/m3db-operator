@@ -18,36 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
 import (
-	"fmt"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
+	v1 "k8s.io/api/core/v1"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-const (
-	headlessServicePrefix    = "m3dbnode-"
-	coordinatorServicePrefix = "m3coordinator-"
-)
+// K8sops provides an interface for various Kubernetes API calls
+type K8sops interface {
+	// CreateOrUpdateCRD creates the CRD if it does not exist, or updates it to
+	// contain the latest spec if it does exist.
+	CreateOrUpdateCRD(name string, enableValidation bool) error
 
-// StatefulSetName provides a formatted string to use for naming StatefulSets
-func StatefulSetName(clusterName string, stsID int) string {
-	return fmt.Sprintf("%s-rep%d", clusterName, stsID)
-}
+	// GetService simply gets a service by name
+	GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
 
-// HeadlessServiceName returns a name for the cluster's headless service.
-func HeadlessServiceName(clusterName string) string {
-	return headlessServicePrefix + clusterName
-}
+	// DeleteService simply deletes a service by name
+	DeleteService(cluster *myspec.M3DBCluster, name string) error
 
-// CoordinatorServiceName returns a name for a cluster's coordinator service.
-func CoordinatorServiceName(clusterName string) string {
-	return coordinatorServicePrefix + clusterName
-}
+	// EnsureService will create a service by name if it doesn't exist
+	EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error
 
-// TODO(schallert): should figure out a better way to abstract this other than
-// exposing all of CoreV1()
-func (k *k8sops) Events(namespace string) typedcorev1.EventInterface {
-	return k.kclient.CoreV1().Events(namespace)
+	// Events returns an Event interface for a given namespace.
+	Events(namespace string) typedcorev1.EventInterface
 }

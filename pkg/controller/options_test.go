@@ -25,7 +25,7 @@ import (
 
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	kubeinformers "k8s.io/client-go/informers"
@@ -45,7 +45,7 @@ func TestOptions(t *testing.T) {
 
 	kubeClient := kubefake.NewSimpleClientset()
 	crdClient := clientsetfake.NewSimpleClientset()
-	client := k8sops.NewMockK8sops(mc)
+	client := m3db.NewMockK8sops(mc)
 	provider := podidentity.NewMockProvider(mc)
 	for _, o := range []Option{
 		WithScope(tally.NoopScope),

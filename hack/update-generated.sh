@@ -18,10 +18,15 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# TODO(schallert): re-enable code gen once we're on newer k8s versions and go modules work
+exit 0
+
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+GEN_GROUPS="${CODEGEN_PKG}/generate-groups.sh"
 
-"${CODEGEN_PKG}"/generate-groups.sh all\
+chmod +x "$GEN_GROUPS"
+"$GEN_GROUPS" all\
   github.com/m3db/m3db-operator/pkg/client \
   github.com/m3db/m3db-operator/pkg/apis \
   m3dboperator:v1alpha1  \

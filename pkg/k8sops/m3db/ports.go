@@ -18,30 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package k8sops
+package m3db
 
-import (
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+// Port represents a port number.
+type Port int32
 
-	v1 "k8s.io/api/core/v1"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+// Ports used by M3DB nodes and coordinator nodes.
+const (
+	PortM3DBNodeClient  Port = 9000
+	PortM3DBNodeCluster      = 9001
+	PortM3DBHTTPNode         = 9002
+	PortM3DBHTTPCluster      = 9003
+	PortM3DBDebug            = 9004
+
+	PortM3Coordinator        = 7201
+	PortM3CoordinatorMetrics = 7203
+	PortM3CoordinatorCarbon  = 7204
 )
-
-// K8sops provides an interface for various Kubernetes API calls
-type K8sops interface {
-	// CreateOrUpdateCRD creates the CRD if it does not exist, or updates it to
-	// contain the latest spec if it does exist.
-	CreateOrUpdateCRD(name string, enableValidation bool) error
-
-	// GetService simply gets a service by name
-	GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
-
-	// DeleteService simply deletes a service by name
-	DeleteService(cluster *myspec.M3DBCluster, name string) error
-
-	// EnsureService will create a service by name if it doesn't exist
-	EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error
-
-	// Events returns an Event interface for a given namespace.
-	Events(namespace string) typedcorev1.EventInterface
-}
