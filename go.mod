@@ -41,7 +41,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
-	github.com/m3db/m3 v0.8.4
+	github.com/m3db/m3 v0.14.2
 	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
 	github.com/m3db/prometheus_client_golang v0.8.1 // indirect
 	github.com/m3db/prometheus_client_model v0.0.0-20180517145114-8b2299a4bf7d // indirect

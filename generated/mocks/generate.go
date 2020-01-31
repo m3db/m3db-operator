@@ -21,6 +21,7 @@
 // mockgen rules for generating mocks using file mode
 //go:generate sh -c "mockgen -package=placement -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/placement/types.go"
 //go:generate sh -c "mockgen -package=namespace -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/namespace/types.go"
+//go:generate sh -c "mockgen -package=topic -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/topic/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/topic/types.go"
 //go:generate sh -c "mockgen -package=m3admin -destination=$GOPATH/src/$PACKAGE/pkg/m3admin/client_mock.go -source=$GOPATH/src/$PACKAGE/pkg/m3admin/client.go"
 //go:generate sh -c "mockgen -package=m3db -destination=$GOPATH/src/$PACKAGE/pkg/k8sops/m3db/k8sops_mock.go -source=$GOPATH/src/$PACKAGE/pkg/k8sops/m3db/types.go"
 //go:generate sh -c "mockgen -package=podidentity -destination=$GOPATH/src/$PACKAGE/pkg/k8sops/podidentity/provider_mock.go -source=$GOPATH/src/$PACKAGE/pkg/k8sops/podidentity/provider.go"

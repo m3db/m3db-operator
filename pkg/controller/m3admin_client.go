@@ -28,9 +28,12 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/m3admin/topic"
 
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	m3placement "github.com/m3db/m3/src/cluster/placement"
+	"github.com/m3db/m3/src/msg/generated/proto/topicpb"
+	m3topic "github.com/m3db/m3/src/msg/topic"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,9 +47,11 @@ type multiAdminClient struct {
 	mu        sync.RWMutex
 	nsClients map[string]namespace.Client
 	plClients map[string]placement.Client
+	tpClients map[string]topic.Client
 
 	nsClientFn func(...namespace.Option) (namespace.Client, error)
 	plClientFn func(...placement.Option) (placement.Client, error)
+	tpClientFn func(...topic.Option) (topic.Client, error)
 
 	clusterKeyFn func(metav1.ObjectMetaAccessor, string) string
 	clusterURLFn func(metav1.ObjectMetaAccessor) string
@@ -89,8 +94,10 @@ func newMultiAdminClient(adminOpts []m3admin.Option, logger *zap.Logger) *multiA
 	return &multiAdminClient{
 		nsClients:     make(map[string]namespace.Client),
 		plClients:     make(map[string]placement.Client),
+		tpClients:     make(map[string]topic.Client),
 		nsClientFn:    namespace.NewClient,
 		plClientFn:    placement.NewClient,
+		tpClientFn:    topic.NewClient,
 		clusterKeyFn:  clusterKey,
 		clusterURLFn:  clusterURL,
 		adminClientFn: newAdminClient,
@@ -172,6 +179,39 @@ func (m *multiAdminClient) placementClientForCluster(cluster metav1.ObjectMetaAc
 	return client
 }
 
+func (m *multiAdminClient) topicClientForCluster(cluster metav1.ObjectMetaAccessor) topic.Client {
+	url := m.clusterURLFn(cluster)
+	key := m.clusterKeyFn(cluster, url)
+
+	m.mu.RLock()
+	client, ok := m.tpClients[key]
+	m.mu.RUnlock()
+	if ok {
+		return client
+	}
+
+	adminClient := m.adminClientForCluster(cluster)
+	client, err := m.tpClientFn(
+		topic.WithClient(adminClient),
+		topic.WithLogger(m.logger),
+		topic.WithURL(url),
+	)
+	if err != nil {
+		return newErrorTopicClient(err)
+	}
+
+	m.mu.Lock()
+	mapClient, ok := m.tpClients[key]
+	if ok {
+		client = mapClient
+	} else {
+		m.tpClients[key] = client
+	}
+	m.mu.Unlock()
+
+	return client
+}
+
 // errorNamespaceClient implements namespace.Client by returning an error that a
 // specified cluster couldn't be found, enabling easier ergonomics for the
 // common pattern of looking up a client and returning an error if one is
@@ -227,5 +267,29 @@ func (c errorPlacementClient) Remove(string) error {
 }
 
 func (c errorPlacementClient) Replace(string, placementpb.Instance) error {
+	return c.err
+}
+
+type errorTopicClient struct {
+	err error
+}
+
+func newErrorTopicClient(err error) topic.Client {
+	return errorTopicClient{err: err}
+}
+
+func (c errorTopicClient) Init(name string, req *admin.TopicInitRequest) error {
+	return c.err
+}
+
+func (c errorTopicClient) Get(topicName string) (m3topic.Topic, error) {
+	return nil, c.err
+}
+
+func (c errorTopicClient) Delete(topicName string) error {
+	return c.err
+}
+
+func (c errorTopicClient) Add(topicName string, consumerSvc *topicpb.ConsumerService) error {
 	return c.err
 }

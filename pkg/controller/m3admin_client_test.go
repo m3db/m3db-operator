@@ -28,8 +28,10 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	"github.com/m3db/m3db-operator/pkg/m3admin/topic"
 
 	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	"github.com/m3db/m3/src/msg/generated/proto/topicpb"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -168,6 +170,38 @@ func TestPlacementClientForCluster(t *testing.T) {
 	assert.Equal(t, testErr, cl3.Delete())
 }
 
+func TestTopicClientForCluster(t *testing.T) {
+	mc := gomock.NewController(t)
+	defer mc.Finish()
+
+	m3Client := m3admin.NewMockClient(mc)
+	tpClient := topic.NewMockClient(mc)
+
+	m := newTestAdminClient(m3Client, "http://foo")
+	m.tpClientFn = func(_ ...topic.Option) (topic.Client, error) {
+		return tpClient, nil
+	}
+
+	clusterA := newM3DBCluster("ns", "a")
+	clusterB := newM3DBCluster("ns", "b")
+	clusterC := newM3DBCluster("ns", "c")
+	testErr := errors.New("test")
+
+	cl := m.topicClientForCluster(clusterA)
+	assert.Equal(t, tpClient, cl)
+	_ = m.topicClientForCluster(clusterB)
+	assert.Equal(t, 2, len(m.tpClients))
+	m.tpClientFn = func(_ ...topic.Option) (topic.Client, error) {
+		return nil, testErr
+	}
+
+	cl2 := m.topicClientForCluster(clusterA)
+	assert.Equal(t, cl, cl2)
+
+	cl3 := m.topicClientForCluster(clusterC)
+	assert.Equal(t, testErr, cl3.Delete("topic"))
+}
+
 func TestErrorNamespaceClient(t *testing.T) {
 	clErr := errors.New("test")
 	cl := newErrorNamespaceClient(clErr)
@@ -204,5 +238,26 @@ func TestErrorPlacementClient(t *testing.T) {
 	assert.Equal(t, clErr, err)
 
 	err = cl.Replace("foo", placementpb.Instance{})
+	assert.Equal(t, clErr, err)
+}
+
+func TestErrorTopicClient(t *testing.T) {
+	clErr := errors.New("test")
+	cl := newErrorTopicClient(clErr)
+
+	err := cl.Init("topic", nil)
+	assert.Equal(t, clErr, err)
+
+	tp, err := cl.Get("topic")
+	assert.Nil(t, tp)
+	assert.Equal(t, clErr, err)
+
+	err = cl.Delete("topic")
+	assert.Equal(t, clErr, err)
+
+	err = cl.Add("topic", &topicpb.ConsumerService{})
+	assert.Equal(t, clErr, err)
+
+	err = cl.Delete("topic")
 	assert.Equal(t, clErr, err)
 }

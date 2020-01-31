@@ -113,12 +113,12 @@ test-all: clean-all install-tools verify-gen lint metalint test-all-gen bins tes
 .PHONY: test
 test: install-tools test-base
 	@echo "--- $@"
-	@PATH=$(combined_bin_paths):$(PATH) gocov convert $(coverfile) | gocov report
+	@$(tools_bin_path)/gocov convert $(coverfile) | $(tools_bin_path)/gocov report
 
 .PHONY: test-no-deps
 test-no-deps: test-base
 	@echo "--- $@"
-	@PATH=$(combined_bin_paths):$(PATH) gocov convert $(coverfile) | gocov report
+	@$(tools_bin_path)/gocov convert $(coverfile) | $(tools_bin_path)/gocov report
 
 .PHONY: test-e2e
 test-e2e:
@@ -139,7 +139,7 @@ test-ci-unit: install-tools test-base verify-gen
 .PHONY: install-tools
 install-tools:
 	@echo "--- $@"
-	GOBIN=$(tools_bin_path) go install github.com/axw/gocov
+	GOBIN=$(tools_bin_path) go install github.com/axw/gocov/gocov
 	GOBIN=$(tools_bin_path) go install github.com/garethr/kubeval
 	GOBIN=$(tools_bin_path) go install github.com/golang/mock/mockgen
 	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/badtime
