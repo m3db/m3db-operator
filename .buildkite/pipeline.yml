@@ -27,12 +27,13 @@ steps:
         config: .buildkite/docker-compose.yml
         workdir: /go/src/github.com/m3db/m3db-operator
     <<: *common
-  - name: ":kubernetes: e2e tests"
-    command: make clean test-e2e
-    env:
-      CGO_ENABLED: 0
-      GIMME_GO_VERSION: 1.13.x
-    plugins:
-      gopath-checkout#v1.0.1:
-        import: github.com/m3db/m3db-operator
-    <<: *common
+  # NB(schallert): skipped until OSS CI stack upgraded
+  # - name: ":kubernetes: e2e tests"
+  #   command: make clean test-e2e
+  #   env:
+  #     CGO_ENABLED: 0
+  #     GIMME_GO_VERSION: 1.13.x
+  #   plugins:
+  #     gopath-checkout#v1.0.1:
+  #       import: github.com/m3db/m3db-operator
+  #   <<: *common
