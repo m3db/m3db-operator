@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Uber Technologies, Inc.
+// Copyright (c) 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,36 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package m3db
+package k8sops
 
 import (
-	"fmt"
-
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	headlessServicePrefix    = "m3dbnode-"
-	coordinatorServicePrefix = "m3coordinator-"
-)
-
-// StatefulSetName provides a formatted string to use for naming StatefulSets
-func StatefulSetName(clusterName string, stsID int) string {
-	return fmt.Sprintf("%s-rep%d", clusterName, stsID)
-}
-
-// HeadlessServiceName returns a name for the cluster's headless service.
-func HeadlessServiceName(clusterName string) string {
-	return headlessServicePrefix + clusterName
-}
-
-// CoordinatorServiceName returns a name for a cluster's coordinator service.
-func CoordinatorServiceName(clusterName string) string {
-	return coordinatorServicePrefix + clusterName
-}
-
-// TODO(schallert): should figure out a better way to abstract this other than
-// exposing all of CoreV1()
-func (k *k8sWrapper) Events(namespace string) typedcorev1.EventInterface {
-	return k.kclient.CoreV1().Events(namespace)
+// DefaultM3ClusterEnvironmentName returns the environment under which cluster
+// topology and runtime configuration will be stored. This ensures that multiple
+// m3db clusters won't conflict with each other when sharing a backing etcd
+// store.
+func DefaultM3ClusterEnvironmentName(obj metav1.ObjectMetaAccessor) string {
+	m := obj.GetObjectMeta()
+	return m.GetNamespace() + "/" + m.GetName()
 }
