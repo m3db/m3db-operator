@@ -98,6 +98,13 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = make([]v1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
+	if in.EnvVars != nil {
+		in, out := &in.EnvVars, &out.EnvVars
+		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
 		*out = make(map[string]string, len(*in))
