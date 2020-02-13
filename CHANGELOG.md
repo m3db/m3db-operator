@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.3.1
+## 0.4.0
 
-0.3.1 includes minor feature additions that won't have any change in behavior for existing users.
+0.4.0 includes minor feature additions that won't have any change in behavior for existing users.
 
 * [FEATURE] Support custom env vars in cluster spec ([#194][194])
 * [ENHANCEMENT] Add topic client ([#190][190])
