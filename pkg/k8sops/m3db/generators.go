@@ -35,8 +35,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
-	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -184,6 +184,11 @@ func GenerateStatefulSet(
 			template.Spec.StorageClassName = pointer.StringPtr(sc)
 		}
 		statefulSet.Spec.VolumeClaimTemplates = []v1.PersistentVolumeClaim{*template}
+	}
+
+	if cluster.Spec.EnvVars != nil && len(cluster.Spec.EnvVars) > 0 {
+		cluster := cluster.DeepCopy()
+		m3dbContainer.Env = cluster.Spec.EnvVars
 	}
 
 	return statefulSet, nil

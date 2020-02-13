@@ -37,8 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
-	"k8s.io/utils/pointer"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/pointer"
 )
 
 func TestGenerateCRD(t *testing.T) {
@@ -363,6 +363,47 @@ func TestGenerateStatefulSet(t *testing.T) {
 	}
 	fixture = getFixture("testM3DBCluster.yaml", t)
 	fixture.Spec.SecurityContext = nil
+
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	assert.Equal(t, ss, newSS)
+
+	// Test custom env vars
+	ss = baseSS.DeepCopy()
+	ss.Spec.Template.Spec.Containers[0].Env = []v1.EnvVar{
+		{
+			Name:  "test",
+			Value: "testval",
+		},
+		{
+			Name: "test_secret",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "mysecret",
+					},
+				},
+			},
+		},
+	}
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.EnvVars = []v1.EnvVar{
+		{
+			Name:  "test",
+			Value: "testval",
+		},
+		{
+			Name: "test_secret",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "mysecret",
+					},
+				},
+			},
+		},
+	}
 
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
