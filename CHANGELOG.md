@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+0.4.0 includes minor feature additions that won't have any change in behavior for existing users.
+
+* [FEATURE] Support custom env vars in cluster spec ([#194][194])
+* [ENHANCEMENT] Add topic client ([#190][190])
+* [ENHANCEMENT] Migrate to Go modules ([#188][188])
+* [FEATURE] Allow overriding node endpoint format ([#183][183])
+
 ## 0.3.0
 
 0.3.0 is focused on some behind the scenes reliability improvements. Changes such as using purpose-build M3DB health
@@ -154,3 +163,7 @@ If using a custom configmap, this same change will require a modification to you
 [167]: https://github.com/m3db/m3db-operator/pull/167
 [169]: https://github.com/m3db/m3db-operator/pull/169
 [181]: https://github.com/m3db/m3db-operator/pull/181
+[183]: https://github.com/m3db/m3db-operator/pull/183
+[188]: https://github.com/m3db/m3db-operator/pull/188
+[190]: https://github.com/m3db/m3db-operator/pull/190
+[194]: https://github.com/m3db/m3db-operator/pull/194
