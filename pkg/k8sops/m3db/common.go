@@ -48,6 +48,6 @@ func CoordinatorServiceName(clusterName string) string {
 
 // TODO(schallert): should figure out a better way to abstract this other than
 // exposing all of CoreV1()
-func (k *k8sops) Events(namespace string) typedcorev1.EventInterface {
+func (k *k8sWrapper) Events(namespace string) typedcorev1.EventInterface {
 	return k.kclient.CoreV1().Events(namespace)
 }

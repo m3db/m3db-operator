@@ -237,6 +237,12 @@ type ClusterSpec struct {
 	// ImagePullSecrets will be added to every pod.
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// EnvVars defines custom environment variables to be passed to M3DB
+	// containers.
+	//
+	// +optional
+	EnvVars []corev1.EnvVar `json:"envVars,omitempty"`
+
 	// Labels sets the base labels that will be applied to resources created by
 	// the cluster. // TODO(schallert): design doc on labeling scheme.
 	Labels map[string]string `json:"labels,omitempty"`

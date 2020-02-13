@@ -35,7 +35,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (k *k8sops) CreateOrUpdateCRD(name string, enableValidation bool) error {
+func (k *k8sWrapper) CreateOrUpdateCRD(name string, enableValidation bool) error {
 	if name != myspec.M3DBClustersName {
 		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
@@ -74,7 +74,7 @@ func (k *k8sops) CreateOrUpdateCRD(name string, enableValidation bool) error {
 
 // waitForCRDReady waits until we can list resources of the given type,
 // indicating that the resource is ready.
-func (k *k8sops) waitForCRDReady(name string) error {
+func (k *k8sWrapper) waitForCRDReady(name string) error {
 	if name != myspec.M3DBClustersName {
 		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}

@@ -88,6 +88,11 @@ $(foreach CMD,$(CMDS),$(eval $(CMD_RULES)))
 bins: $(CMDS)
 bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
 
+# Target to make sure integration tests build even if we're not running them.
+.PHONY: build-integration
+build-integration:
+	go build -tags integration ./integration/...
+
 .PHONY: lint
 lint: install-tools
 	@echo "--- $@"

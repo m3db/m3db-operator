@@ -1,6 +1,4 @@
-// +build integration
-
-// Copyright (c) 2018 Uber Technologies, Inc.
+// Copyright (c) 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,38 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package harness
+package k8sops
 
 import (
-	"fmt"
-
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops"
-	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NewPlacementClient constructs an m3admin placement client for the tests.
-func (h *Harness) NewPlacementClient(cluster *myspec.M3DBCluster) (placement.Client, error) {
-	svc, err := m3db.GenerateCoordinatorService(cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
-	adminCl := m3admin.NewClient(
-		m3admin.WithEnvironment(env),
-	)
-	url := fmt.Sprintf(proxyBaseURLFmt, h.Namespace, svc.Name, "7201")
-	h.Logger.Sugar().Infof("calling url '%s' with env '%s'", url, env)
-	cl, err := placement.NewClient(
-		placement.WithClient(adminCl),
-		placement.WithURL(url),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return cl, nil
+// DefaultM3ClusterEnvironmentName returns the environment under which cluster
+// topology and runtime configuration will be stored. This ensures that multiple
+// m3db clusters won't conflict with each other when sharing a backing etcd
+// store.
+func DefaultM3ClusterEnvironmentName(obj metav1.ObjectMetaAccessor) string {
+	m := obj.GetObjectMeta()
+	return m.GetNamespace() + "/" + m.GetName()
 }
