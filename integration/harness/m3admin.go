@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
@@ -38,7 +39,7 @@ func (h *Harness) NewPlacementClient(cluster *myspec.M3DBCluster) (placement.Cli
 		return nil, err
 	}
 
-	env := m3db.DefaultM3ClusterEnvironmentName(cluster)
+	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
 	adminCl := m3admin.NewClient(
 		m3admin.WithEnvironment(env),
 	)
