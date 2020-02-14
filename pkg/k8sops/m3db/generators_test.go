@@ -37,8 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
-	"k8s.io/utils/pointer"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/pointer"
 )
 
 func TestGenerateCRD(t *testing.T) {
@@ -139,7 +139,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 			Replicas: instanceAmount,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      labels,
+					Annotations: annotations.BaseAnnotations(fixture),
 				},
 				Spec: v1.PodSpec{
 					PriorityClassName: "m3db-priority",
