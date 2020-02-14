@@ -134,7 +134,7 @@ func (h *Harness) createNamespace(ns string) error {
 	}
 
 	h.Logger.Info("creating namespace", zap.String("namespace", ns))
-	_, err := h.KubeClient.Core().Namespaces().Create(&corev1.Namespace{
+	_, err := h.KubeClient.CoreV1().Namespaces().Create(&corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ns,
 		},

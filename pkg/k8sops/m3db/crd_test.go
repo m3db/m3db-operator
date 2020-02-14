@@ -39,7 +39,7 @@ import (
 )
 
 func TestCreateOrUpdateCRD(t *testing.T) {
-	k := newFakeK8sops(t).(*k8sops)
+	k := newFakeK8sops(t).(*k8sWrapper)
 
 	err := k.CreateOrUpdateCRD("foo", false)
 	assert.Error(t, err)
@@ -80,7 +80,7 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 		},
 	} {
 		t.Run(test.action, func(t *testing.T) {
-			k := newFakeK8sops(t).(*k8sops)
+			k := newFakeK8sops(t).(*k8sWrapper)
 
 			k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor(test.action, "*", func(action ktesting.Action) (bool, runtime.Object, error) {
 				return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
@@ -100,7 +100,7 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 }
 
 func TestWaitForCRDReady(t *testing.T) {
-	k := newFakeK8sops(t).(*k8sops)
+	k := newFakeK8sops(t).(*k8sWrapper)
 
 	err := k.waitForCRDReady("foo")
 	assert.Error(t, err)

@@ -32,18 +32,18 @@ import (
 // Option provides an interface that can be used for setter options with the
 // constructor
 type Option interface {
-	execute(*k8sops) error
+	execute(*k8sWrapper) error
 }
 
-type optionFn func(k *k8sops) error
+type optionFn func(k *k8sWrapper) error
 
-func (fn optionFn) execute(k *k8sops) error {
+func (fn optionFn) execute(k *k8sWrapper) error {
 	return fn(k)
 }
 
 // WithLogger is a setter to override the default logger
 func WithLogger(logger *zap.Logger) Option {
-	return optionFn(func(k *k8sops) error {
+	return optionFn(func(k *k8sWrapper) error {
 		k.logger = logger
 		return nil
 	})
@@ -51,7 +51,7 @@ func WithLogger(logger *zap.Logger) Option {
 
 // WithCRDClient is a setter to override the default CRD client
 func WithCRDClient(crdClient genclient.Interface) Option {
-	return optionFn(func(k *k8sops) error {
+	return optionFn(func(k *k8sWrapper) error {
 		k.crdClient = crdClient
 		return nil
 	})
@@ -59,7 +59,7 @@ func WithCRDClient(crdClient genclient.Interface) Option {
 
 // WithKClient is a setter to override the default Kubernetes client
 func WithKClient(kclient kubernetes.Interface) Option {
-	return optionFn(func(k *k8sops) error {
+	return optionFn(func(k *k8sWrapper) error {
 		k.kclient = kclient
 		return nil
 	})
@@ -67,14 +67,14 @@ func WithKClient(kclient kubernetes.Interface) Option {
 
 // WithExtClient is a setter to override the default Extensions Client
 func WithExtClient(extClient apiextensionsclient.Interface) Option {
-	return optionFn(func(k *k8sops) error {
+	return optionFn(func(k *k8sWrapper) error {
 		k.kubeExt = extClient
 		return nil
 	})
 }
 
-// k8sops defines the kube object
-type k8sops struct {
+// k8sWrapper encapsulates kubernetes API client dependencies.
+type k8sWrapper struct {
 	crdClient genclient.Interface
 	kclient   kubernetes.Interface
 	kubeExt   apiextensionsclient.Interface
@@ -83,7 +83,7 @@ type k8sops struct {
 
 // New creates a new instance of k8sops
 func New(opts ...Option) (K8sops, error) {
-	k8 := &k8sops{}
+	k8 := &k8sWrapper{}
 	for _, o := range opts {
 		if err := o.execute(k8); err != nil {
 			return nil, err

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
@@ -107,7 +108,7 @@ func newMultiAdminClient(adminOpts []m3admin.Option, logger *zap.Logger) *multiA
 }
 
 func (m *multiAdminClient) adminClientForCluster(cluster metav1.ObjectMetaAccessor) m3admin.Client {
-	env := m3db.DefaultM3ClusterEnvironmentName(cluster)
+	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
 	opts := append(m.adminOpts, m3admin.WithEnvironment(env))
 	return m.adminClientFn(opts...)
 }

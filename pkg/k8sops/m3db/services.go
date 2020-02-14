@@ -39,7 +39,7 @@ package m3db
 import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,7 +48,7 @@ import (
 )
 
 // GetService simply gets a service by name
-func (k *k8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
+func (k *k8sWrapper) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
 	service, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -57,13 +57,13 @@ func (k *k8sops) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Servi
 }
 
 // DeleteService simply deletes a service by name
-func (k *k8sops) DeleteService(cluster *myspec.M3DBCluster, name string) error {
+func (k *k8sWrapper) DeleteService(cluster *myspec.M3DBCluster, name string) error {
 	k.logger.Info("deleting service", zap.String("service", name))
 	return k.kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
 }
 
 // EnsureService will create a service by name if it doesn't exist
-func (k *k8sops) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error {
+func (k *k8sWrapper) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error {
 	_, err := k.GetService(cluster, svc.Name)
 	if errors.IsNotFound(err) {
 		k.logger.Info("service doesn't exist, creating it", zap.String("service", svc.Name))

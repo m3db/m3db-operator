@@ -26,6 +26,7 @@ import (
 	"text/template"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,7 +77,7 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 	}
 
 	config := &configData{
-		Env:            DefaultM3ClusterEnvironmentName(cluster),
+		Env:            k8sops.DefaultM3ClusterEnvironmentName(cluster),
 		Endpoints:      cluster.Spec.EtcdEndpoints,
 		CarbonIngester: cluster.Spec.EnableCarbonIngester,
 	}
@@ -103,15 +104,6 @@ func GenerateDefaultConfigMap(cluster *myspec.M3DBCluster) (*corev1.ConfigMap, e
 
 func defaultConfigMapName(clusterName string) string {
 	return "m3db-config-map-" + clusterName
-}
-
-// DefaultM3ClusterEnvironmentName returns the environment under which cluster
-// topology and runtime configuration will be stored. This ensures that multiple
-// m3db clusters won't conflict with each other when sharing a backing etcd
-// store.
-func DefaultM3ClusterEnvironmentName(obj metav1.ObjectMetaAccessor) string {
-	m := obj.GetObjectMeta()
-	return m.GetNamespace() + "/" + m.GetName()
 }
 
 // Build the volume for the pod and the volumeMount for the container containing

@@ -88,6 +88,11 @@ $(foreach CMD,$(CMDS),$(eval $(CMD_RULES)))
 bins: $(CMDS)
 bins-no-deps: $(foreach CMD,$(CMDS),$(CMD)-no-deps)
 
+# Target to make sure integration tests build even if we're not running them.
+.PHONY: build-integration
+build-integration:
+	go build -tags integration ./integration/...
+
 .PHONY: lint
 lint: install-tools
 	@echo "--- $@"
@@ -120,10 +125,15 @@ test-no-deps: test-base
 	@echo "--- $@"
 	@$(tools_bin_path)/gocov convert $(coverfile) | $(tools_bin_path)/gocov report
 
+.PHONY: kind-create-cluster
+kind-create-cluster:
+	@echo "--- Starting KIND cluster"
+	@./scripts/kind-create-cluster.sh
+
 .PHONY: test-e2e
-test-e2e:
+test-e2e: kind-create-cluster
 	@echo "--- $@"
-	$(SELF_DIR)/scripts/run_e2e_tests.sh
+	PATH=$(HOME)/bin:$(PATH) $(SELF_DIR)/scripts/run_e2e_tests.sh
 
 .PHONY: testhtml
 testhtml: test-base
