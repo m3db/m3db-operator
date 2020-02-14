@@ -39,7 +39,6 @@ import (
 
 	crdutils "github.com/ant31/crd-validation/pkg"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/pointer"
 )
 
 func TestGenerateCRD(t *testing.T) {
