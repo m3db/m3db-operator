@@ -125,10 +125,15 @@ test-no-deps: test-base
 	@echo "--- $@"
 	@$(tools_bin_path)/gocov convert $(coverfile) | $(tools_bin_path)/gocov report
 
+.PHONY: kind-create-cluster
+kind-create-cluster:
+	@echo "--- Starting KIND cluster"
+	@./scripts/kind-create-cluster.sh
+
 .PHONY: test-e2e
-test-e2e:
+test-e2e: kind-create-cluster
 	@echo "--- $@"
-	$(SELF_DIR)/scripts/run_e2e_tests.sh
+	PATH=$(HOME)/bin:$(PATH) $(SELF_DIR)/scripts/run_e2e_tests.sh
 
 .PHONY: testhtml
 testhtml: test-base

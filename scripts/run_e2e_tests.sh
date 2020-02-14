@@ -30,7 +30,7 @@ function main() {
   done
 
   # If a kubectl proxy process is running, delete and wait until it's dead
-  if pgrep -fq 'kubectl proxy'; then
+  if pgrep -f 'kubectl proxy'; then
     pkill -f 'kubectl proxy'
     local PROXYCOUNT=0
     while [[ $PROXYCOUNT -lt 10 ]]; do
@@ -45,6 +45,11 @@ function main() {
   fi
 
   trap cleanup EXIT
+
+  if [[ -z "$SKIP_DOCKER_BUILD" ]]; then
+    docker build -t m3db-operator-kind .
+    kind load docker-image m3db-operator-kind
+  fi
 
   kubectl proxy &
   go clean -testcache

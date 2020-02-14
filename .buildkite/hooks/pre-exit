@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# If there was a kind cluster created during CI, tear it down.
+KIND="$HOME/bin/kind"
+if [[ -f "$KIND" ]]; then
+  echo "--- :kubernetes: deleting kind cluster"
+    $KIND get clusters -q | while read -r CLUSTER; do
+    $KIND delete cluster --name "$CLUSTER"
+  done
+fi
+
+echo "--- :git: cleaning checkout"
+git clean -dffx

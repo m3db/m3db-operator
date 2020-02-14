@@ -26,7 +26,7 @@ rules:
   verbs: ["create", "get", "deletecollection", "delete"]
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["list", "get", "watch", "update"]
+  verbs: ["list", "get", "watch", "update", "patch"]
 - apiGroups: ["apps"]
   resources: ["statefulsets", "deployments"]
   verbs: ["*"]
@@ -68,8 +68,12 @@ spec:
       labels:
         name: m3db-operator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
       containers:
         - name: m3db-operator
-          image: quay.io/m3db/m3db-operator:latest
-          imagePullPolicy: Always
+          image: m3db-operator-kind
+          imagePullPolicy: Never
       serviceAccount: operator-test-sa
