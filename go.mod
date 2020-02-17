@@ -13,6 +13,7 @@ require (
 	github.com/briandowns/spinner v1.8.0 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/cirocosta/grafana-sync v0.0.0-20181123215626-6cbb4a9501c1
+	github.com/d4l3k/messagediff v1.2.1
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fortytw2/leaktest v1.3.0 // indirect

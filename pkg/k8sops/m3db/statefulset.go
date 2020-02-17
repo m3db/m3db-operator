@@ -25,6 +25,7 @@ import (
 	"fmt"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -104,78 +105,86 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		}
 	}
 
+	m3dbContainer := v1.Container{
+		Name:            ssName,
+		SecurityContext: specSecurityCtx,
+		ReadinessProbe:  probeReady,
+		LivenessProbe:   probeHealth,
+		Command: []string{
+			"m3dbnode",
+		},
+		Args: []string{
+			"-f",
+			_configurationFileLocation,
+		},
+		Image:           image,
+		ImagePullPolicy: "Always",
+		Env: []v1.EnvVar{
+			{
+				Name: "NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			},
+			{
+				Name:  "M3CLUSTER_ENVIRONMENT",
+				Value: k8sops.DefaultM3ClusterEnvironmentName(cluster),
+			},
+		},
+		Ports: nil,
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      _dataVolumeName,
+				MountPath: _dataDirectory,
+			},
+			{
+				Name:      "cache",
+				MountPath: "/var/lib/m3kv/",
+			},
+			generateDownwardAPIVolumeMount(),
+		},
+	}
+
+	stsSpec := appsv1.StatefulSetSpec{
+		ServiceName: HeadlessServiceName(clusterName),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: objLabels,
+		},
+		Replicas: &ic,
+		Template: v1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels:      objLabels,
+				Annotations: objAnnotations,
+			},
+			Spec: v1.PodSpec{
+				PriorityClassName: cluster.Spec.PriorityClassName,
+				SecurityContext:   cluster.Spec.PodSecurityContext,
+				ImagePullSecrets:  cluster.Spec.ImagePullSecrets,
+				Containers: []v1.Container{
+					m3dbContainer,
+				},
+				Volumes: []v1.Volume{
+					{
+						Name: "cache",
+						VolumeSource: v1.VolumeSource{
+							EmptyDir: &v1.EmptyDirVolumeSource{},
+						},
+					},
+					generateDownwardAPIVolume(),
+				},
+			},
+		},
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
 			Labels:      objLabels,
 			Annotations: objAnnotations,
 		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName: HeadlessServiceName(clusterName),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: objLabels,
-			},
-			Replicas: &ic,
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      objLabels,
-					Annotations: objAnnotations,
-				},
-				Spec: v1.PodSpec{
-					PriorityClassName: cluster.Spec.PriorityClassName,
-					SecurityContext:   cluster.Spec.PodSecurityContext,
-					ImagePullSecrets:  cluster.Spec.ImagePullSecrets,
-					Containers: []v1.Container{
-						{
-							Name:            ssName,
-							SecurityContext: specSecurityCtx,
-							ReadinessProbe:  probeReady,
-							LivenessProbe:   probeHealth,
-							Command: []string{
-								"m3dbnode",
-							},
-							Args: []string{
-								"-f",
-								_configurationFileLocation,
-							},
-							Image:           image,
-							ImagePullPolicy: "Always",
-							Env: []v1.EnvVar{
-								{
-									Name: "NAMESPACE",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{
-											FieldPath: "metadata.namespace",
-										},
-									},
-								},
-							},
-							Ports: nil,
-							VolumeMounts: []v1.VolumeMount{
-								{
-									Name:      _dataVolumeName,
-									MountPath: _dataDirectory,
-								},
-								{
-									Name:      "cache",
-									MountPath: "/var/lib/m3kv/",
-								},
-								generateDownwardAPIVolumeMount(),
-							},
-						},
-					},
-					Volumes: []v1.Volume{
-						{
-							Name: "cache",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						generateDownwardAPIVolume(),
-					},
-				},
-			},
-		},
+		Spec: stsSpec,
 	}
 }
 

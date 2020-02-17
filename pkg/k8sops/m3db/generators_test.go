@@ -38,6 +38,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
+	"github.com/d4l3k/messagediff"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -193,6 +194,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 										},
 									},
 								},
+								{
+									Name:  "M3CLUSTER_ENVIRONMENT",
+									Value: "foo/m3db-cluster",
+								},
 							},
 							Ports: generateContainerPorts(fixture),
 							VolumeMounts: []v1.VolumeMount{
@@ -294,7 +299,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err := GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Reset spec and fixture, test custom config map
 	ss = baseSS.DeepCopy()
@@ -304,7 +312,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Reset spec and fixture, test custom volume claims
 	ss = baseSS.DeepCopy()
@@ -321,7 +332,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Reset spec and fixture, test per-isogroup storageclasses
 	ss = baseSS.DeepCopy()
@@ -332,7 +346,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Ensure changing another isogroup doesn't affect this statefulset
 	ss = baseSS.DeepCopy()
@@ -342,7 +359,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Test empty tolerations
 	ss = baseSS.DeepCopy()
@@ -353,7 +373,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Make sure nil security context adds one with SYS_RESOURCE
 	ss = baseSS.DeepCopy()
@@ -368,11 +391,26 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 
 	// Test custom env vars
 	ss = baseSS.DeepCopy()
 	ss.Spec.Template.Spec.Containers[0].Env = []v1.EnvVar{
+		{
+			Name: "NAMESPACE",
+			ValueFrom: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+		{
+			Name:  "M3CLUSTER_ENVIRONMENT",
+			Value: "foo/m3db-cluster",
+		},
 		{
 			Name:  "test",
 			Value: "testval",
@@ -409,7 +447,10 @@ func TestGenerateStatefulSet(t *testing.T) {
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
-	assert.Equal(t, ss, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 }
 
 func TestGenerateM3DBService(t *testing.T) {

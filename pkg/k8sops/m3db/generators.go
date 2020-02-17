@@ -188,7 +188,7 @@ func GenerateStatefulSet(
 
 	if cluster.Spec.EnvVars != nil && len(cluster.Spec.EnvVars) > 0 {
 		cluster := cluster.DeepCopy()
-		m3dbContainer.Env = cluster.Spec.EnvVars
+		m3dbContainer.Env = append(m3dbContainer.Env, cluster.Spec.EnvVars...)
 	}
 
 	return statefulSet, nil
