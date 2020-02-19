@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+0.5.0 includes a bug fix for passing cluster annotations to pods, as well as a backwards-compatible addition of a new
+base environment variable `M3CLUSTER_ENVIRONMENT` which contains the `${NAMESPACE}/${CLUSTER_NAME}`-formatted variable
+used for the cluster's environment in etcd.
+
+* [FEATURE] Expose m3cluster env in pod spec ([#197][197])
+* [BUGFIX] Apply annotations to pods in created StatefulSets ([#196][196])
+
 ## 0.4.0
 
 0.4.0 includes minor feature additions that won't have any change in behavior for existing users.
@@ -167,3 +176,5 @@ If using a custom configmap, this same change will require a modification to you
 [188]: https://github.com/m3db/m3db-operator/pull/188
 [190]: https://github.com/m3db/m3db-operator/pull/190
 [194]: https://github.com/m3db/m3db-operator/pull/194
+[196]: https://github.com/m3db/m3db-operator/pull/196
+[197]: https://github.com/m3db/m3db-operator/pull/197
