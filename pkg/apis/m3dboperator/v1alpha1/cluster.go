@@ -271,12 +271,12 @@ type ClusterSpec struct {
 	// security concerns outlined in the linked documentation.
 	// https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces
 	// +optional
-	HostNetwork bool `json:hostNetwork,omitEmpty`
+	HostNetwork bool `json:"hostNetwork,omitEmpty"`
 
 	// DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in
 	// conjunction with HostNetwork.+optional
 	// +optional
-	DNSPolicy *corev1.DNSPolicy `json:dnsPolicy,omitEmpty`
+	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitEmpty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

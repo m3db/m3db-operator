@@ -451,6 +451,21 @@ func TestGenerateStatefulSet(t *testing.T) {
 		diff, _ := messagediff.PrettyDiff(ss, newSS)
 		t.Log(diff)
 	}
+
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.HostNetwork = true
+	fixture.Spec.DNSPolicy = (*v1.DNSPolicy)(pointer.StringPtr(string(v1.DNSClusterFirstWithHostNet)))
+
+	ss = baseSS.DeepCopy()
+	ss.Spec.Template.Spec.HostNetwork = true
+	ss.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 }
 
 func TestGenerateM3DBService(t *testing.T) {
