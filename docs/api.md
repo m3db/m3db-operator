@@ -60,6 +60,8 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | tolerations | Tolerations sets the tolerations that will be applied to all M3DB pods. | []corev1.Toleration | false |
 | priorityClassName | PriorityClassName sets the priority class for all M3DB pods. | string | false |
 | nodeEndpointFormat | NodeEndpointFormat allows overriding of the endpoint used for a node in the M3DB placement. Defaults to \"{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}\". Useful if access to the cluster from other namespaces is desired. See \"Node Endpoint\" docs for full variables available. | string | false |
+| HostNetwork | HostNetwork indicates whether M3DB pods should run in the same network namespace as the node its on. This option should be used sparingly due to security concerns outlined in the linked documentation. https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces | bool | false |
+| DNSPolicy | DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in conjunction with HostNetwork.+optional | *corev1.DNSPolicy | false |
 
 [Back to TOC](#table-of-contents)
 

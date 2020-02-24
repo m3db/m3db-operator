@@ -172,13 +172,6 @@ const (
 // ClusterSpec defines the desired state for a M3 cluster to be converge to.
 // +k8s:openapi-gen=true
 type ClusterSpec struct {
-	// HostNetwork This enabled pods to use the hostNetwork to get a better performance in some k8s environment.
-	// https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces
-	HostNetwork bool `json:HostNetwork,omitEmpty`
-
-	// DnsPolicy Specify ClusterFirstWithHostNet if use HostNetwork
-	DnsPolicy corev1.DNSPolicy `json:DnsPolicy,omitEmpty`
-
 	// Image specifies which docker image to use with the cluster
 	Image string `json:"image,omitempty"`
 
@@ -272,6 +265,18 @@ type ClusterSpec struct {
 	// Endpoint" docs for full variables available.
 	// +optional
 	NodeEndpointFormat string `json:"nodeEndpointFormat,omitempty"`
+
+	// HostNetwork indicates whether M3DB pods should run in the same network
+	// namespace as the node its on. This option should be used sparingly due to
+	// security concerns outlined in the linked documentation.
+	// https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces
+	// +optional
+	HostNetwork bool `json:hostNetwork,omitEmpty`
+
+	// DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in
+	// conjunction with HostNetwork.+optional
+	// +optional
+	DNSPolicy *corev1.DNSPolicy `json:dnsPolicy,omitEmpty`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

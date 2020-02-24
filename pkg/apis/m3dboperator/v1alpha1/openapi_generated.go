@@ -344,6 +344,20 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 				Description: "ClusterSpec defines the desired state for a M3 cluster to be converge to.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"HostNetwork": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostNetwork indicates whether M3DB pods should run in the same network namespace as the node its on. This option should be used sparingly due to security concerns outlined in the linked documentation. https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"DNSPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DNSPolicy allows the user to set the pod's DNSPolicy.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Image specifies which docker image to use with the cluster",
