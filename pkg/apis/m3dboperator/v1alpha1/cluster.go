@@ -172,6 +172,13 @@ const (
 // ClusterSpec defines the desired state for a M3 cluster to be converge to.
 // +k8s:openapi-gen=true
 type ClusterSpec struct {
+	// HostNetwork This enabled pods to use the hostNetwork to get a better performance in some k8s environment.
+	// https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces
+	HostNetwork bool `json:HostNetwork,omitEmpty`
+
+	// DnsPolicy Specify ClusterFirstWithHostNet if use HostNetwork
+	DnsPolicy corev1.DNSPolicy `json:DnsPolicy,omitEmpty`
+
 	// Image specifies which docker image to use with the cluster
 	Image string `json:"image,omitempty"`
 
