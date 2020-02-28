@@ -176,7 +176,7 @@ func main() {
 	nodeLister := kubeInformerFactory.Core().V1().Nodes().Lister()
 	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
 	if _namespace != "all" {
-		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace("m3"))
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace(_namespace))
 	}
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
