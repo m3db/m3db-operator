@@ -495,10 +495,11 @@ func TestGenerateM3DBService(t *testing.T) {
 			},
 		},
 		Spec: v1.ServiceSpec{
-			Selector:  baseLabels,
-			Ports:     generateM3DBServicePorts(cluster),
-			ClusterIP: v1.ClusterIPNone,
-			Type:      v1.ServiceTypeClusterIP,
+			Selector:                 baseLabels,
+			Ports:                    generateM3DBServicePorts(cluster),
+			ClusterIP:                v1.ClusterIPNone,
+			Type:                     v1.ServiceTypeClusterIP,
+			PublishNotReadyAddresses: true,
 		},
 	}
 
