@@ -68,6 +68,7 @@ var (
 	_humanTime           bool
 	_manageCRD           bool
 	_enableCRDValidation bool
+	_namespace           string
 )
 
 func init() {
@@ -80,6 +81,7 @@ func init() {
 	flag.BoolVar(&_manageCRD, "manage-crd", true, "create and update the operator's CRD specs")
 	// Disabled by default until openAPI validation is more tested.
 	flag.BoolVar(&_enableCRDValidation, "enable-crd-validation", false, "enable openAPI validation of the CR")
+	flag.StringVar(&_namespace, "namespace", "all", "specify a specific namespace to watch. Or specify all to watch all namespaces")
 	flag.Parse()
 }
 
@@ -167,10 +169,21 @@ func main() {
 	}
 
 	stopCh := make(chan struct{})
+	var kubeInformerFactory kubeinformers.SharedInformerFactory
+	if _namespace == "all" {
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
+	} else {
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration, kubeinformers.WithNamespace(_namespace))
+	}
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
 	nodeLister := kubeInformerFactory.Core().V1().Nodes().Lister()
-	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
+
+	var m3dbClusterInformerFactory informers.SharedInformerFactory
+	if _namespace == "all" {
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
+	} else {
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace(_namespace))
+	}
 
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
