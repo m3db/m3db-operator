@@ -219,6 +219,10 @@ func GenerateM3DBService(cluster *myspec.M3DBCluster) (*v1.Service, error) {
 			Ports:     generateM3DBServicePorts(cluster),
 			ClusterIP: v1.ClusterIPNone,
 			Type:      v1.ServiceTypeClusterIP,
+			// Ensure we still publish dbnode DNS names so that we can look up nodes
+			// while they're bootstrapping. We don't do this for the coordinator
+			// service as we don't want to route unready coordinators.
+			PublishNotReadyAddresses: true,
 		},
 	}, nil
 }
