@@ -169,15 +169,22 @@ func main() {
 	}
 
 	stopCh := make(chan struct{})
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
-	if _namespace != "all" {
-		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration,kubeinformers.WithNamespace(_namespace))
+	var kubeInformerFactory kubeinformers.SharedInformerFactory
+	if _namespace == "all" {
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
+	} else {
+		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration, kubeinformers.WithNamespace(_namespace))
 	}
+
 	nodeLister := kubeInformerFactory.Core().V1().Nodes().Lister()
-	m3dbClusterInformerFactory := informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
-	if _namespace != "all" {
+
+	var m3dbClusterInformerFactory informers.SharedInformerFactory
+	if _namespace == "all" {
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
+	} else {
 		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace(_namespace))
 	}
+
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
 	idProvider, err := podidentity.NewProvider(
