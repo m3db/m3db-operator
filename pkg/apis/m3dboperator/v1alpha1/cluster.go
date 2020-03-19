@@ -277,6 +277,15 @@ type ClusterSpec struct {
 	// conjunction with HostNetwork.+optional
 	// +optional
 	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitEmpty"`
+
+	// Specify a "controlling" coordinator for the cluster
+	// It is expected that there is a separate standalone coordinator cluster
+	// It is externally managed - not managed by this operator
+	// It is expected to have a service endpoint
+	// Setup this db cluster, but do not assume a co-located coordinator
+	// Instead provide a selector here so we can point to a separate coordinator service
+	// Specify here the labels required for the selector
+	ExternalCoordinatorSelector map[string]string `json:"externalCoordinatorSelector,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
