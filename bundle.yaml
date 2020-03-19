@@ -80,7 +80,7 @@ spec:
         runAsGroup: 65534
       containers:
         - name: m3db-operator
-          image: quay.io/m3db/m3db-operator:v0.5.0
+          image: quay.io/m3db/m3db-operator:v0.6.0
           command:
           - m3db-operator
           imagePullPolicy: Always

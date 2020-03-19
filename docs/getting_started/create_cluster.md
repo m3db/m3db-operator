@@ -13,7 +13,7 @@ clusters, see the docs on [node affinity][node-affinity].
 
 Create an etcd cluster with persistent volumes:
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.5.0/example/etcd/etcd-pd.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.6.0/example/etcd/etcd-pd.yaml
 ```
 
 We recommend modifying the `storageClassName` in the manifest to one that matches your cloud provider's fastest remote
@@ -84,7 +84,7 @@ available, this will create a cluster that will not use persistent storage and w
 the pods die:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.5.0/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.6.0/example/etcd/etcd-basic.yaml
 
 # Verify etcd health once pods available
 kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl endpoint health
@@ -94,7 +94,7 @@ kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl endpoint health
 If you have remote storage available and would like to jump straight to using it, apply the following manifest for etcd
 instead:
 ```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.5.0/example/etcd/etcd-pd.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.6.0/example/etcd/etcd-pd.yaml
 ```
 
 ### M3DB

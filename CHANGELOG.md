@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+0.6.0 includes a fix to allow M3DB nodes to receive traffic while bootstrapping, and an option to limit what namespaces
+the operator watches resources in, which should greatly help users running the operator in massive Kubernetes clusters.
+
+* [ENHANCEMENT] Ensure dbnodes in DNS when bootstrapping ([#206][206])
+* [FEATURE] Add one option able to only watch one specific namespace ([#205][205])
+
+
 ## 0.5.0
 
 0.5.0 includes a bug fix for passing cluster annotations to pods, as well as a backwards-compatible addition of a new
@@ -178,3 +187,5 @@ If using a custom configmap, this same change will require a modification to you
 [194]: https://github.com/m3db/m3db-operator/pull/194
 [196]: https://github.com/m3db/m3db-operator/pull/196
 [197]: https://github.com/m3db/m3db-operator/pull/197
+[205]: https://github.com/m3db/m3db-operator/pull/205
+[206]: https://github.com/m3db/m3db-operator/pull/206
