@@ -62,6 +62,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | nodeEndpointFormat | NodeEndpointFormat allows overriding of the endpoint used for a node in the M3DB placement. Defaults to \"{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}\". Useful if access to the cluster from other namespaces is desired. See \"Node Endpoint\" docs for full variables available. | string | false |
 | hostNetwork | HostNetwork indicates whether M3DB pods should run in the same network namespace as the node its on. This option should be used sparingly due to security concerns outlined in the linked documentation. https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces | bool | false |
 | dnsPolicy | DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in conjunction with HostNetwork.+optional | *corev1.DNSPolicy | false |
+| externalCoordinatorSelector | Specify a \"controlling\" coordinator for the cluster It is expected that there is a separate standalone coordinator cluster It is externally managed - not managed by this operator It is expected to have a service endpoint Setup this db cluster, but do not assume a co-located coordinator Instead provide a selector here so we can point to a separate coordinator service Specify here the labels required for the selector | map[string]string | false |
 
 [Back to TOC](#table-of-contents)
 
