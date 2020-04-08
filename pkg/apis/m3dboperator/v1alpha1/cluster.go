@@ -286,6 +286,15 @@ type ClusterSpec struct {
 	// Instead provide a selector here so we can point to a separate coordinator service
 	// Specify here the labels required for the selector
 	ExternalCoordinatorSelector map[string]string `json:"externalCoordinatorSelector,omitempty"`
+
+	// Custom setup for db nodes can be done via initContainers
+	// Provide the complete spec for the initContainer here
+	// If any storage volumes are needed in the initContainer see InitVolumes below
+	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+
+	// If the InitContainers require any storage volumes
+	// Provide the complete specification for the required Volumes here
+	InitVolumes []corev1.Volume `json:"initVolumes,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

@@ -195,6 +195,16 @@ func GenerateStatefulSet(
 		m3dbContainer.Env = append(m3dbContainer.Env, cluster.Spec.EnvVars...)
 	}
 
+	if cluster.Spec.InitContainers != nil && len(cluster.Spec.InitContainers) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.InitContainers = append(statefulSet.Spec.Template.Spec.InitContainers, cluster.Spec.InitContainers...)
+	}
+
+	if cluster.Spec.InitVolumes != nil && len(cluster.Spec.InitVolumes) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, cluster.Spec.InitVolumes...)
+	}
+
 	return statefulSet, nil
 }
 
