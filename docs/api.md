@@ -63,6 +63,8 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | hostNetwork | HostNetwork indicates whether M3DB pods should run in the same network namespace as the node its on. This option should be used sparingly due to security concerns outlined in the linked documentation. https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces | bool | false |
 | dnsPolicy | DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in conjunction with HostNetwork.+optional | *corev1.DNSPolicy | false |
 | externalCoordinatorSelector | Specify a \"controlling\" coordinator for the cluster It is expected that there is a separate standalone coordinator cluster It is externally managed - not managed by this operator It is expected to have a service endpoint Setup this db cluster, but do not assume a co-located coordinator Instead provide a selector here so we can point to a separate coordinator service Specify here the labels required for the selector | map[string]string | false |
+| initContainers | Custom setup for db nodes can be done via initContainers Provide the complete spec for the initContainer here If any storage volumes are needed in the initContainer see InitVolumes below | []corev1.Container | false |
+| initVolumes | If the InitContainers require any storage volumes Provide the complete specification for the required Volumes here | []corev1.Volume | false |
 
 [Back to TOC](#table-of-contents)
 
