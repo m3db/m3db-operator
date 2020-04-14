@@ -51,3 +51,34 @@ func TestGenerateBaseAnnotations(t *testing.T) {
 
 	assert.Equal(t, expAnnotations, annotations)
 }
+
+func TestGeneratePodAnnotations(t *testing.T) {
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-foo",
+		},
+		Spec: myspec.ClusterSpec{
+			PodMetadata: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"pod-annotation": "some-annotation",
+				},
+			},
+		},
+	}
+
+	annotations := PodAnnotations(cluster)
+	expAnnotations := map[string]string{
+		"operator.m3db.io/app":     "m3db",
+		"operator.m3db.io/cluster": "cluster-foo",
+		"pod-annotation":           "some-annotation",
+	}
+
+	assert.Equal(t, expAnnotations, annotations)
+
+	cluster.Spec.Annotations = map[string]string{"foo": "bar"}
+	annotations = PodAnnotations(cluster)
+	expAnnotations["foo"] = "bar"
+	expAnnotations["pod-annotation"] = "some-annotation"
+
+	assert.Equal(t, expAnnotations, annotations)
+}

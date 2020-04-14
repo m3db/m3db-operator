@@ -295,6 +295,10 @@ type ClusterSpec struct {
 	// If the InitContainers require any storage volumes
 	// Provide the complete specification for the required Volumes here
 	InitVolumes []corev1.Volume `json:"initVolumes,omitempty"`
+
+	// PodMetadata is for any Metadata that is unique to the pods, and does
+	// not belong on any other objects, such as Prometheus scrape tags
+	PodMetadata metav1.ObjectMeta `json:"podMetadata,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
