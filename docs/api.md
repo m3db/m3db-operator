@@ -65,6 +65,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | externalCoordinatorSelector | Specify a \"controlling\" coordinator for the cluster It is expected that there is a separate standalone coordinator cluster It is externally managed - not managed by this operator It is expected to have a service endpoint Setup this db cluster, but do not assume a co-located coordinator Instead provide a selector here so we can point to a separate coordinator service Specify here the labels required for the selector | map[string]string | false |
 | initContainers | Custom setup for db nodes can be done via initContainers Provide the complete spec for the initContainer here If any storage volumes are needed in the initContainer see InitVolumes below | []corev1.Container | false |
 | initVolumes | If the InitContainers require any storage volumes Provide the complete specification for the required Volumes here | []corev1.Volume | false |
+| podMetadata | PodMetadata is for any Metadata that is unique to the pods, and does not belong on any other objects, such as Prometheus scrape tags | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#objectmeta-v1-meta) | false |
 
 [Back to TOC](#table-of-contents)
 

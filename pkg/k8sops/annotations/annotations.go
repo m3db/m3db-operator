@@ -51,3 +51,17 @@ func BaseAnnotations(cluster *myspec.M3DBCluster) map[string]string {
 
 	return base
 }
+
+// PodAnnotations is for specifying annotations that are only to be
+// applied to the pods such as prometheus scrape tags
+func PodAnnotations(cluster *myspec.M3DBCluster) map[string]string {
+	base := BaseAnnotations(cluster)
+	for k := range cluster.Spec.PodMetadata.Annotations {
+		// accept any user-specified annotations if its safe to do so
+		if _, found := base[k]; !found {
+			base[k] = cluster.Spec.PodMetadata.Annotations[k]
+		}
+	}
+
+	return base
+}
