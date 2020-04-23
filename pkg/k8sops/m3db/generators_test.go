@@ -488,6 +488,20 @@ func TestGenerateStatefulSet(t *testing.T) {
 		diff, _ := messagediff.PrettyDiff(ss, newSS)
 		t.Log(diff)
 	}
+
+	// Test PodManagement
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.ParallelPodManagement = true
+
+	ss = baseSS.DeepCopy()
+	ss.Spec.PodManagementPolicy = "Parallel"
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 }
 
 func TestGenerateM3DBService(t *testing.T) {

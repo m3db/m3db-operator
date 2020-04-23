@@ -178,6 +178,10 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		},
 	}
 
+	if cluster.Spec.ParallelPodManagement {
+		stsSpec.PodManagementPolicy = appsv1.ParallelPodManagement
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
