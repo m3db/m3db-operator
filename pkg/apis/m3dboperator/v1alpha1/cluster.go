@@ -299,6 +299,13 @@ type ClusterSpec struct {
 	// PodMetadata is for any Metadata that is unique to the pods, and does
 	// not belong on any other objects, such as Prometheus scrape tags
 	PodMetadata metav1.ObjectMeta `json:"podMetadata,omitempty"`
+
+	// ParallelPodManagement sets StatefulSets created by the operator to have
+	// Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL
+	// flag and subject to deprecation in a future release. This has not been
+	// tested in production and users should not depend on it without validating
+	// it for their own use case.
+	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
