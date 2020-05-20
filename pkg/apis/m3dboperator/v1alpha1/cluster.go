@@ -278,14 +278,8 @@ type ClusterSpec struct {
 	// +optional
 	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitEmpty"`
 
-	// Specify a "controlling" coordinator for the cluster
-	// It is expected that there is a separate standalone coordinator cluster
-	// It is externally managed - not managed by this operator
-	// It is expected to have a service endpoint
-	// Setup this db cluster, but do not assume a co-located coordinator
-	// Instead provide a selector here so we can point to a separate coordinator service
-	// Specify here the labels required for the selector
-	ExternalCoordinatorSelector map[string]string `json:"externalCoordinatorSelector,omitempty"`
+	// Specify a "controlling" coordinator for the cluster.
+	ExternalCoordinator *ExternalCoordinatorConfig `json:"externalCoordinator,omitempty"`
 
 	// Custom setup for db nodes can be done via initContainers
 	// Provide the complete spec for the initContainer here
@@ -306,6 +300,19 @@ type ClusterSpec struct {
 	// tested in production and users should not depend on it without validating
 	// it for their own use case.
 	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
+}
+
+// ExternalCoordinatorConfig defines parameters for using an external
+// coordinator to control the cluster.
+//
+// - It is expected that there is a separate standalone coordinator cluster.
+// - It is externally managed - not managed by this operator.
+// - It is expected to have a service endpoint.
+//
+// Setup this db cluster, but do not assume a co-located coordinator. Instead
+// provide a selector here so we can point to a separate coordinator service.
+type ExternalCoordinatorConfig struct {
+	Selector map[string]string `json:"selector,omityempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
