@@ -579,7 +579,7 @@ func TestGenerateCoordinatorService(t *testing.T) {
 
 	assert.Equal(t, expSvc, svc)
 
-	cluster.Spec.ExternalCoordinatorSelector = map[string]string{"foo": "bar"}
+	cluster.Spec.ExternalCoordinator = &myspec.ExternalCoordinatorConfig{Selector: map[string]string{"foo": "bar"}}
 	expSvc.Spec.Selector = map[string]string{"foo": "bar"}
 	svc, err = GenerateCoordinatorService(cluster)
 	assert.NoError(t, err)

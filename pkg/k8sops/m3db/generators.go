@@ -246,8 +246,8 @@ func GenerateCoordinatorService(cluster *myspec.M3DBCluster) (*v1.Service, error
 
 	selectorLabels := labels.BaseLabels(cluster)
 	selectorLabels[labels.Component] = labels.ComponentM3DBNode
-	if len(cluster.Spec.ExternalCoordinatorSelector) > 0 {
-		selectorLabels = cluster.Spec.ExternalCoordinatorSelector
+	if cluster.Spec.ExternalCoordinator != nil && len(cluster.Spec.ExternalCoordinator.Selector) > 0 {
+		selectorLabels = cluster.Spec.ExternalCoordinator.Selector
 	}
 
 	serviceLabels := labels.BaseLabels(cluster)
