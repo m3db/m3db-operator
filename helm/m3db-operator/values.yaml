@@ -2,5 +2,5 @@ operator:
   name: m3db-operator
 image:
   repository: quay.io/m3db/m3db-operator
-  tag: v0.6.0
+  tag: v0.7.0
 environment: production
