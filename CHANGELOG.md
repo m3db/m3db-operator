@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0
+
+0.7.0 includes changes to allow an M3DB cluster to be administered with a coordinator external to the cluster. It also
+supports passing annotations to pod templates, experimental support for using the `Parallel` pod management policy on
+M3DB StatefulSets, and support for InitContainers.
+
+* [FEATURE] Break ext coord into separate config ([#216][216])
+* [FEATURE] Support Parallel pod management policies. ([#211][211])
+* [FEATURE] Added initial support for PodMetaData, handling Annotations only ([#210][210])
+* [FEATURE] Support custom InitContainers in cluster spec ([#209][209])
+* [FEATURE] Support an external controlling coordinator ([#208][208])
+
+
 ## 0.6.0
 
 0.6.0 includes a fix to allow M3DB nodes to receive traffic while bootstrapping, and an option to limit what namespaces
@@ -189,3 +202,8 @@ If using a custom configmap, this same change will require a modification to you
 [197]: https://github.com/m3db/m3db-operator/pull/197
 [205]: https://github.com/m3db/m3db-operator/pull/205
 [206]: https://github.com/m3db/m3db-operator/pull/206
+[208]: https://github.com/m3db/m3db-operator/pull/208
+[209]: https://github.com/m3db/m3db-operator/pull/209
+[210]: https://github.com/m3db/m3db-operator/pull/210
+[211]: https://github.com/m3db/m3db-operator/pull/211
+[216]: https://github.com/m3db/m3db-operator/pull/216
