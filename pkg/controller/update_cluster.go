@@ -257,6 +257,14 @@ func (c *M3DBController) setStatus(cluster *myspec.M3DBCluster, condition myspec
 		}
 	}
 
+	if ok && cond.Status == status {
+		c.logger.Debug("conditions equal, nothing to do",
+			zap.String("condition", string(condition)),
+			zap.String("status", string(status)),
+		)
+		return cluster, nil
+	}
+
 	curTime := c.clock.Now().UTC().Format(time.RFC3339)
 	if cond.Status != status {
 		cond.LastTransitionTime = curTime
