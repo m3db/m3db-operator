@@ -56,10 +56,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -132,8 +132,6 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 		return nil, err
 	}
 
-	kubeInformerFactory := options.kubeInformerFactory
-	m3dbClusterInformerFactory := options.m3dbClusterInformerFactory
 	kclient := options.kclient
 	kubeClient := options.kubeClient
 	crdClient := options.crdClient
@@ -150,9 +148,9 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 		multiClient.clusterURLFn = clusterURLProxy
 	}
 
-	statefulSetInformer := kubeInformerFactory.Apps().V1().StatefulSets()
-	podInformer := kubeInformerFactory.Core().V1().Pods()
-	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
+	statefulSetInformer := options.filteredInformerFactory.Apps().V1().StatefulSets()
+	podInformer := options.filteredInformerFactory.Core().V1().Pods()
+	m3dbClusterInformer := options.m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
 
 	samplescheme.AddToScheme(scheme.Scheme)
 
@@ -695,7 +693,7 @@ func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
 		c.logger.Info("recovered object from tombstone", zap.String("name", object.GetName()))
 	}
 
-	c.logger.Info("processing statefulset", zap.String("name", object.GetName()))
+	c.logger.Info("processing statefulset", zap.String("statefulset.namespace", object.GetNamespace()), zap.String("statefulset.name", object.GetName()))
 
 	owner := metav1.GetControllerOf(object)
 	// TODO(schallert): const
@@ -705,7 +703,7 @@ func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
 
 	cluster, err := c.clusterLister.M3DBClusters(object.GetNamespace()).Get(owner.Name)
 	if err != nil {
-		c.logger.Info("ignoring orphaned object", zap.String("m3dbcluster", owner.Name), zap.String("statefulset", object.GetName()))
+		c.logger.Info("ignoring orphaned object", zap.String("m3dbcluster", owner.Name), zap.String("namespace", object.GetNamespace()), zap.String("statefulset", object.GetName()))
 		return
 	}
 
@@ -803,8 +801,8 @@ func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 		return err
 	}
 
-	podLogger := c.logger.With(zap.String("pod", pod.Name))
-	podLogger.Debug("processing pod")
+	podLogger := c.logger.With(zap.String("pod.namespace", pod.Namespace), zap.String("pod.name", pod.Name))
+	podLogger.Info("processing pod")
 
 	cluster, err := c.getParentCluster(pod)
 	if err != nil {
