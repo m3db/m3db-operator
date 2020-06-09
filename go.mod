@@ -97,4 +97,7 @@ replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628
 replace github.com/couchbase/vellum => github.com/m3db/vellum v0.0.0-20180830064305-51c732079c88
 
 // https://github.com/kubernetes/kubernetes/issues/88183
-replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
+// replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
+
+// Pin this until transitive issues with uber-go/atomic are worked out.
+replace github.com/m3db/m3 => github.com/m3db/m3 v0.14.2
