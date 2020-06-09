@@ -802,7 +802,7 @@ func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 	}
 
 	podLogger := c.logger.With(zap.String("pod", pod.Name))
-	podLogger.Debug("processing pod")
+	podLogger.Info("processing pod")
 
 	cluster, err := c.getParentCluster(pod)
 	if err != nil {
