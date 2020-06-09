@@ -3,7 +3,6 @@ module github.com/m3db/m3db-operator
 go 1.13
 
 require (
-	cloud.google.com/go v0.37.4 // indirect
 	github.com/OpenPeeDeeP/depguard v1.0.1 // indirect
 	github.com/ant31/crd-validation v0.0.0-20180801212718-38f6a293f140
 	github.com/apex/log v1.1.2 // indirect
@@ -27,14 +26,12 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/go-swagger/go-swagger v0.19.0
 	github.com/go-swagger/scan-repo-boundary v0.0.0-20180623220736-973b3573c013 // indirect
-	github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/mock v1.3.1
 	github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a // indirect
 	github.com/golangci/golangci-lint v1.18.0
 	github.com/golangci/lint-1 v0.0.0-20191013205115-297bf364a8e0 // indirect
-	github.com/google/go-cmp v0.3.1 // indirect
-	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
@@ -51,6 +48,7 @@ require (
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
@@ -78,27 +76,25 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sys v0.0.0-20190922100055-0a153f010e69 // indirect
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	golang.org/x/tools v0.0.0-20200102140908-9497f49d5709 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/go-ini/ini.v1 v1.51.1 // indirect
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1 // indirect
-	gopkg.in/yaml.v2 v2.2.7 // indirect
-	k8s.io/api v0.0.0-20190816222004-e3a6b8045b0b
+	k8s.io/api v0.17.6
 	k8s.io/apiextensions-apiserver v0.0.0-20190816224051-0f1df756a707
-	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
-	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
-	k8s.io/klog v0.3.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
-	k8s.io/utils v0.0.0-20190809000727-6c36bc71fc4a
+	k8s.io/apimachinery v0.17.6
+	k8s.io/client-go v0.17.6
+	k8s.io/code-generator v0.17.6
+	k8s.io/kube-openapi v0.0.0-20200427153329-656914f816f9
+	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20190720180237-d51796306d8f // indirect
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628-53dd39833a08
 
 replace github.com/couchbase/vellum => github.com/m3db/vellum v0.0.0-20180830064305-51c732079c88
+
+// https://github.com/kubernetes/kubernetes/issues/88183
+replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
