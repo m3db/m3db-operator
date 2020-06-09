@@ -83,11 +83,11 @@ require (
 	gopkg.in/go-ini/ini.v1 v1.51.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1 // indirect
-	k8s.io/api v0.17.6
+	k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver v0.17.2
-	k8s.io/apimachinery v0.17.6
+	k8s.io/apimachinery v0.17.2
 	k8s.io/client-go v0.17.2
-	k8s.io/code-generator v0.17.6
+	k8s.io/code-generator v0.17.2
 	k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac // indirect
 	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
