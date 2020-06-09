@@ -18,7 +18,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/fossas/fossa-cli v1.0.19
 	github.com/garethr/kubeval v0.0.0-20180821130434-c44f5193dc94
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gnewton/jargo v0.0.0-20150417131352-41f5f186a805 // indirect
 	github.com/go-critic/go-critic v0.4.1 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
@@ -29,15 +28,19 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/mock v1.3.1
+	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a // indirect
 	github.com/golangci/golangci-lint v1.18.0
 	github.com/golangci/lint-1 v0.0.0-20191013205115-297bf364a8e0 // indirect
+	github.com/google/go-cmp v0.4.0 // indirect
+	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.0
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/kr/pretty v0.2.0 // indirect
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
 	github.com/m3db/m3 v0.14.2
 	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
@@ -48,7 +51,6 @@ require (
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
@@ -61,9 +63,7 @@ require (
 	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/rhysd/go-github-selfupdate v1.2.1 // indirect
 	github.com/rveen/ogdl v0.0.0-20200128162841-892980e34e3d // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
-	github.com/spf13/cobra v0.0.5 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/timakin/bodyclose v0.0.0-20190930140734-f7f2e9bca95e // indirect
@@ -73,20 +73,23 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
-	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
+	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975 // indirect
+	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/tools v0.0.0-20200102140908-9497f49d5709 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/go-ini/ini.v1 v1.51.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1 // indirect
 	k8s.io/api v0.17.6
-	k8s.io/apiextensions-apiserver v0.0.0-20190816224051-0f1df756a707
+	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.6
-	k8s.io/client-go v0.17.6
+	k8s.io/client-go v0.17.2
 	k8s.io/code-generator v0.17.6
-	k8s.io/kube-openapi v0.0.0-20200427153329-656914f816f9
+	k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac // indirect
+	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20190720180237-d51796306d8f // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect

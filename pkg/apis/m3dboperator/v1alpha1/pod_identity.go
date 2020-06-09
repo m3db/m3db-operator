@@ -27,11 +27,6 @@ const (
 	// PodIdentitySourcePodUID derives identity from UID of the pod.
 	PodIdentitySourcePodUID PodIdentitySource = "PodUID"
 
-	// PodIdentitySourceNodeSpecExternalID derives identity from the 'externalID'
-	// spec field of the node. Note this field was deprecated after Kubernetes
-	// 1.11.
-	PodIdentitySourceNodeSpecExternalID PodIdentitySource = "NodeSpecExternalID"
-
 	// PodIdentitySourceNodeSpecProviderID derives identity from the 'providerID'
 	// spec field of the node.
 	PodIdentitySourceNodeSpecProviderID PodIdentitySource = "NodeSpecProviderID"
