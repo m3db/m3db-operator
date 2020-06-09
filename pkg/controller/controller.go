@@ -693,7 +693,7 @@ func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
 		c.logger.Info("recovered object from tombstone", zap.String("name", object.GetName()))
 	}
 
-	c.logger.Info("processing statefulset", zap.String("name", object.GetName()))
+	c.logger.Info("processing statefulset", zap.String("statefulset.namespace", object.GetNamespace()), zap.String("statefulset.name", object.GetName()))
 
 	owner := metav1.GetControllerOf(object)
 	// TODO(schallert): const
@@ -703,7 +703,7 @@ func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
 
 	cluster, err := c.clusterLister.M3DBClusters(object.GetNamespace()).Get(owner.Name)
 	if err != nil {
-		c.logger.Info("ignoring orphaned object", zap.String("m3dbcluster", owner.Name), zap.String("statefulset", object.GetName()))
+		c.logger.Info("ignoring orphaned object", zap.String("m3dbcluster", owner.Name), zap.String("namespace", object.GetNamespace()), zap.String("statefulset", object.GetName()))
 		return
 	}
 
@@ -801,7 +801,7 @@ func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 		return err
 	}
 
-	podLogger := c.logger.With(zap.String("pod", pod.Name))
+	podLogger := c.logger.With(zap.String("pod.namespace", pod.Namespace), zap.String("pod.name", pod.Name))
 	podLogger.Info("processing pod")
 
 	cluster, err := c.getParentCluster(pod)
