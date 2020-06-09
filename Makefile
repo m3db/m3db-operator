@@ -224,6 +224,7 @@ kubernetes-gen: install-tools ## Generate boilerplate code for kubernetes packag
 
 .PHONY: verify-gen
 verify-gen: ## Ensure all codegen is up to date
+	go mod vendor
 	@GOPATH=$(GOPATH) PATH=$(tools_bin_path):$(PATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker
