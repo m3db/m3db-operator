@@ -174,7 +174,7 @@ func main() {
 
 	labelReq, err := klabels.NewRequirement(labels.App, selection.Exists, nil)
 	if err != nil {
-		logger.Fatal("failed to construct pod selector requirement", zap.Error(err))
+		logger.Fatal("failed to construct selector requirement", zap.Error(err))
 	}
 	tweakOpts := kubeinformers.WithTweakListOptions(func(opts *metav1.ListOptions) {
 		// PodSelector provides a selector for listing only M3DB pods to annotate.
@@ -187,7 +187,7 @@ func main() {
 		// filteredInformerFactory is used to create the pod and statefulset
 		// informers. We know that every pod and StatefulSet created by the operator
 		// will have its hardcoded labels. The pod annotation and statefulset loop
-		// may slow down in clusters with many pods or statefulset if it must
+		// may slow down in clusters with many pods or statefulsets if it must
 		// process every objects in the cluster. The filter only lists objects that
 		// have labels we expect.
 		filteredInformerFactory kubeinformers.SharedInformerFactory
