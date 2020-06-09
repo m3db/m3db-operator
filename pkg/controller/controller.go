@@ -56,10 +56,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -132,8 +132,6 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 		return nil, err
 	}
 
-	kubeInformerFactory := options.kubeInformerFactory
-	m3dbClusterInformerFactory := options.m3dbClusterInformerFactory
 	kclient := options.kclient
 	kubeClient := options.kubeClient
 	crdClient := options.crdClient
@@ -150,9 +148,9 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 		multiClient.clusterURLFn = clusterURLProxy
 	}
 
-	statefulSetInformer := kubeInformerFactory.Apps().V1().StatefulSets()
-	podInformer := kubeInformerFactory.Core().V1().Pods()
-	m3dbClusterInformer := m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
+	statefulSetInformer := options.filteredInformerFactory.Apps().V1().StatefulSets()
+	podInformer := options.filteredInformerFactory.Core().V1().Pods()
+	m3dbClusterInformer := options.m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
 
 	samplescheme.AddToScheme(scheme.Scheme)
 
