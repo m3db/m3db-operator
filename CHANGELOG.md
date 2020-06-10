@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+0.8.0 includes changes to improve operator performance and reduce load on Kubernetes API servers. The operator will only
+watch Pods and StatefulSets with a non-empty `operator.m3db.io/app` label (included on every StatefulSet the operator
+generates). Additionally the operator will not unnecessarily update a cluster's Status if there is no change. The
+operator now uses Kubernetes client v0.17.2.
+
+* [ENHANCEMENT] Only list objects created by operator ([#222][222])
+* [MISC] Update kubernetes client to v0.17.2 ([#221][221])
+* [MISC] Update ci-scripts ([#220][220])
+* [ENHANCEMENT] Don't update Status if noop ([#219][219])
+
 ## 0.7.0
 
 0.7.0 includes changes to allow an M3DB cluster to be administered with a coordinator external to the cluster. It also
@@ -207,3 +219,7 @@ If using a custom configmap, this same change will require a modification to you
 [210]: https://github.com/m3db/m3db-operator/pull/210
 [211]: https://github.com/m3db/m3db-operator/pull/211
 [216]: https://github.com/m3db/m3db-operator/pull/216
+[219]: https://github.com/m3db/m3db-operator/pull/219
+[220]: https://github.com/m3db/m3db-operator/pull/220
+[221]: https://github.com/m3db/m3db-operator/pull/221
+[222]: https://github.com/m3db/m3db-operator/pull/222
