@@ -610,6 +610,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"serviceAccountName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "To use a non-default service account, specify the name here otherwise the service account \"default\" will be used This is useful for advanced use-cases such as pod security policies The service account must exist. This operator will not create it",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},

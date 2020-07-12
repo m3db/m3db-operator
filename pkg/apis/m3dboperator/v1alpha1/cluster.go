@@ -300,6 +300,12 @@ type ClusterSpec struct {
 	// tested in production and users should not depend on it without validating
 	// it for their own use case.
 	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
+
+	// To use a non-default service account, specify the name here
+	// otherwise the service account "default" will be used
+	// This is useful for advanced use-cases such as pod security policies
+	// The service account must exist. This operator will not create it
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external
