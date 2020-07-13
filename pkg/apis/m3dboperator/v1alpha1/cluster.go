@@ -301,10 +301,10 @@ type ClusterSpec struct {
 	// it for their own use case.
 	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
 
-	// To use a non-default service account, specify the name here
-	// otherwise the service account "default" will be used
-	// This is useful for advanced use-cases such as pod security policies
-	// The service account must exist. This operator will not create it
+	// To use a non-default service account, specify the name here otherwise the
+	// service account "default" will be used. This is useful for advanced
+	// use-cases such as pod security policies. The service account must exist.
+	// This operator will not create it.
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
