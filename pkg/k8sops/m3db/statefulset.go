@@ -174,6 +174,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					},
 					generateDownwardAPIVolume(),
 				},
+				ServiceAccountName: cluster.Spec.ServiceAccountName,
 			},
 		},
 	}

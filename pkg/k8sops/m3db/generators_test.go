@@ -270,6 +270,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 							Operator: "Exists",
 						},
 					},
+					ServiceAccountName: "m3db-account1",
 				},
 			},
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
