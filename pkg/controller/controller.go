@@ -56,10 +56,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	"k8s.io/utils/pointer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -438,13 +438,6 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	childrenSetsByName := make(map[string]*appsv1.StatefulSet)
 	for _, sts := range childrenSets {
 		childrenSetsByName[sts.Name] = sts
-		// if any of the statefulsets aren't ready, wait until they are as we'll get
-		// another event (ready == bootstrapped)
-		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
-			// TODO(schallert): figure out what to do if replicas is not set
-			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
-			return nil
-		}
 	}
 
 	// Create any missing statefulsets, at this point all existing stateful sets are bootstrapped.
@@ -464,6 +457,16 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			}
 
 			c.logger.Info("created statefulset", zap.String("name", name))
+			return nil
+		}
+	}
+
+	// If any of the statefulsets aren't ready, wait until they are as we'll get
+	// another event (ready == bootstrapped)
+	for _, sts := range childrenSets {
+		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
+			// TODO(schallert): figure out what to do if replicas is not set
+			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
 			return nil
 		}
 	}
