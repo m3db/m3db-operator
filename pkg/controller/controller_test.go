@@ -79,6 +79,7 @@ func TestNew(t *testing.T) {
 		WithCRDClient(crdClient),
 		WithKubeClient(kubeClient),
 		WithKubeInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
+		WithFilteredInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
 		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
 	}
 

@@ -195,6 +195,16 @@ func GenerateStatefulSet(
 		m3dbContainer.Env = append(m3dbContainer.Env, cluster.Spec.EnvVars...)
 	}
 
+	if cluster.Spec.InitContainers != nil && len(cluster.Spec.InitContainers) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.InitContainers = append(statefulSet.Spec.Template.Spec.InitContainers, cluster.Spec.InitContainers...)
+	}
+
+	if cluster.Spec.InitVolumes != nil && len(cluster.Spec.InitVolumes) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, cluster.Spec.InitVolumes...)
+	}
+
 	return statefulSet, nil
 }
 
@@ -236,6 +246,9 @@ func GenerateCoordinatorService(cluster *myspec.M3DBCluster) (*v1.Service, error
 
 	selectorLabels := labels.BaseLabels(cluster)
 	selectorLabels[labels.Component] = labels.ComponentM3DBNode
+	if cluster.Spec.ExternalCoordinator != nil && len(cluster.Spec.ExternalCoordinator.Selector) > 0 {
+		selectorLabels = cluster.Spec.ExternalCoordinator.Selector
+	}
 
 	serviceLabels := labels.BaseLabels(cluster)
 	serviceLabels[labels.Component] = labels.ComponentCoordinator

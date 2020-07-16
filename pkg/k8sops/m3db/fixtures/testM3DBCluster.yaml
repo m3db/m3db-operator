@@ -9,6 +9,7 @@ spec:
   replicationFactor: 3
   numberOfShards: 8
   enableCarbonIngester: true
+  serviceAccountName: "m3db-account1"
   imagePullSecrets:
   - name: secret1
   isolationGroups:

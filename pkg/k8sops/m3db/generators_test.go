@@ -270,6 +270,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 							Operator: "Exists",
 						},
 					},
+					ServiceAccountName: "m3db-account1",
 				},
 			},
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
@@ -466,6 +467,42 @@ func TestGenerateStatefulSet(t *testing.T) {
 		diff, _ := messagediff.PrettyDiff(ss, newSS)
 		t.Log(diff)
 	}
+
+	// Test init containers
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.InitContainers = []v1.Container{
+		{
+			Name: "init0",
+		},
+	}
+
+	ss = baseSS.DeepCopy()
+	ss.Spec.Template.Spec.InitContainers = []v1.Container{
+		{
+			Name: "init0",
+		},
+	}
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
+
+	// Test PodManagement
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.ParallelPodManagement = true
+
+	ss = baseSS.DeepCopy()
+	ss.Spec.PodManagementPolicy = "Parallel"
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 }
 
 func TestGenerateM3DBService(t *testing.T) {
@@ -541,5 +578,11 @@ func TestGenerateCoordinatorService(t *testing.T) {
 		},
 	}
 
+	assert.Equal(t, expSvc, svc)
+
+	cluster.Spec.ExternalCoordinator = &myspec.ExternalCoordinatorConfig{Selector: map[string]string{"foo": "bar"}}
+	expSvc.Spec.Selector = map[string]string{"foo": "bar"}
+	svc, err = GenerateCoordinatorService(cluster)
+	assert.NoError(t, err)
 	assert.Equal(t, expSvc, svc)
 }

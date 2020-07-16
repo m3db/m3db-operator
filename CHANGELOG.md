@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.0
+
+0.8.0 includes changes to improve operator performance and reduce load on Kubernetes API servers. The operator will only
+watch Pods and StatefulSets with a non-empty `operator.m3db.io/app` label (included on every StatefulSet the operator
+generates). Additionally the operator will not unnecessarily update a cluster's Status if there is no change. The
+operator now uses Kubernetes client v0.17.2.
+
+* [ENHANCEMENT] Only list objects created by operator ([#222][222])
+* [MISC] Update kubernetes client to v0.17.2 ([#221][221])
+* [MISC] Update ci-scripts ([#220][220])
+* [ENHANCEMENT] Don't update Status if noop ([#219][219])
+
+## 0.7.0
+
+0.7.0 includes changes to allow an M3DB cluster to be administered with a coordinator external to the cluster. It also
+supports passing annotations to pod templates, experimental support for using the `Parallel` pod management policy on
+M3DB StatefulSets, and support for InitContainers.
+
+* [FEATURE] Break ext coord into separate config ([#216][216])
+* [FEATURE] Support Parallel pod management policies. ([#211][211])
+* [FEATURE] Added initial support for PodMetaData, handling Annotations only ([#210][210])
+* [FEATURE] Support custom InitContainers in cluster spec ([#209][209])
+* [FEATURE] Support an external controlling coordinator ([#208][208])
+
+
 ## 0.6.0
 
 0.6.0 includes a fix to allow M3DB nodes to receive traffic while bootstrapping, and an option to limit what namespaces
@@ -189,3 +214,12 @@ If using a custom configmap, this same change will require a modification to you
 [197]: https://github.com/m3db/m3db-operator/pull/197
 [205]: https://github.com/m3db/m3db-operator/pull/205
 [206]: https://github.com/m3db/m3db-operator/pull/206
+[208]: https://github.com/m3db/m3db-operator/pull/208
+[209]: https://github.com/m3db/m3db-operator/pull/209
+[210]: https://github.com/m3db/m3db-operator/pull/210
+[211]: https://github.com/m3db/m3db-operator/pull/211
+[216]: https://github.com/m3db/m3db-operator/pull/216
+[219]: https://github.com/m3db/m3db-operator/pull/219
+[220]: https://github.com/m3db/m3db-operator/pull/220
+[221]: https://github.com/m3db/m3db-operator/pull/221
+[222]: https://github.com/m3db/m3db-operator/pull/222

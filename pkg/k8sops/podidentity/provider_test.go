@@ -119,20 +119,6 @@ func TestIdentity(t *testing.T) {
 			},
 		},
 		{
-			name: "node external ID config",
-			pod:  newPodForNode("pod-a", "node-1"),
-			nodes: []runtime.Object{func() runtime.Object {
-				n := newTestNode("node-1")
-				n.Spec.DoNotUse_ExternalID = "id1"
-				return n
-			}()},
-			cluster: clusterWithSources("foo", myspec.PodIdentitySourceNodeSpecExternalID),
-			expID: &myspec.PodIdentity{
-				Name:           "pod-a",
-				NodeExternalID: "id1",
-			},
-		},
-		{
 			name: "node provider ID config",
 			pod:  newPodForNode("pod-b", "node-2"),
 			nodes: []runtime.Object{func() runtime.Object {

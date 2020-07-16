@@ -1,7 +1,6 @@
 PROJECT_NAME := m3db-operator
 OUTPUT_DIR   := out
 DOCS_OUT_DIR := site
-DEP_VERSION  := v0.6.0
 .DEFAULT_GOAL := all
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -225,6 +224,7 @@ kubernetes-gen: install-tools ## Generate boilerplate code for kubernetes packag
 
 .PHONY: verify-gen
 verify-gen: ## Ensure all codegen is up to date
+	go mod vendor
 	@GOPATH=$(GOPATH) PATH=$(tools_bin_path):$(PATH) ./hack/verify-generated.sh
 
 .PHONY: build-docker

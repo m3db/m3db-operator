@@ -49,6 +49,7 @@ type options struct {
 	crdClient                  clientset.Interface
 	kubeClient                 kubernetes.Interface
 	kubeInformerFactory        kubeinformers.SharedInformerFactory
+	filteredInformerFactory    kubeinformers.SharedInformerFactory
 	m3dbClusterInformerFactory informers.SharedInformerFactory
 	kubectlProxy               bool
 }
@@ -98,6 +99,13 @@ func WithKubeClient(cl kubernetes.Interface) Option {
 func WithKubeInformerFactory(f kubeinformers.SharedInformerFactory) Option {
 	return optionFn(func(o *options) {
 		o.kubeInformerFactory = f
+	})
+}
+
+// WithFilteredInformerFactory sets the Filteredrnetes base type informer factory.
+func WithFilteredInformerFactory(f kubeinformers.SharedInformerFactory) Option {
+	return optionFn(func(o *options) {
+		o.filteredInformerFactory = f
 	})
 }
 

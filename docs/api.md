@@ -6,6 +6,7 @@ This document enumerates the Custom Resource Definitions used by the M3DB Operat
 ## Table of Contents
 * [ClusterCondition](#clustercondition)
 * [ClusterSpec](#clusterspec)
+* [ExternalCoordinatorConfig](#externalcoordinatorconfig)
 * [IsolationGroup](#isolationgroup)
 * [M3DBCluster](#m3dbcluster)
 * [M3DBClusterList](#m3dbclusterlist)
@@ -62,6 +63,22 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | nodeEndpointFormat | NodeEndpointFormat allows overriding of the endpoint used for a node in the M3DB placement. Defaults to \"{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}\". Useful if access to the cluster from other namespaces is desired. See \"Node Endpoint\" docs for full variables available. | string | false |
 | hostNetwork | HostNetwork indicates whether M3DB pods should run in the same network namespace as the node its on. This option should be used sparingly due to security concerns outlined in the linked documentation. https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces | bool | false |
 | dnsPolicy | DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in conjunction with HostNetwork.+optional | *corev1.DNSPolicy | false |
+| externalCoordinator | Specify a \"controlling\" coordinator for the cluster. | *[ExternalCoordinatorConfig](#externalcoordinatorconfig) | false |
+| initContainers | Custom setup for db nodes can be done via initContainers Provide the complete spec for the initContainer here If any storage volumes are needed in the initContainer see InitVolumes below | []corev1.Container | false |
+| initVolumes | If the InitContainers require any storage volumes Provide the complete specification for the required Volumes here | []corev1.Volume | false |
+| podMetadata | PodMetadata is for any Metadata that is unique to the pods, and does not belong on any other objects, such as Prometheus scrape tags | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#objectmeta-v1-meta) | false |
+| parallelPodManagement | ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL flag and subject to deprecation in a future release. This has not been tested in production and users should not depend on it without validating it for their own use case. | bool | true |
+| serviceAccountName | To use a non-default service account, specify the name here otherwise the service account \"default\" will be used. This is useful for advanced use-cases such as pod security policies. The service account must exist. This operator will not create it. | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## ExternalCoordinatorConfig
+
+ExternalCoordinatorConfig defines parameters for using an external coordinator to control the cluster.\n\n- It is expected that there is a separate standalone coordinator cluster. - It is externally managed - not managed by this operator. - It is expected to have a service endpoint.\n\nSetup this db cluster, but do not assume a co-located coordinator. Instead provide a selector here so we can point to a separate coordinator service.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| selector |  | map[string]string | true |
 
 [Back to TOC](#table-of-contents)
 

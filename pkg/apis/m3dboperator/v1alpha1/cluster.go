@@ -277,6 +277,48 @@ type ClusterSpec struct {
 	// conjunction with HostNetwork.+optional
 	// +optional
 	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitEmpty"`
+
+	// Specify a "controlling" coordinator for the cluster.
+	ExternalCoordinator *ExternalCoordinatorConfig `json:"externalCoordinator,omitempty"`
+
+	// Custom setup for db nodes can be done via initContainers
+	// Provide the complete spec for the initContainer here
+	// If any storage volumes are needed in the initContainer see InitVolumes below
+	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+
+	// If the InitContainers require any storage volumes
+	// Provide the complete specification for the required Volumes here
+	InitVolumes []corev1.Volume `json:"initVolumes,omitempty"`
+
+	// PodMetadata is for any Metadata that is unique to the pods, and does
+	// not belong on any other objects, such as Prometheus scrape tags
+	PodMetadata metav1.ObjectMeta `json:"podMetadata,omitempty"`
+
+	// ParallelPodManagement sets StatefulSets created by the operator to have
+	// Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL
+	// flag and subject to deprecation in a future release. This has not been
+	// tested in production and users should not depend on it without validating
+	// it for their own use case.
+	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
+
+	// To use a non-default service account, specify the name here otherwise the
+	// service account "default" will be used. This is useful for advanced
+	// use-cases such as pod security policies. The service account must exist.
+	// This operator will not create it.
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+}
+
+// ExternalCoordinatorConfig defines parameters for using an external
+// coordinator to control the cluster.
+//
+// - It is expected that there is a separate standalone coordinator cluster.
+// - It is externally managed - not managed by this operator.
+// - It is expected to have a service endpoint.
+//
+// Setup this db cluster, but do not assume a co-located coordinator. Instead
+// provide a selector here so we can point to a separate coordinator service.
+type ExternalCoordinatorConfig struct {
+	Selector map[string]string `json:"selector,omityempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

@@ -33,12 +33,16 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	informers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
 	"github.com/m3db/m3db-operator/pkg/controller"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3x/instrument"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	klabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -53,7 +57,7 @@ import (
 
 const (
 	// Informers will resync on this interval
-	_informerSyncDuration = time.Minute
+	_informerSyncDuration = 5 * time.Minute
 )
 
 var (
@@ -168,22 +172,41 @@ func main() {
 		logger.Fatal("failed to create k8sclient", zap.Error(err))
 	}
 
-	stopCh := make(chan struct{})
-	var kubeInformerFactory kubeinformers.SharedInformerFactory
+	labelReq, err := klabels.NewRequirement(labels.App, selection.Exists, nil)
+	if err != nil {
+		logger.Fatal("failed to construct selector requirement", zap.Error(err))
+	}
+	tweakOpts := kubeinformers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+		// PodSelector provides a selector for listing only M3DB pods to annotate.
+		podSelector := klabels.NewSelector().Add(*labelReq)
+		opts.LabelSelector = podSelector.String()
+	})
+
+	var (
+		m3dbClusterInformerFactory informers.SharedInformerFactory
+		// filteredInformerFactory is used to create the pod and statefulset
+		// informers. We know that every pod and StatefulSet created by the operator
+		// will have its hardcoded labels. The pod annotation and statefulset loop
+		// may slow down in clusters with many pods or statefulsets if it must
+		// process every objects in the cluster. The filter only lists objects that
+		// have labels we expect.
+		filteredInformerFactory kubeinformers.SharedInformerFactory
+		// The kube informer factory is still required to list nodes, as they don't
+		// have our label.
+		kubeInformerFactory kubeinformers.SharedInformerFactory
+	)
+
 	if _namespace == "all" {
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactory(kubeClient, _informerSyncDuration)
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
+		filteredInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration, tweakOpts)
 	} else {
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration, kubeinformers.WithNamespace(_namespace))
+		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace(_namespace))
+		filteredInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, _informerSyncDuration, kubeinformers.WithNamespace(_namespace), tweakOpts)
 	}
 
 	nodeLister := kubeInformerFactory.Core().V1().Nodes().Lister()
-
-	var m3dbClusterInformerFactory informers.SharedInformerFactory
-	if _namespace == "all" {
-		m3dbClusterInformerFactory = informers.NewSharedInformerFactory(crdClient, _informerSyncDuration)
-	} else {
-		m3dbClusterInformerFactory = informers.NewSharedInformerFactoryWithOptions(crdClient, _informerSyncDuration, informers.WithNamespace(_namespace))
-	}
 
 	clusterLogger := logger.With(zap.String("controller", "m3db-cluster-controller"))
 	idLogger := logger.With(zap.String("component", "pod-identity-provider"))
@@ -203,6 +226,7 @@ func main() {
 	opts := []controller.Option{
 		controller.WithConfig(config),
 		controller.WithKubeInformerFactory(kubeInformerFactory),
+		controller.WithFilteredInformerFactory(filteredInformerFactory),
 		controller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
 		controller.WithPodIdentityProvider(idProvider),
 		controller.WithLogger(clusterLogger),
@@ -223,7 +247,9 @@ func main() {
 		logger.Fatal("failed to create controller", zap.Error(err))
 	}
 
+	stopCh := make(chan struct{})
 	go kubeInformerFactory.Start(stopCh)
+	go filteredInformerFactory.Start(stopCh)
 	go m3dbClusterInformerFactory.Start(stopCh)
 
 	// Trap the INT and TERM signals

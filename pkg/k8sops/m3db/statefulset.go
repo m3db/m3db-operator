@@ -63,7 +63,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		objLabels[k] = v
 	}
 
-	objAnnotations := annotations.BaseAnnotations(cluster)
+	objAnnotations := annotations.PodAnnotations(cluster)
 
 	// TODO(schallert): we're currently using the health of the coordinator for
 	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
@@ -174,8 +174,13 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 					},
 					generateDownwardAPIVolume(),
 				},
+				ServiceAccountName: cluster.Spec.ServiceAccountName,
 			},
 		},
+	}
+
+	if cluster.Spec.ParallelPodManagement {
+		stsSpec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
 	return &appsv1.StatefulSet{

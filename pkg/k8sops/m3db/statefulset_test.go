@@ -38,6 +38,8 @@ func TestStatefulSet(t *testing.T) {
 
 	ssName := StatefulSetName(fixture.GetName(), 0)
 	require.Equal(t, "m3db-cluster-rep0", ssName)
+
+	require.Equal(t, "m3db-account1", fixture.Spec.ServiceAccountName)
 }
 
 func TestGenerateDownwardAPIVolume(t *testing.T) {
