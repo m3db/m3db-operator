@@ -169,5 +169,5 @@ $ kubectl exec simple-cluster-rep2-0 -- curl -sSf localhost:9002/health
 ```
 
 [pod-identity]: ../configuration/pod_identity
-[local-volumes]: https://kubernetes.io/blog/20.9.04/13/local-persistent-volumes-beta/
+[local-volumes]: https://kubernetes.io/blog/2018/04/13/local-persistent-volumes-beta/
 [node-affinity]: ../configuration/node_affinity
