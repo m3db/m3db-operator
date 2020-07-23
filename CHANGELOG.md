@@ -6,7 +6,7 @@
 PodSecurityPolicies and the like), and an improvement in how new StatefulSets are created when others are unhealthy.
 
 * [FEATURE] Support custom svc account for M3DB pods ([#225][225])
-* [ENHANCEMENT] missing statefulsets before waiting for ready ([#227][227])
+* [ENHANCEMENT] Create missing statefulsets before waiting for ready ([#227][227])
 
 ## 0.8.0
 
