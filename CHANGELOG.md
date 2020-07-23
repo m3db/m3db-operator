@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+0.9.0 includes support for attaching a custom Kubernetes service account to M3DB pods (enabling use of
+PodSecurityPolicies and the like), and an improvement in how new StatefulSets are created when others are unhealthy.
+
+* [FEATURE] Support custom svc account for M3DB pods ([#225][225])
+* [ENHANCEMENT] Create missing statefulsets before waiting for ready ([#227][227])
+
 ## 0.8.0
 
 0.8.0 includes changes to improve operator performance and reduce load on Kubernetes API servers. The operator will only
@@ -223,3 +231,5 @@ If using a custom configmap, this same change will require a modification to you
 [220]: https://github.com/m3db/m3db-operator/pull/220
 [221]: https://github.com/m3db/m3db-operator/pull/221
 [222]: https://github.com/m3db/m3db-operator/pull/222
+[225]: https://github.com/m3db/m3db-operator/pull/225
+[227]: https://github.com/m3db/m3db-operator/pull/227
