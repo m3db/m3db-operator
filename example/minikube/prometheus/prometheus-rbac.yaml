@@ -1,0 +1,76 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+    - services
+    - endpoints
+    - pods
+    - nodes
+    - nodes/proxy
+    - nodes/metrics
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+    - configmaps
+  verbs:
+    - get
+- apiGroups:
+  - extensions
+  resources:
+    - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs:
+  - /metrics
+  verbs:
+    - get
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-server
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-server
+    namespace: monitoring
+
+#---
+#apiVersion: rbac.authorization.k8s.io/v1
+#kind: RoleBinding
+#metadata:
+#  name: prometheus-server
+#  namespace: default
+#roleRef:
+#  apiGroup: rbac.authorization.k8s.io
+#  kind: Role
+#  name: prometheus-server
+#subjects:
+#  - kind: ServiceAccount
+#    name: prometheus-server
+#---
+#apiVersion: rbac.authorization.k8s.io/v1
+#kind: RoleBinding
+#metadata:
+#  name: prometheus-server
+#  namespace: kube-system
+#roleRef:
+#  apiGroup: rbac.authorization.k8s.io
+#  kind: Role
+#  name: prometheus-server
+#subjects:
+#  - kind: ServiceAccount
+#    name: prometheus-server

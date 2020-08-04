@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+bases:
+  - config/
+commonLabels:
+  app.kubernetes.io/name: prometheus
+  app.kubernetes.io/part-of: m3db-operator
+resources:
+- prometheus-rbac.yaml
+- deployment-operator.yaml
+- service.yaml
+images:
+- name: prom/prometheus
+  newTag: v2.19.2
+configMapGenerator:
+- name: prometheus-configuration
+  files:
+  - scrape-config-ingress-nginx.yaml
