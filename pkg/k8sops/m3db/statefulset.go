@@ -179,7 +179,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		},
 	}
 
-	if cluster.Spec.ParallelPodManagement {
+	if cluster.Spec.ParallelPodManagement == nil || *cluster.Spec.ParallelPodManagement {
 		stsSpec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
