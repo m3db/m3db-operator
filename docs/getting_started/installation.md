@@ -13,7 +13,7 @@ helm repo add m3db https://m3-helm-charts.storage.googleapis.com/stable
 2. Install the `m3db-operator` chart:
 
 ```
-helm install m3db/m3db-operator --namespace m3db-operator
+helm install m3db-operator m3db/m3db-operator
 ```
 
 **Note**: If uninstalling an instance of the operator that was installed with Helm, some resources such as the
