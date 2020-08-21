@@ -99,6 +99,7 @@ func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOp
 		RetentionOptions:  retentionOpts,
 		SnapshotEnabled:   opts.SnapshotEnabled,
 		IndexOptions:      indexOpts,
+    ColdWritesEnabled: opts.ColdWritesEnabled,
 	}, nil
 }
 
