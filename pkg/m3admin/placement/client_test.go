@@ -143,6 +143,32 @@ func TestInitErr(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestSet(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("{}"))
+	}))
+
+	defer s.Close()
+	client := newPlacementClient(t, s.URL)
+
+	err := client.Set(&admin.PlacementSetRequest{})
+	require.Nil(t, err)
+}
+
+func TestSetErr(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		w.Write([]byte("{}"))
+	}))
+
+	defer s.Close()
+	client := newPlacementClient(t, s.URL)
+
+	err := client.Set(&admin.PlacementSetRequest{})
+	require.NotNil(t, err)
+}
+
 func TestGet(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
