@@ -61,7 +61,7 @@ var (
 			Enabled:   true,
 			BlockSize: (2 * time.Hour).String(),
 		},
-    ColdWritesEnabled: false,
+		ColdWritesEnabled: false,
 	}
 
 	presetOneMinuteFourtyDaysIndexed = myspec.NamespaceOptions{
@@ -83,6 +83,6 @@ var (
 			Enabled:   true,
 			BlockSize: (24 * time.Hour).String(),
 		},
-    ColdWritesEnabled: false,
+		ColdWritesEnabled: false,
 	}
 )

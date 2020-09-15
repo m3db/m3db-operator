@@ -59,7 +59,6 @@ spec:
       indexOptions:
         enabled: true
         blockSize: 12h
-      coldWritesEnabled: true
 ```
 
 

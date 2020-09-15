@@ -91,6 +91,6 @@ type NamespaceOptions struct {
 	// IndexOptions sets the indexing parameters.
 	IndexOptions IndexOptions `json:"indexOptions,omitempty"`
 
-  // ColdWritesEnabled controls whether cold writes are enabled.
-  ColdWritesEnabled bool `json:"coldWritesEnabled,omitempty"`
+	// ColdWritesEnabled controls whether cold writes are enabled.
+	ColdWritesEnabled bool `json:"coldWritesEnabled,omitempty"`
 }
