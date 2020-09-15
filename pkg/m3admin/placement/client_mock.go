@@ -71,6 +71,20 @@ func (mr *MockClientMockRecorder) Init(request interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockClient)(nil).Init), request)
 }
 
+// Set mocks base method
+func (m *MockClient) Set(request *admin.PlacementSetRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Set", request)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Set indicates an expected call of Set
+func (mr *MockClientMockRecorder) Set(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockClient)(nil).Set), request)
+}
+
 // Get mocks base method
 func (m *MockClient) Get() (placement.Placement, error) {
 	m.ctrl.T.Helper()
