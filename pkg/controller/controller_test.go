@@ -529,22 +529,23 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 			// Keep running cluster updates until no more stateful sets required
 			var expectedMu sync.Mutex
-			expectedSetsCreated := make(map[string]bool)
-			for _, name := range test.expCreateStatefulSets {
-				expectedSetsCreated[name] = false
-			}
+			expectedSetsCreated := make(map[string]struct{})
 
 			c.kubeClient.(*kubefake.Clientset).PrependReactor("create", "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
 				cluster := action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
 				name := cluster.Name
 				expectedMu.Lock()
-				expectedSetsCreated[name] = true
+				expectedSetsCreated[name] = struct{}{}
 				expectedMu.Unlock()
-				return true, cluster, nil
+				// Return false to indicate that the next reactor in the chain should process this
+				// object as well.
+				return false, nil, nil
 			})
 
+			// Iterate through the expected stateful sets twice to make sure we see all stateful
+			// sets that we expect and also be able to catch any extra stateful sets that we don't.
 			var done bool
-			for i := 0; i < 5; i++ {
+			for i := 0; i < 2*len(test.expCreateStatefulSets); i++ {
 				err := c.handleClusterUpdate(cluster)
 				require.NoError(t, err)
 
