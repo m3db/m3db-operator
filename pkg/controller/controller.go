@@ -32,6 +32,7 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -477,6 +478,34 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 	}
 
+	// Now that we know the cluster is healthy, iterate over each isolation group and check
+	// if it should be updated.
+	for i := 0; i < len(isoGroups); i++ {
+		name := m3db.StatefulSetName(cluster.Name, i)
+
+		// This StatefulSet is guaranteed to exist since if it didn't originally it would be
+		// created above when we first iterate over the isolation groups.
+		sts := childrenSetsByName[name]
+		update, err := shouldUpdateStatefulSet(cluster.Spec, sts)
+		if err != nil {
+			c.logger.Error(err.Error())
+			return err
+		}
+
+		if !update {
+			continue
+		}
+
+		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(sts)
+		if err != nil {
+			c.logger.Error(err.Error())
+			return err
+		}
+
+		c.logger.Info("updated statefulset", zap.String("name", name))
+		return nil
+	}
+
 	if err := c.reconcileNamespaces(cluster); err != nil {
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, "failed to create namespace: %s", err)
 		c.logger.Error("error reconciling namespaces", zap.Error(err))
@@ -918,4 +947,70 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 		return pkgerrors.WithMessagef(errNonUniqueIsoGroups, "found %d isolationGroups but %d unique names", len(groups), len(names))
 	}
 	return nil
+}
+
+// shouldUpdateStatefulSet checks if a StatefulSet should be updated. If the Image or
+// ConfigMapName fields in the ClusterSpec don't match what's in the StatefulSet then
+// this function will update the provided StatefulSet to match the desired state and
+// return true.
+func shouldUpdateStatefulSet(spec myspec.ClusterSpec, sts *appsv1.StatefulSet) (bool, error) {
+	// The operator will only perform an update if the current StatefulSet has been
+	// annotated to indicate that it is okay to update it.
+	if val, ok := sts.Annotations[annotations.Update]; !ok || val != "true" {
+		return false, nil
+	}
+
+	var anyUpdates bool
+	update, err := shouldUpdateImage(spec.Image, sts)
+	if err != nil {
+		return false, err
+	}
+	anyUpdates = anyUpdates || update
+
+	update, err = shouldUpdateConfigMap(*spec.ConfigMapName, sts)
+	if err != nil {
+		return false, err
+	}
+	anyUpdates = anyUpdates || update
+
+	// If the StatefulSet will be updated, remove the update annotation.
+	if anyUpdates {
+		delete(sts.Annotations, annotations.Update)
+	}
+
+	return anyUpdates, nil
+}
+
+func shouldUpdateImage(image string, sts *appsv1.StatefulSet) (bool, error) {
+	// In StatefulSet's created by the operator the first container will run the M3DB node.
+	containers := sts.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return false, newInvalidStatefulSetError(sts.Name, "container")
+	}
+
+	var update bool
+	if containers[0].Image != image {
+		containers[0].Image = image
+		update = true
+	}
+	return update, nil
+}
+
+func shouldUpdateConfigMap(configMapName string, sts *appsv1.StatefulSet) (bool, error) {
+	// In StatefulSet's created by the operator this ConfigMap will be the M3DB config file.
+	volumes := sts.Spec.Template.Spec.Volumes
+	if len(volumes) == 0 {
+		return false, newInvalidStatefulSetError(sts.Name, "config map")
+	}
+
+	var update bool
+	if volumes[0].ConfigMap.Name != configMapName {
+		volumes[0].ConfigMap.Name = configMapName
+		update = true
+	}
+	return update, nil
+}
+
+func newInvalidStatefulSetError(name string, missing string) error {
+	return fmt.Errorf("StatefulSet %q is invalid: no %s in pod template", name, missing)
 }

@@ -23,6 +23,7 @@ package controller
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -30,11 +31,14 @@ import (
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetfake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
 	m3dbinformers "github.com/m3db/m3db-operator/pkg/client/informers/externalversions"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
 	"github.com/m3db/m3/src/cluster/placement"
+	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
+	"github.com/m3db/m3/src/query/generated/proto/admin"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -55,12 +59,147 @@ import (
 	"go.uber.org/zap"
 )
 
-func newMeta(name string, labels map[string]string) *metav1.ObjectMeta {
+const (
+	defaultTestImage     = "m3db:v1.0.0"
+	defaultConfigMapName = "configMapName"
+)
+
+func newMeta(name string, labels, annotations map[string]string) *metav1.ObjectMeta {
 	return &metav1.ObjectMeta{
-		Name:      name,
-		Labels:    labels,
-		Namespace: "namespace",
+		Name:        name,
+		Labels:      labels,
+		Annotations: annotations,
+		Namespace:   "namespace",
 	}
+}
+
+func setupTestCluster(
+	t *testing.T,
+	clusterMeta metav1.ObjectMeta,
+	sets []*metav1.ObjectMeta,
+	replicationFactor int,
+) (*myspec.M3DBCluster, *testDeps) {
+	cfgMapName := defaultConfigMapName
+	cluster := &myspec.M3DBCluster{
+		ObjectMeta: clusterMeta,
+		Spec: myspec.ClusterSpec{
+			Image:             defaultTestImage,
+			ReplicationFactor: int32(replicationFactor),
+			ConfigMapName:     &cfgMapName,
+		},
+	}
+	cluster.ObjectMeta.UID = "abcd"
+	for i := 0; i < replicationFactor; i++ {
+		group := myspec.IsolationGroup{
+			Name:         fmt.Sprintf("group%d", i),
+			NumInstances: 1,
+		}
+		cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
+	}
+	cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
+
+	objects := make([]runtime.Object, len(sets))
+	statefulSets := make([]*appsv1.StatefulSet, len(sets))
+	for i, s := range sets {
+		set := &appsv1.StatefulSet{
+			ObjectMeta: *s,
+		}
+		// Apply base labels
+		if set.ObjectMeta.Labels == nil {
+			set.ObjectMeta.Labels = make(map[string]string)
+		}
+		for k, v := range labels.BaseLabels(cluster) {
+			set.ObjectMeta.Labels[k] = v
+		}
+		set.Spec.Template.Spec.Containers = append(set.Spec.Template.Spec.Containers, corev1.Container{
+			Image: defaultTestImage,
+		})
+		set.Spec.Template.Spec.Volumes = append(set.Spec.Template.Spec.Volumes, corev1.Volume{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: defaultConfigMapName},
+				},
+			},
+		})
+		statefulSets[i] = set
+		objects[i] = set
+		set.OwnerReferences = []metav1.OwnerReference{
+			*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
+				Group:   myspec.SchemeGroupVersion.Group,
+				Version: myspec.SchemeGroupVersion.Version,
+				Kind:    "m3dbcluster",
+			}),
+		}
+	}
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{
+			&myspec.M3DBCluster{
+				ObjectMeta: clusterMeta,
+			},
+		},
+		kubeObjects: objects,
+	})
+
+	return cluster, deps
+}
+
+func waitForStatefulSets(
+	t *testing.T,
+	controller *M3DBController,
+	cluster *myspec.M3DBCluster,
+	verb string,
+	expectedStatefulSets []string,
+) bool {
+	var (
+		mu         sync.Mutex
+		actualSets = make(map[string]bool)
+	)
+
+	controller.kubeClient.(*kubefake.Clientset).PrependReactor(verb, "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		var cluster *appsv1.StatefulSet
+		switch verb {
+		case "create":
+			cluster = action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
+		case "update":
+			cluster = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
+		default:
+			t.Errorf("verb %s is not supported", verb)
+		}
+
+		name := cluster.Name
+		mu.Lock()
+		actualSets[name] = true
+		mu.Unlock()
+
+		// Return false to indicate that the next reactor in the chain should process this
+		// object as well.
+		return false, nil, nil
+	})
+
+	// Iterate through the expected stateful sets twice to make sure we see all stateful
+	// sets that we expect and also be able to catch any extra stateful sets that we don't.
+	var done bool
+	for i := 0; i < 2*len(expectedStatefulSets); i++ {
+		err := controller.handleClusterUpdate(cluster)
+		require.NoError(t, err)
+
+		mu.Lock()
+		var seen int
+		for _, found := range actualSets {
+			if found {
+				seen++
+			}
+		}
+		mu.Unlock()
+
+		if seen != len(expectedStatefulSets) {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		done = true
+	}
+	return done
 }
 
 func TestNew(t *testing.T) {
@@ -95,31 +234,31 @@ func TestGetChildStatefulSets(t *testing.T) {
 		expChildren []string
 	}{
 		{
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}, nil),
 			sets: []*metav1.ObjectMeta{
-				newMeta("set1", nil),
+				newMeta("set1", nil, nil),
 			},
 			expChildren: []string{},
 		},
 		{
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}, nil),
 			sets: []*metav1.ObjectMeta{
 				newMeta("set1", map[string]string{
 					"foo":                      "bar",
 					"operator.m3db.io/app":     "m3db",
 					"operator.m3db.io/cluster": "cluster1",
-				}),
+				}, nil),
 			},
 			expChildren: []string{"set1"},
 		},
 		{
-			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}),
+			cluster: newMeta("cluster1", map[string]string{"foo": "bar"}, nil),
 			sets: []*metav1.ObjectMeta{
 				newMeta("set1", map[string]string{
 					"foo":                      "bar",
 					"operator.m3db.io/app":     "m3db",
 					"operator.m3db.io/cluster": "cluster2",
-				}),
+				}, nil),
 			},
 			expChildren: []string{},
 		},
@@ -437,9 +576,9 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 				"foo":                      "bar",
 				"operator.m3db.io/app":     "m3db",
 				"operator.m3db.io/cluster": "cluster1",
-			}),
+			}, nil),
 			sets: []*metav1.ObjectMeta{
-				newMeta("cluster1-rep0", nil),
+				newMeta("cluster1-rep0", nil, nil),
 			},
 			replicationFactor:     3,
 			expCreateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
@@ -450,9 +589,9 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 				"foo":                      "bar",
 				"operator.m3db.io/app":     "m3db",
 				"operator.m3db.io/cluster": "cluster1",
-			}),
+			}, nil),
 			sets: []*metav1.ObjectMeta{
-				newMeta("cluster1-rep1", nil),
+				newMeta("cluster1-rep1", nil, nil),
 			},
 			replicationFactor:     3,
 			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep2"},
@@ -463,9 +602,9 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 				"foo":                      "bar",
 				"operator.m3db.io/app":     "m3db",
 				"operator.m3db.io/cluster": "cluster1",
-			}),
+			}, nil),
 			sets: []*metav1.ObjectMeta{
-				newMeta("cluster1-rep2", nil),
+				newMeta("cluster1-rep2", nil, nil),
 			},
 			replicationFactor:     3,
 			expCreateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1"},
@@ -474,91 +613,124 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cfgMapName := "configMapName"
-			cluster := &myspec.M3DBCluster{
-				ObjectMeta: *test.cluster,
-				Spec: myspec.ClusterSpec{
-					ReplicationFactor: int32(test.replicationFactor),
-					ConfigMapName:     &cfgMapName,
-				},
-			}
-			cluster.ObjectMeta.UID = "abcd"
-			for i := 0; i < test.replicationFactor; i++ {
-				group := myspec.IsolationGroup{
-					Name:         fmt.Sprintf("group%d", i),
-					NumInstances: 1,
-				}
-				cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
-			}
-			cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
-
-			objects := make([]runtime.Object, len(test.sets))
-			statefulSets := make([]*appsv1.StatefulSet, len(test.sets))
-			for i, s := range test.sets {
-				set := &appsv1.StatefulSet{
-					ObjectMeta: *s,
-				}
-				// Apply base labels
-				if set.ObjectMeta.Labels == nil {
-					set.ObjectMeta.Labels = make(map[string]string)
-				}
-				for k, v := range labels.BaseLabels(cluster) {
-					set.ObjectMeta.Labels[k] = v
-				}
-				statefulSets[i] = set
-				objects[i] = set
-				set.OwnerReferences = []metav1.OwnerReference{
-					*metav1.NewControllerRef(cluster, schema.GroupVersionKind{
-						Group:   myspec.SchemeGroupVersion.Group,
-						Version: myspec.SchemeGroupVersion.Version,
-						Kind:    "m3dbcluster",
-					}),
-				}
-			}
-
-			deps := newTestDeps(t, &testOpts{
-				crdObjects: []runtime.Object{
-					&myspec.M3DBCluster{
-						ObjectMeta: *test.cluster,
-					},
-				},
-				kubeObjects: objects,
-			})
+			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, test.replicationFactor)
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			// Keep running cluster updates until no more stateful sets required
-			var expectedMu sync.Mutex
-			expectedSetsCreated := make(map[string]struct{})
-
-			c.kubeClient.(*kubefake.Clientset).PrependReactor("create", "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
-				cluster := action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
-				name := cluster.Name
-				expectedMu.Lock()
-				expectedSetsCreated[name] = struct{}{}
-				expectedMu.Unlock()
-				// Return false to indicate that the next reactor in the chain should process this
-				// object as well.
-				return false, nil, nil
-			})
-
-			// Iterate through the expected stateful sets twice to make sure we see all stateful
-			// sets that we expect and also be able to catch any extra stateful sets that we don't.
-			var done bool
-			for i := 0; i < 2*len(test.expCreateStatefulSets); i++ {
-				err := c.handleClusterUpdate(cluster)
-				require.NoError(t, err)
-
-				expectedMu.Lock()
-				created := len(expectedSetsCreated)
-				expectedMu.Unlock()
-				if created != len(test.expCreateStatefulSets) {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-				done = true
-			}
+			done := waitForStatefulSets(t, c, cluster, "create", test.expCreateStatefulSets)
 			assert.True(t, done, "expected all sets to be created")
+		})
+	}
+}
+
+func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
+	tests := []struct {
+		name                  string
+		cluster               *metav1.ObjectMeta
+		sets                  []*metav1.ObjectMeta
+		newImage              string
+		newConfigMap          string
+		expUpdateStatefulSets []string
+	}{
+		{
+			name: "updates stateful sets when image is out of date",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+			},
+			newImage:              "m3db:v2.0.0",
+			expUpdateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1", "cluster1-rep2"},
+		},
+		{
+			name: "updates stateful sets when config map name is out of date",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+			},
+			newConfigMap:          "configMapName-2",
+			expUpdateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1", "cluster1-rep2"},
+		},
+		{
+			name: "only updates stateful sets with update annotation",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, nil),
+				newMeta("cluster1-rep1", nil, nil),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "true",
+				}),
+			},
+			newImage:              "m3db:v2.0.0",
+			expUpdateStatefulSets: []string{"cluster1-rep2"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			const replicas = 3
+			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, replicas)
+			defer deps.cleanup()
+			c := deps.newController(t)
+
+			deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
+				Registry: &namespacepb.Registry{},
+			}, nil)
+
+			var mockInstances []placement.Instance
+			for i := 0; i < replicas; i++ {
+				inst := placement.NewMockInstance(deps.mockController)
+
+				// Since the controller checks all instances are available in the placement after
+				// checking and performing any updates, and we're only concerned with the latter
+				// in this test, configure the mock instances to be unavailable to reduce the
+				// amount of mocks we need to set up.
+				inst.EXPECT().IsAvailable().AnyTimes().Return(false)
+				inst.EXPECT().ID().AnyTimes().Return(strconv.Itoa(i))
+				mockInstances = append(mockInstances, inst)
+			}
+
+			mockPlacement := placement.NewMockPlacement(deps.mockController)
+			mockPlacement.EXPECT().NumInstances().AnyTimes().Return(len(mockInstances))
+			mockPlacement.EXPECT().Instances().AnyTimes().Return(mockInstances)
+			deps.placementClient.EXPECT().Get().AnyTimes().Return(mockPlacement, nil)
+
+			if test.newImage != "" {
+				cluster.Spec.Image = test.newImage
+			}
+			if test.newConfigMap != "" {
+				cluster.Spec.ConfigMapName = &test.newConfigMap
+			}
+
+			done := waitForStatefulSets(t, c, cluster, "update", test.expUpdateStatefulSets)
+			assert.True(t, done, "expected all sets to be updated")
 		})
 	}
 }
