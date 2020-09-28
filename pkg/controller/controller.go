@@ -450,6 +450,14 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
 			if err != nil {
+				if kerrors.IsAlreadyExists(err) {
+					// There may be a delay between when a StatefulSet is created and when it is
+					// returned in calls to List because of the caching that the k8s client does.
+					// So if we receive an error because the StatefulSet already exists that's not
+					// indicative of a real problem.
+					c.logger.Info("statefulset already exists", zap.String("name", name))
+					return nil
+				}
 				c.logger.Error(err.Error())
 				return err
 			}
