@@ -20,16 +20,15 @@ require (
 	github.com/go-swagger/go-swagger v0.19.0
 	github.com/go-swagger/scan-repo-boundary v0.0.0-20180623220736-973b3573c013 // indirect
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/mock v1.4.3
+	github.com/golang/mock v1.4.4
 	github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a // indirect
 	github.com/golangci/golangci-lint v1.18.0
 	github.com/golangci/lint-1 v0.0.0-20191013205115-297bf364a8e0 // indirect
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.0
-	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
-	github.com/m3db/m3 v0.15.13
+	github.com/m3db/m3 v0.15.16-0.20200928031244-a7b499d3884d
 	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
@@ -38,7 +37,7 @@ require (
 	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.6
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/timakin/bodyclose v0.0.0-20190930140734-f7f2e9bca95e // indirect
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	github.com/uber-go/tally v3.3.13+incompatible
@@ -46,7 +45,6 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	go.uber.org/zap v1.13.0
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f
-	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	google.golang.org/appengine v1.6.2 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.2
