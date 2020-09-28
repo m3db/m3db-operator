@@ -951,7 +951,7 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 	return nil
 }
 
-// updatedStatefulSet checks if we should update the an actual StatefulSet to match it's
+// updatedStatefulSet checks if we should update the actual StatefulSet to match it's
 // expected state. The method returns the updated StatefulSet if so, otherwise nil.
 func updatedStatefulSet(
 	actual *appsv1.StatefulSet, cluster *myspec.M3DBCluster, isoGroup myspec.IsolationGroup,
