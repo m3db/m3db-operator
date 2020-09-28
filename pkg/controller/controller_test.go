@@ -646,13 +646,13 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			}, nil),
 			sets: []*metav1.ObjectMeta{
 				newMeta("cluster1-rep0", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 				newMeta("cluster1-rep1", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 				newMeta("cluster1-rep2", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 			},
 			newImage:              "m3db:v2.0.0",
@@ -667,13 +667,13 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			}, nil),
 			sets: []*metav1.ObjectMeta{
 				newMeta("cluster1-rep0", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 				newMeta("cluster1-rep1", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 				newMeta("cluster1-rep2", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 			},
 			newConfigMap:          "configMapName-2",
@@ -690,7 +690,7 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 				newMeta("cluster1-rep0", nil, nil),
 				newMeta("cluster1-rep1", nil, nil),
 				newMeta("cluster1-rep2", nil, map[string]string{
-					annotations.Update: "true",
+					annotations.Update: "enabled",
 				}),
 			},
 			newImage:              "m3db:v2.0.0",
