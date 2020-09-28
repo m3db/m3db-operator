@@ -149,6 +149,7 @@ func waitForStatefulSets(
 	controller *M3DBController,
 	cluster *myspec.M3DBCluster,
 	verb string,
+	setReadyReplicas bool,
 	expectedStatefulSets []string,
 ) bool {
 	var (
@@ -157,17 +158,21 @@ func waitForStatefulSets(
 	)
 
 	controller.kubeClient.(*kubefake.Clientset).PrependReactor(verb, "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
-		var cluster *appsv1.StatefulSet
+		var sts *appsv1.StatefulSet
 		switch verb {
 		case "create":
-			cluster = action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
+			sts = action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
 		case "update":
-			cluster = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
+			sts = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
 		default:
 			t.Errorf("verb %s is not supported", verb)
 		}
 
-		name := cluster.Name
+		if setReadyReplicas && sts.Spec.Replicas != nil {
+			sts.Status.ReadyReplicas = *sts.Spec.Replicas
+		}
+
+		name := sts.Name
 		mu.Lock()
 		actualSets[name] = true
 		mu.Unlock()
@@ -617,7 +622,7 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			done := waitForStatefulSets(t, c, cluster, "create", test.expCreateStatefulSets)
+			done := waitForStatefulSets(t, c, cluster, "create", false, test.expCreateStatefulSets)
 			assert.True(t, done, "expected all sets to be created")
 		})
 	}
@@ -729,7 +734,7 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 				cluster.Spec.ConfigMapName = &test.newConfigMap
 			}
 
-			done := waitForStatefulSets(t, c, cluster, "update", test.expUpdateStatefulSets)
+			done := waitForStatefulSets(t, c, cluster, "update", true, test.expUpdateStatefulSets)
 			assert.True(t, done, "expected all sets to be updated")
 		})
 	}

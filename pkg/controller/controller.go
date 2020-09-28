@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 
@@ -43,6 +44,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
@@ -485,18 +487,18 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 		// This StatefulSet is guaranteed to exist since if it didn't originally it would be
 		// created above when we first iterate over the isolation groups.
-		sts := childrenSetsByName[name]
-		update, err := shouldUpdateStatefulSet(cluster.Spec, sts)
+		actual := childrenSetsByName[name]
+		updated, err := updatedStatefulSet(actual, cluster, isoGroups[i])
 		if err != nil {
 			c.logger.Error(err.Error())
 			return err
 		}
 
-		if !update {
+		if updated == nil {
 			continue
 		}
 
-		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(sts)
+		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(updated)
 		if err != nil {
 			c.logger.Error(err.Error())
 			return err
@@ -949,68 +951,56 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 	return nil
 }
 
-// shouldUpdateStatefulSet checks if a StatefulSet should be updated. If the Image or
-// ConfigMapName fields in the ClusterSpec don't match what's in the StatefulSet then
-// this function will update the provided StatefulSet to match the desired state and
-// return true.
-func shouldUpdateStatefulSet(spec myspec.ClusterSpec, sts *appsv1.StatefulSet) (bool, error) {
+// updatedStatefulSet checks if we should update the an actual StatefulSet to match it's
+// expected state. The method returns the updated StatefulSet if so, otherwise nil.
+func updatedStatefulSet(
+	actual *appsv1.StatefulSet, cluster *myspec.M3DBCluster, isoGroup myspec.IsolationGroup,
+) (*appsv1.StatefulSet, error) {
 	// The operator will only perform an update if the current StatefulSet has been
 	// annotated to indicate that it is okay to update it.
-	if val, ok := sts.Annotations[annotations.Update]; !ok || val != "true" {
-		return false, nil
+	if val, ok := actual.Annotations[annotations.Update]; !ok || val != "true" {
+		return nil, nil
 	}
 
-	var anyUpdates bool
-	update, err := shouldUpdateImage(spec.Image, sts)
+	expected, err := m3db.GenerateStatefulSet(cluster, isoGroup.Name, isoGroup.NumInstances)
 	if err != nil {
-		return false, err
-	}
-	anyUpdates = anyUpdates || update
-
-	update, err = shouldUpdateConfigMap(*spec.ConfigMapName, sts)
-	if err != nil {
-		return false, err
-	}
-	anyUpdates = anyUpdates || update
-
-	// If the StatefulSet will be updated, remove the update annotation.
-	if anyUpdates {
-		delete(sts.Annotations, annotations.Update)
+		return nil, err
 	}
 
-	return anyUpdates, nil
-}
-
-func shouldUpdateImage(image string, sts *appsv1.StatefulSet) (bool, error) {
-	// In StatefulSet's created by the operator the first container will run the M3DB node.
-	containers := sts.Spec.Template.Spec.Containers
-	if len(containers) == 0 {
-		return false, newInvalidStatefulSetError(sts.Name, "container")
-	}
-
+	// The Kubernetes API server sets various default values for fields so instead of comparing
+	// if the desired spec is equal to the actual spec, which may have fail because the desired
+	// spec hasn't yet been transformed by the API server, we use DeepDerivative to only compare
+	// those fields in the desired spec which are actually set.
 	var update bool
-	if containers[0].Image != image {
-		containers[0].Image = image
+	if !equality.Semantic.DeepDerivative(expected.Spec, actual.Spec) {
 		update = true
 	}
-	return update, nil
-}
 
-func shouldUpdateConfigMap(configMapName string, sts *appsv1.StatefulSet) (bool, error) {
-	// In StatefulSet's created by the operator this ConfigMap will be the M3DB config file.
-	volumes := sts.Spec.Template.Spec.Volumes
-	if len(volumes) == 0 {
-		return false, newInvalidStatefulSetError(sts.Name, "config map")
-	}
-
-	var update bool
-	if volumes[0].ConfigMap.Name != configMapName {
-		volumes[0].ConfigMap.Name = configMapName
+	// We also want to check if the labels in the cluster spec have changed and update the
+	// StatefulSet if so.
+	if !reflect.DeepEqual(expected.Labels, actual.Labels) {
 		update = true
 	}
-	return update, nil
-}
 
-func newInvalidStatefulSetError(name string, missing string) error {
-	return fmt.Errorf("StatefulSet %q is invalid: no %s in pod template", name, missing)
+	if !update {
+		return nil, nil
+	}
+
+	// It's okay for users to add annotations to a StatefulSet after it has been created so
+	// we'll want to copy over any that exist on the actual StatefulSet but not the expected
+	// one. The only exception is we don't want to copy over the update annotation so users
+	// will always have to explicitly trigger updates. Note that this means removing an
+	// annotation will require users to delete the annotation from the StatefulSet as well as
+	// the cluster spec.
+	for k, v := range actual.Annotations {
+		if k == annotations.Update {
+			continue
+		}
+
+		if _, ok := expected.Annotations[k]; !ok {
+			expected.Annotations[k] = v
+		}
+	}
+
+	return expected, nil
 }
