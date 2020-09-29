@@ -39,7 +39,7 @@ const (
 	placementInitURL    = placementBaseURL + "/init"
 	placementReplaceURL = placementBaseURL + "/replace"
 	placementRemoveFmt  = placementBaseURL + "/%s"
-	placementSetFmt     = placementBaseURL + "/set"
+	placementSetURL     = placementBaseURL + "/set"
 )
 
 type placementClient struct {
@@ -76,7 +76,7 @@ func (p *placementClient) Init(req *admin.PlacementInitRequest) error {
 }
 
 func (p *placementClient) Set(req *admin.PlacementSetRequest) error {
-	url := p.url + placementInitURL
+	url := p.url + placementSetURL
 	err := p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 	if err != nil {
 		return err
