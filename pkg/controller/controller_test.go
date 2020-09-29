@@ -703,6 +703,22 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			expUpdateStatefulSets: []string{"cluster1-rep2"},
 		},
 		{
+			name: "removes update annotation even if stateful set doesn't change",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, nil),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep2", nil, nil),
+			},
+			expUpdateStatefulSets: []string{"cluster1-rep1"},
+		},
+		{
 			name: "doesn't call update for replica changes",
 			cluster: newMeta("cluster1", map[string]string{
 				"foo":                      "bar",
