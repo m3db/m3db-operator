@@ -45,6 +45,7 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	go.uber.org/zap v1.13.0
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f
+	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.2
@@ -61,7 +62,3 @@ require (
 replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628-53dd39833a08
 
 replace github.com/couchbase/vellum => github.com/m3db/vellum v0.0.0-20180830064305-51c732079c88
-
-// Not doing this results in:
-// github.com/uber-go/atomic@v0.0.0-00010101000000-000000000000: invalid version: unknown revision 000000000000
-replace github.com/uber-go/atomic => github.com/uber-go/atomic v1.4.0
