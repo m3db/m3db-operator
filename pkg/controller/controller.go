@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 
@@ -32,6 +33,7 @@ import (
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
 	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
@@ -42,6 +44,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
@@ -475,6 +478,34 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
 			return nil
 		}
+	}
+
+	// Now that we know the cluster is healthy, iterate over each isolation group and check
+	// if it should be updated.
+	for i := 0; i < len(isoGroups); i++ {
+		name := m3db.StatefulSetName(cluster.Name, i)
+
+		// This StatefulSet is guaranteed to exist since if it didn't originally it would be
+		// created above when we first iterate over the isolation groups.
+		actual := childrenSetsByName[name]
+		expected, update, err := updatedStatefulSet(actual, cluster, isoGroups[i])
+		if err != nil {
+			c.logger.Error(err.Error())
+			return err
+		}
+
+		if !update {
+			continue
+		}
+
+		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
+		if err != nil {
+			c.logger.Error(err.Error())
+			return err
+		}
+
+		c.logger.Info("updated statefulset", zap.String("name", name))
+		return nil
 	}
 
 	if err := c.reconcileNamespaces(cluster); err != nil {
@@ -918,4 +949,59 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 		return pkgerrors.WithMessagef(errNonUniqueIsoGroups, "found %d isolationGroups but %d unique names", len(groups), len(names))
 	}
 	return nil
+}
+
+// updatedStatefulSet checks if we should update the actual StatefulSet to match it's
+// expected state. If so, it returns true and the updated StatefulSet and if not, it
+// return false.
+func updatedStatefulSet(
+	actual *appsv1.StatefulSet, cluster *myspec.M3DBCluster, isoGroup myspec.IsolationGroup,
+) (*appsv1.StatefulSet, bool, error) {
+	// The operator will only perform an update if the current StatefulSet has been
+	// annotated to indicate that it is okay to update it.
+	if val, ok := actual.Annotations[annotations.Update]; !ok || val != "enabled" {
+		return nil, false, nil
+	}
+
+	expected, err := m3db.GenerateStatefulSet(cluster, isoGroup.Name, isoGroup.NumInstances)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// The Kubernetes API server sets various default values for fields so instead of comparing
+	// if the desired spec is equal to the actual spec, which may have fail because the desired
+	// spec hasn't yet been transformed by the API server, we use DeepDerivative to only compare
+	// those fields in the desired spec which are actually set.
+	var update bool
+	if !equality.Semantic.DeepDerivative(expected.Spec, actual.Spec) {
+		update = true
+	}
+
+	// We also want to check if the labels in the cluster spec have changed and update the
+	// StatefulSet if so.
+	if !reflect.DeepEqual(expected.Labels, actual.Labels) {
+		update = true
+	}
+
+	if !update {
+		return nil, false, nil
+	}
+
+	// It's okay for users to add annotations to a StatefulSet after it has been created so
+	// we'll want to copy over any that exist on the actual StatefulSet but not the expected
+	// one. The only exception is we don't want to copy over the update annotation so users
+	// will always have to explicitly trigger updates. Note that this means removing an
+	// annotation will require users to delete the annotation from the StatefulSet as well as
+	// the cluster spec.
+	for k, v := range actual.Annotations {
+		if k == annotations.Update {
+			continue
+		}
+
+		if _, ok := expected.Annotations[k]; !ok {
+			expected.Annotations[k] = v
+		}
+	}
+
+	return expected, true, nil
 }
