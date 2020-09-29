@@ -30,6 +30,8 @@ import (
 type Client interface {
 	// Init will initialize a placement give a valid placement request
 	Init(request *admin.PlacementInitRequest) error
+	// Set will forcefully override a placement with a given value.
+	Set(request *admin.PlacementSetRequest) error
 	// Get will provide the current placement
 	Get() (placement m3placement.Placement, err error)
 	// Delete will delete the current placment

@@ -251,6 +251,10 @@ func (c errorPlacementClient) Init(request *admin.PlacementInitRequest) error {
 	return c.err
 }
 
+func (c errorPlacementClient) Set(_ *admin.PlacementSetRequest) error {
+	return c.err
+}
+
 func (c errorPlacementClient) Get() (placement m3placement.Placement, err error) {
 	return nil, c.err
 }
