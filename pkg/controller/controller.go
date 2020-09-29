@@ -488,17 +488,17 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		// This StatefulSet is guaranteed to exist since if it didn't originally it would be
 		// created above when we first iterate over the isolation groups.
 		actual := childrenSetsByName[name]
-		updated, err := updatedStatefulSet(actual, cluster, isoGroups[i])
+		expected, update, err := updatedStatefulSet(actual, cluster, isoGroups[i])
 		if err != nil {
 			c.logger.Error(err.Error())
 			return err
 		}
 
-		if updated == nil {
+		if !update {
 			continue
 		}
 
-		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(updated)
+		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
 		if err != nil {
 			c.logger.Error(err.Error())
 			return err
@@ -952,19 +952,20 @@ func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
 }
 
 // updatedStatefulSet checks if we should update the actual StatefulSet to match it's
-// expected state. The method returns the updated StatefulSet if so, otherwise nil.
+// expected state. If so, it returns true and the updated StatefulSet and if not, it
+// return false.
 func updatedStatefulSet(
 	actual *appsv1.StatefulSet, cluster *myspec.M3DBCluster, isoGroup myspec.IsolationGroup,
-) (*appsv1.StatefulSet, error) {
+) (*appsv1.StatefulSet, bool, error) {
 	// The operator will only perform an update if the current StatefulSet has been
 	// annotated to indicate that it is okay to update it.
 	if val, ok := actual.Annotations[annotations.Update]; !ok || val != "enabled" {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	expected, err := m3db.GenerateStatefulSet(cluster, isoGroup.Name, isoGroup.NumInstances)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	// The Kubernetes API server sets various default values for fields so instead of comparing
@@ -983,7 +984,7 @@ func updatedStatefulSet(
 	}
 
 	if !update {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	// It's okay for users to add annotations to a StatefulSet after it has been created so
@@ -1002,5 +1003,5 @@ func updatedStatefulSet(
 		}
 	}
 
-	return expected, nil
+	return expected, true, nil
 }
