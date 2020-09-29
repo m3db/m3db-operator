@@ -968,11 +968,15 @@ func updatedStatefulSet(
 		return nil, false, err
 	}
 
+	var update bool
+
 	// The Kubernetes API server sets various default values for fields so instead of comparing
 	// if the desired spec is equal to the actual spec, which may have fail because the desired
 	// spec hasn't yet been transformed by the API server, we use DeepDerivative to only compare
-	// those fields in the desired spec which are actually set.
-	var update bool
+	// those fields in the desired spec which are actually set. The controller has special logic
+	// for handling changes to the number of replicas in the cluster since such changes also
+	// require updates to the placement so we can safely ignore the replicas here.
+	expected.Spec.Replicas = actual.Spec.Replicas
 	if !equality.Semantic.DeepDerivative(expected.Spec, actual.Spec) {
 		update = true
 	}
