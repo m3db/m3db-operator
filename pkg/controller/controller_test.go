@@ -22,6 +22,7 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -182,10 +183,14 @@ func waitForStatefulSets(
 		return false, nil, nil
 	})
 
-	// Iterate through the expected stateful sets twice to make sure we see all stateful
-	// sets that we expect and also be able to catch any extra stateful sets that we don't.
-	var done bool
-	for i := 0; i < 2*len(expectedStatefulSets); i++ {
+	// Iterate through the expected stateful sets twice (or at least 5 times) to make sure
+	// we see all stateful sets that we expect and also be able to catch any extra stateful
+	// sets that we don't.
+	var (
+		done  bool
+		iters = math.Max(float64(2*len(expectedStatefulSets)), 5)
+	)
+	for i := 0; i < int(iters); i++ {
 		err := controller.handleClusterUpdate(cluster)
 		require.NoError(t, err)
 
@@ -635,6 +640,7 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 		sets                  []*metav1.ObjectMeta
 		newImage              string
 		newConfigMap          string
+		increaseReplicas      bool
 		expUpdateStatefulSets []string
 	}{
 		{
@@ -696,6 +702,27 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			newImage:              "m3db:v2.0.0",
 			expUpdateStatefulSets: []string{"cluster1-rep2"},
 		},
+		{
+			name: "doesn't call update for replica changes",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+			},
+			increaseReplicas:      true,
+			expUpdateStatefulSets: []string{},
+		},
 	}
 
 	for _, test := range tests {
@@ -732,6 +759,13 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			}
 			if test.newConfigMap != "" {
 				cluster.Spec.ConfigMapName = &test.newConfigMap
+			}
+			if test.increaseReplicas {
+				cluster.Spec.ReplicationFactor = replicas + 1
+				cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, myspec.IsolationGroup{
+					Name:         fmt.Sprintf("group%d", replicas),
+					NumInstances: 1,
+				})
 			}
 
 			done := waitForStatefulSets(t, c, cluster, "update", true, test.expUpdateStatefulSets)
