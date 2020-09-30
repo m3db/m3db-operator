@@ -959,7 +959,7 @@ func updatedStatefulSet(
 ) (*appsv1.StatefulSet, bool, error) {
 	// The operator will only perform an update if the current StatefulSet has been
 	// annotated to indicate that it is okay to update it.
-	if val, ok := actual.Annotations[annotations.Update]; !ok || val != "enabled" {
+	if val, ok := actual.Annotations[annotations.Update]; !ok || val != annotations.EnabledVal {
 		return nil, false, nil
 	}
 
