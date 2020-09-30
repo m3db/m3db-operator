@@ -987,10 +987,20 @@ func updatedStatefulSet(
 		update = true
 	}
 
+	// If we don't need to perform an update to the StatefulSet's spec, but the StatefulSet
+	// has the update annotation, we'll still update the StatefulSet to remove the update
+	// annotation. This ensures that users can always set the update annotation and then
+	// wait for it to be removed to know if the operator has processed a StatefulSet.
 	if !update {
-		return nil, false, nil
+		delete(actual.Annotations, annotations.Update)
+		return actual, true, nil
 	}
 
+	copyAnnotations(expected, actual)
+	return expected, true, nil
+}
+
+func copyAnnotations(expected, actual *appsv1.StatefulSet) {
 	// It's okay for users to add annotations to a StatefulSet after it has been created so
 	// we'll want to copy over any that exist on the actual StatefulSet but not the expected
 	// one. The only exception is we don't want to copy over the update annotation so users
@@ -1006,6 +1016,4 @@ func updatedStatefulSet(
 			expected.Annotations[k] = v
 		}
 	}
-
-	return expected, true, nil
 }
