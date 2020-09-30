@@ -80,6 +80,7 @@ func setupTestCluster(
 	sets []*metav1.ObjectMeta,
 	replicationFactor int,
 ) (*myspec.M3DBCluster, *testDeps) {
+	const numInstances = 1
 	cfgMapName := defaultConfigMapName
 	cluster := &myspec.M3DBCluster{
 		ObjectMeta: clusterMeta,
@@ -90,38 +91,32 @@ func setupTestCluster(
 		},
 	}
 	cluster.ObjectMeta.UID = "abcd"
+	groups := make([]myspec.IsolationGroup, 0, replicationFactor)
 	for i := 0; i < replicationFactor; i++ {
 		group := myspec.IsolationGroup{
 			Name:         fmt.Sprintf("group%d", i),
-			NumInstances: 1,
+			NumInstances: numInstances,
 		}
-		cluster.Spec.IsolationGroups = append(cluster.Spec.IsolationGroups, group)
+		groups = append(groups, group)
 	}
+	cluster.Spec.IsolationGroups = groups
 	cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
 
 	objects := make([]runtime.Object, len(sets))
 	statefulSets := make([]*appsv1.StatefulSet, len(sets))
-	for i, s := range sets {
-		set := &appsv1.StatefulSet{
-			ObjectMeta: *s,
+	for i, meta := range sets {
+		set, err := m3db.GenerateStatefulSet(cluster, groups[i].Name, numInstances)
+		require.NoError(t, err)
+
+		set.Namespace = meta.Namespace
+		set.Status.ReadyReplicas = numInstances
+		for k, v := range meta.Labels {
+			set.Labels[k] = v
 		}
-		// Apply base labels
-		if set.ObjectMeta.Labels == nil {
-			set.ObjectMeta.Labels = make(map[string]string)
+		for k, v := range meta.Annotations {
+			set.Annotations[k] = v
 		}
-		for k, v := range labels.BaseLabels(cluster) {
-			set.ObjectMeta.Labels[k] = v
-		}
-		set.Spec.Template.Spec.Containers = append(set.Spec.Template.Spec.Containers, corev1.Container{
-			Image: defaultTestImage,
-		})
-		set.Spec.Template.Spec.Volumes = append(set.Spec.Template.Spec.Volumes, corev1.Volume{
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: defaultConfigMapName},
-				},
-			},
-		})
+
 		statefulSets[i] = set
 		objects[i] = set
 		set.OwnerReferences = []metav1.OwnerReference{
