@@ -39,7 +39,5 @@ wait for it to bootstrap and become healthy again before moving onto the next `S
 cluster so that no two replicas are ever down at the same time.
 
 ```bash
-for i in {1..3}; do
-  kubectl annotate statefulset my-cluster-rep$i operator.m3db.io/update=enabled
-done
+kubectl annotate statefulset -l operator.m3db.io/cluster=my-cluster operator.m3db.io/update=enabled
 ```
