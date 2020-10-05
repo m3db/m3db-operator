@@ -358,6 +358,11 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
 
+	if cluster.Spec.Frozen {
+		clusterLogger.Info("cluster is frozen so no changes will be made")
+		return nil
+	}
+
 	// https://v1-12.docs.kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/
 	//
 	// If deletion timestamp is zero (cluster hasn't been deleted), make sure our

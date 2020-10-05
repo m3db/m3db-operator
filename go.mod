@@ -43,6 +43,7 @@ require (
 	github.com/uber-go/tally v3.3.13+incompatible
 	github.com/ultraware/funlen v0.0.2 // indirect
 	github.com/urfave/cli v1.22.2 // indirect
+	go.uber.org/atomic v1.6.0
 	go.uber.org/zap v1.13.0
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f
 	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
