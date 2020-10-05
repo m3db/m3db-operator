@@ -57,6 +57,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber-go/tally"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -783,4 +784,37 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			assert.True(t, done, "expected all sets to be updated")
 		})
 	}
+}
+
+func TestHandleUpdateClusterFrozen(t *testing.T) {
+
+	var (
+		clusterMeta = newMeta("cluster1", map[string]string{
+			"foo":                      "bar",
+			"operator.m3db.io/app":     "m3db",
+			"operator.m3db.io/cluster": "cluster1",
+		}, nil)
+		sets = []*metav1.ObjectMeta{
+			newMeta("cluster1-rep0", nil, nil),
+		}
+	)
+	cluster, deps := setupTestCluster(t, *clusterMeta, sets, 3)
+	defer deps.cleanup()
+	controller := deps.newController(t)
+
+	cluster.Spec.Frozen = true
+
+	count := atomic.NewInt64(0)
+	controller.kubeClient.(*kubefake.Clientset).PrependReactor(
+		"*", "*", func(action ktesting.Action) (bool, runtime.Object, error) {
+			count.Inc()
+			return false, nil, nil
+		})
+
+	for i := 0; i < 20; i++ {
+		err := controller.handleClusterUpdate(cluster)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, int64(0), count.Load())
 }
