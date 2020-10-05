@@ -617,6 +617,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"frozen": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Frozen is used to stop the operator from taking any further actions on a cluster. This is useful when troubleshooting as it guarantees the operator won't make any changes to the cluster.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},
