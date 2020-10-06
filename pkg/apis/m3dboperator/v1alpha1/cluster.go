@@ -324,7 +324,8 @@ type ClusterSpec struct {
 // Setup this db cluster, but do not assume a co-located coordinator. Instead
 // provide a selector here so we can point to a separate coordinator service.
 type ExternalCoordinatorConfig struct {
-	Selector map[string]string `json:"selector,omityempty"`
+	Selector        map[string]string `json:"selector,omityempty"`
+	ServiceEndpoint string            `json:"serviceEndpoint,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of

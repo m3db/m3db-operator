@@ -80,6 +80,7 @@ ExternalCoordinatorConfig defines parameters for using an external coordinator t
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | selector |  | map[string]string | true |
+| serviceEndpoint |  | string | false |
 
 [Back to TOC](#table-of-contents)
 

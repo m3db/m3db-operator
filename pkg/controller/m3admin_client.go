@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sync"
 
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops"
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -36,8 +37,6 @@ import (
 	"github.com/m3db/m3/src/msg/generated/proto/topicpb"
 	m3topic "github.com/m3db/m3/src/msg/topic"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"go.uber.org/zap"
 )
@@ -54,8 +53,8 @@ type multiAdminClient struct {
 	plClientFn func(...placement.Option) (placement.Client, error)
 	tpClientFn func(...topic.Option) (topic.Client, error)
 
-	clusterKeyFn func(metav1.ObjectMetaAccessor, string) string
-	clusterURLFn func(metav1.ObjectMetaAccessor) string
+	clusterKeyFn func(*myspec.M3DBCluster, string) string
+	clusterURLFn func(*myspec.M3DBCluster) string
 
 	adminClientFn func(...m3admin.Option) m3admin.Client
 	adminOpts     []m3admin.Option
@@ -63,17 +62,19 @@ type multiAdminClient struct {
 }
 
 // clusterKey returns a map key for a given cluster.
-func clusterKey(obj metav1.ObjectMetaAccessor, url string) string {
-	m := obj.GetObjectMeta()
-	return m.GetNamespace() + "/" + m.GetName() + "/" + url
+func clusterKey(cluster *myspec.M3DBCluster, url string) string {
+	return cluster.Namespace + "/" + cluster.Name + "/" + url
 }
 
 // clusterURL returns the URL to hit
-func clusterURL(cluster metav1.ObjectMetaAccessor) string {
-	m := cluster.GetObjectMeta()
-	serviceName := m3db.CoordinatorServiceName(m.GetName())
+func clusterURL(cluster *myspec.M3DBCluster) string {
+	if cluster.Spec.ExternalCoordinator != nil && cluster.Spec.ExternalCoordinator.ServiceEndpoint != "" {
+		return "http://" + cluster.Spec.ExternalCoordinator.ServiceEndpoint
+	}
+
+	serviceName := m3db.CoordinatorServiceName(cluster.Name)
 	urlFmt := "http://%s.%s:%d"
-	url := fmt.Sprintf(urlFmt, serviceName, m.GetNamespace(), m3db.PortM3Coordinator)
+	url := fmt.Sprintf(urlFmt, serviceName, cluster.Namespace, m3db.PortM3Coordinator)
 	return url
 }
 
@@ -83,11 +84,10 @@ func newAdminClient(opts ...m3admin.Option) m3admin.Client {
 
 // clusterURLProxy returns a URL for communicating with a cluster via an
 // intermediary kubectl proxy.
-func clusterURLProxy(cluster metav1.ObjectMetaAccessor) string {
-	m := cluster.GetObjectMeta()
-	serviceName := m3db.CoordinatorServiceName(m.GetName())
+func clusterURLProxy(cluster *myspec.M3DBCluster) string {
+	serviceName := m3db.CoordinatorServiceName(cluster.Name)
 	urlFmt := "http://localhost:8001/api/v1/namespaces/%s/services/%s:coordinator/proxy"
-	url := fmt.Sprintf(urlFmt, m.GetNamespace(), serviceName)
+	url := fmt.Sprintf(urlFmt, cluster.Namespace, serviceName)
 	return url
 }
 
@@ -107,13 +107,13 @@ func newMultiAdminClient(adminOpts []m3admin.Option, logger *zap.Logger) *multiA
 	}
 }
 
-func (m *multiAdminClient) adminClientForCluster(cluster metav1.ObjectMetaAccessor) m3admin.Client {
+func (m *multiAdminClient) adminClientForCluster(cluster *myspec.M3DBCluster) m3admin.Client {
 	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
 	opts := append(m.adminOpts, m3admin.WithEnvironment(env))
 	return m.adminClientFn(opts...)
 }
 
-func (m *multiAdminClient) namespaceClientForCluster(cluster metav1.ObjectMetaAccessor) namespace.Client {
+func (m *multiAdminClient) namespaceClientForCluster(cluster *myspec.M3DBCluster) namespace.Client {
 	url := m.clusterURLFn(cluster)
 	key := m.clusterKeyFn(cluster, url)
 
@@ -147,7 +147,7 @@ func (m *multiAdminClient) namespaceClientForCluster(cluster metav1.ObjectMetaAc
 	return client
 }
 
-func (m *multiAdminClient) placementClientForCluster(cluster metav1.ObjectMetaAccessor) placement.Client {
+func (m *multiAdminClient) placementClientForCluster(cluster *myspec.M3DBCluster) placement.Client {
 	url := m.clusterURLFn(cluster)
 	key := m.clusterKeyFn(cluster, url)
 
@@ -180,7 +180,7 @@ func (m *multiAdminClient) placementClientForCluster(cluster metav1.ObjectMetaAc
 	return client
 }
 
-func (m *multiAdminClient) topicClientForCluster(cluster metav1.ObjectMetaAccessor) topic.Client {
+func (m *multiAdminClient) topicClientForCluster(cluster *myspec.M3DBCluster) topic.Client {
 	url := m.clusterURLFn(cluster)
 	key := m.clusterKeyFn(cluster, url)
 

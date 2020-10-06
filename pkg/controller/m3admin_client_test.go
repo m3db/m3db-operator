@@ -42,10 +42,10 @@ import (
 
 func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
 	m := newMultiAdminClient(nil, zap.NewNop())
-	m.clusterKeyFn = func(cl metav1.ObjectMetaAccessor, url string) string {
+	m.clusterKeyFn = func(cl *myspec.M3DBCluster, url string) string {
 		return cl.GetObjectMeta().GetName()
 	}
-	m.clusterURLFn = func(metav1.ObjectMetaAccessor) string {
+	m.clusterURLFn = func(*myspec.M3DBCluster) string {
 		return url
 	}
 	m.adminClientFn = func(...m3admin.Option) m3admin.Client {
@@ -65,6 +65,12 @@ func TestClusterURL(t *testing.T) {
 	cluster.Namespace = "foo"
 	url := clusterURL(cluster)
 	assert.Equal(t, "http://m3coordinator-a.foo:7201", url)
+
+	cluster.Spec.ExternalCoordinator = &myspec.ExternalCoordinatorConfig{
+		ServiceEndpoint: "my-custom-coordinator.other-namespace:1234",
+	}
+	url = clusterURL(cluster)
+	assert.Equal(t, "http://my-custom-coordinator.other-namespace:1234", url)
 }
 
 func TestClusterURLProxy(t *testing.T) {
