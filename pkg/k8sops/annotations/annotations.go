@@ -34,6 +34,12 @@ const (
 	AppM3DB = labels.AppM3DB
 	// Cluster is the label identifying what m3db cluster an object is a part of.
 	Cluster = labels.Cluster
+	// Update is the annotation used by the operator to determine if a StatefulSet is
+	// allowed to be updated.
+	Update = "operator.m3db.io/update"
+
+	// EnabledVal is the value that indicates an annotation is enabled.
+	EnabledVal = "enabled"
 )
 
 // BaseAnnotations returns the base annotations we apply to all objects

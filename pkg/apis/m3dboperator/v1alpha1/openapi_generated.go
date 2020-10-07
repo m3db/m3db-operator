@@ -605,7 +605,7 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 					},
 					"parallelPodManagement": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL flag and subject to deprecation in a future release. This has not been tested in production and users should not depend on it without validating it for their own use case.",
+							Description: "ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. If nil, this will default to true.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -614,6 +614,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "To use a non-default service account, specify the name here otherwise the service account \"default\" will be used. This is useful for advanced use-cases such as pod security policies. The service account must exist. This operator will not create it.",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"frozen": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Frozen is used to stop the operator from taking any further actions on a cluster. This is useful when troubleshooting as it guarantees the operator won't make any changes to the cluster.",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

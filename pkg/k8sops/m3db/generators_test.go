@@ -137,7 +137,8 @@ func TestGenerateStatefulSet(t *testing.T) {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
-			Replicas: instanceAmount,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
+			Replicas:            instanceAmount,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,
@@ -492,16 +493,17 @@ func TestGenerateStatefulSet(t *testing.T) {
 
 	// Test PodManagement
 	fixture = getFixture("testM3DBCluster.yaml", t)
-	fixture.Spec.ParallelPodManagement = true
+	fixture.Spec.ParallelPodManagement = pointer.BoolPtr(false)
 
 	ss = baseSS.DeepCopy()
-	ss.Spec.PodManagementPolicy = "Parallel"
+	ss.Spec.PodManagementPolicy = ""
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
 	if !assert.Equal(t, ss, newSS) {
 		diff, _ := messagediff.PrettyDiff(ss, newSS)
 		t.Log(diff)
+		t.Log(fixture.Spec.ParallelPodManagement)
 	}
 }
 

@@ -67,8 +67,9 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | initContainers | Custom setup for db nodes can be done via initContainers Provide the complete spec for the initContainer here If any storage volumes are needed in the initContainer see InitVolumes below | []corev1.Container | false |
 | initVolumes | If the InitContainers require any storage volumes Provide the complete specification for the required Volumes here | []corev1.Volume | false |
 | podMetadata | PodMetadata is for any Metadata that is unique to the pods, and does not belong on any other objects, such as Prometheus scrape tags | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#objectmeta-v1-meta) | false |
-| parallelPodManagement | ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL flag and subject to deprecation in a future release. This has not been tested in production and users should not depend on it without validating it for their own use case. | bool | true |
+| parallelPodManagement | ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. If nil, this will default to true. | *bool | true |
 | serviceAccountName | To use a non-default service account, specify the name here otherwise the service account \"default\" will be used. This is useful for advanced use-cases such as pod security policies. The service account must exist. This operator will not create it. | string | false |
+| frozen | Frozen is used to stop the operator from taking any further actions on a cluster. This is useful when troubleshooting as it guarantees the operator won't make any changes to the cluster. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
