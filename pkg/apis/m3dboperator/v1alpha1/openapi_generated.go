@@ -605,7 +605,7 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 					},
 					"parallelPodManagement": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL flag and subject to deprecation in a future release. This has not been tested in production and users should not depend on it without validating it for their own use case.",
+							Description: "ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. If nil, this will default to true.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

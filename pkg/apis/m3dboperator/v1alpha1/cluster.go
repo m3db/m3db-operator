@@ -295,11 +295,9 @@ type ClusterSpec struct {
 	PodMetadata metav1.ObjectMeta `json:"podMetadata,omitempty"`
 
 	// ParallelPodManagement sets StatefulSets created by the operator to have
-	// Parallel pod management instead of OrderedReady. This is an EXPERIMENTAL
-	// flag and subject to deprecation in a future release. This has not been
-	// tested in production and users should not depend on it without validating
-	// it for their own use case.
-	ParallelPodManagement bool `json:"parallelPodManagement,omitEmpty"`
+	// Parallel pod management instead of OrderedReady. If nil, this will default
+	// to true.
+	ParallelPodManagement *bool `json:"parallelPodManagement,omitEmpty"`
 
 	// To use a non-default service account, specify the name here otherwise the
 	// service account "default" will be used. This is useful for advanced

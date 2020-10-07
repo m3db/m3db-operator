@@ -151,6 +151,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		}
 	}
 	in.PodMetadata.DeepCopyInto(&out.PodMetadata)
+	if in.ParallelPodManagement != nil {
+		in, out := &in.ParallelPodManagement, &out.ParallelPodManagement
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

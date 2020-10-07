@@ -27,10 +27,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/utils/pointer"
 	"github.com/rakyll/statik/fs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/pointer"
 )
 
 func registerValidConfigMap(content string) error {
