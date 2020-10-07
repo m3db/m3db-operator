@@ -304,6 +304,12 @@ type ClusterSpec struct {
 	// use-cases such as pod security policies. The service account must exist.
 	// This operator will not create it.
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// Frozen is used to stop the operator from taking any further actions on a
+	// cluster. This is useful when troubleshooting as it guarantees the operator
+	// won't make any changes to the cluster.
+	// +optional
+	Frozen bool `json:"frozen,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external

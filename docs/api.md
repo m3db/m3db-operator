@@ -69,6 +69,7 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | podMetadata | PodMetadata is for any Metadata that is unique to the pods, and does not belong on any other objects, such as Prometheus scrape tags | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#objectmeta-v1-meta) | false |
 | parallelPodManagement | ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. If nil, this will default to true. | *bool | true |
 | serviceAccountName | To use a non-default service account, specify the name here otherwise the service account \"default\" will be used. This is useful for advanced use-cases such as pod security policies. The service account must exist. This operator will not create it. | string | false |
+| frozen | Frozen is used to stop the operator from taking any further actions on a cluster. This is useful when troubleshooting as it guarantees the operator won't make any changes to the cluster. | bool | false |
 
 [Back to TOC](#table-of-contents)
 

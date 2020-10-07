@@ -15,6 +15,7 @@ For more background on the M3DB operator, see our [KubeCon keynote][keynote] on 
 The M3DB operator aims to automate everyday tasks around managing M3DB. Specifically, it aims to automate:
 
 - Creating M3DB clusters
+- Updating M3DB clusters
 - Destroying M3DB clusters
 - Expanding clusters (adding instances)
 - Shrinking clusters (removing instances)
