@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.10.0
+
+0.10.0 adds initial support for safe, graceful cluster upgrades. See [the upgrade
+docs](https://operator.m3db.io/getting_started/update_cluster/) for more info. This release also documentation
+enhancements, and introduces a new `freeze` field on clusters, allowing a user to stop all operations on a cluster while
+potentially performing manual changes. Finally, the `coldWritesEnabled` field is now supported on namespaces to allow
+enabling M3DB cold writes.
+
+### Breaking Changes
+
+0.10.0 makes the default pod management policy for StatefulSets created by the operator
+[`Parallel`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies). This
+should be transparent to most users, but means that when new pods are added to a cluster, or pods are manually deleted,
+they will all be recreated at once rather than after each has bootstrapped. This should lead to faster upgrades and
+cluster resizing operations.
+
+* [FEATURE] Add the `coldWritesEnabled` option to Namespace options ([#233][233])
+* [ENHANCEMENT] Default Parallel pod management ([#230][230])
+* [FEATURE] Add frozen field to cluster spec that will suspend changes ([#241][241])
+* [DOCS] Add documentation on updating a cluster ([#240][240])
+* [ENHANCEMENT] Always remove update annotation after processing StatefulSet ([#237][237])
+* [ENHANCEMENT] Ignore replicas when checking for an update ([#238][238])
+* [MISC] Create constant for annotation value indicating enabled ([#239][239])
+* [MISC] Implement placement Set API ([#234][234])
+* [FEATURE] Add logic to update StatefulSets ([#236][236])
+* [MISC] Fix bug in TestHandleUpdateClusterCreatesStatefulSets ([#235][235])
+* [DOCS] Update helm install docs ([#231][231])
+
 ## 0.9.0
 
 0.9.0 includes support for attaching a custom Kubernetes service account to M3DB pods (enabling use of
@@ -233,3 +261,14 @@ If using a custom configmap, this same change will require a modification to you
 [222]: https://github.com/m3db/m3db-operator/pull/222
 [225]: https://github.com/m3db/m3db-operator/pull/225
 [227]: https://github.com/m3db/m3db-operator/pull/227
+[231]: https://github.com/m3db/m3db-operator/pull/231
+[234]: https://github.com/m3db/m3db-operator/pull/234
+[235]: https://github.com/m3db/m3db-operator/pull/235
+[236]: https://github.com/m3db/m3db-operator/pull/236
+[237]: https://github.com/m3db/m3db-operator/pull/237
+[238]: https://github.com/m3db/m3db-operator/pull/238
+[239]: https://github.com/m3db/m3db-operator/pull/239
+[240]: https://github.com/m3db/m3db-operator/pull/240
+[241]: https://github.com/m3db/m3db-operator/pull/241
+[230]: https://github.com/m3db/m3db-operator/pull/230
+[233]: https://github.com/m3db/m3db-operator/pull/233

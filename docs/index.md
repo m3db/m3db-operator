@@ -5,8 +5,8 @@
 Welcome to the documentation for the M3DB operator, a [Kubernetes operator][operators] for running the open-source
 timeseries database [M3DB][m3db] on Kubernetes.
 
-Please note that this is **alpha software**, and as such its APIs and behavior are subject to breaking changes. While we
-aim to produce thoroughly tested reliable software there may be undiscovered bugs.
+Please note that the CRDs provided by the operator are still subject to breaking changes, but we will provide clear
+notices in the Changelog and a clear migration path for any such changes.
 
 For more background on the M3DB operator, see our [KubeCon keynote][keynote] on its origins and usage at Uber.
 
