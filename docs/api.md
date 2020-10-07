@@ -181,6 +181,7 @@ NamespaceOptions defines parameters for an M3DB namespace. See https://m3db.gith
 | snapshotEnabled | SnapshotEnabled controls whether snapshotting is enabled. | bool | false |
 | retentionOptions | RetentionOptions sets the retention parameters. | [RetentionOptions](#retentionoptions) | false |
 | indexOptions | IndexOptions sets the indexing parameters. | [IndexOptions](#indexoptions) | false |
+| coldWritesEnabled | ColdWritesEnabled controls whether cold writes are enabled. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
