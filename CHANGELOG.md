@@ -3,10 +3,21 @@
 ## 0.10.0
 
 0.10.0 adds initial support for safe, graceful cluster upgrades. See [the upgrade
-docs](https://operator.m3db.io/getting_started/update_cluster/) for more info. This release also documentation
-enhancements, and introduces a new `freeze` field on clusters, allowing a user to stop all operations on a cluster while
-potentially performing manual changes. Finally, the `coldWritesEnabled` field is now supported on namespaces to allow
-enabling M3DB cold writes.
+docs](https://operator.m3db.io/getting_started/update_cluster/) for more info.
+
+This release also documentation enhancements, and adds the `coldWritesEnabled` field  on namespaces to allow enabling
+M3DB cold writes.
+
+Finally, this release includes two new API fields to make it easier for users to manage their clusters:
+
+1. A new `freeze` field on clusters allows a user to stop all operations on a cluster while potentially performing
+   manual changes.
+
+2. The new `externalCoordinator.serviceEndpoint` field allows controlling the cluster via a coordinator in another
+   namespace, allowing users to have a single coordinator responsible for serving m3admin APIs for all clusters across
+   any namespace.
+   - **WARNING**: The minumum required M3 version to use with this field is `v0.15.9`, which includes a fix for managing
+     namespaces in environments other than that for which the coordinator is provisioned.
 
 ### Breaking Changes
 
@@ -16,6 +27,7 @@ should be transparent to most users, but means that when new pods are added to a
 they will all be recreated at once rather than after each has bootstrapped. This should lead to faster upgrades and
 cluster resizing operations.
 
+* [FEATURE] Allow setting static external coordinator ([#242][242])
 * [FEATURE] Add the `coldWritesEnabled` option to Namespace options ([#233][233])
 * [ENHANCEMENT] Default Parallel pod management ([#230][230])
 * [FEATURE] Add frozen field to cluster spec that will suspend changes ([#241][241])
@@ -272,3 +284,4 @@ If using a custom configmap, this same change will require a modification to you
 [241]: https://github.com/m3db/m3db-operator/pull/241
 [230]: https://github.com/m3db/m3db-operator/pull/230
 [233]: https://github.com/m3db/m3db-operator/pull/233
+[242]: https://github.com/m3db/m3db-operator/pull/242
