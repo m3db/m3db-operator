@@ -5,8 +5,8 @@
 0.10.0 adds initial support for safe, graceful cluster upgrades. See [the upgrade
 docs](https://operator.m3db.io/getting_started/update_cluster/) for more info.
 
-This release also documentation enhancements, and adds the `coldWritesEnabled` field  on namespaces to allow enabling
-M3DB cold writes.
+This release also includes documentation enhancements, and adds the `coldWritesEnabled` field  on namespaces to allow
+enabling M3DB cold writes.
 
 Finally, this release includes two new API fields to make it easier for users to manage their clusters:
 
