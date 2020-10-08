@@ -27,6 +27,8 @@ should be transparent to most users, but means that when new pods are added to a
 they will all be recreated at once rather than after each has bootstrapped. This should lead to faster upgrades and
 cluster resizing operations.
 
+Change set:
+
 * [FEATURE] Allow setting static external coordinator ([#242][242])
 * [FEATURE] Add the `coldWritesEnabled` option to Namespace options ([#233][233])
 * [ENHANCEMENT] Default Parallel pod management ([#230][230])
