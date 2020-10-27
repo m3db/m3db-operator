@@ -33,4 +33,6 @@ type Client interface {
 	List() (*admin.NamespaceGetResponse, error)
 	// Delete will delete a namespace given a name
 	Delete(namespace string) error
+	// Ready will attempt to mark a namespace as ready.
+	Ready(request *admin.NamespaceReadyRequest) error
 }
