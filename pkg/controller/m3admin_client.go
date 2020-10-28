@@ -237,6 +237,10 @@ func (c errorNamespaceClient) Delete(namespace string) error {
 	return c.err
 }
 
+func (c errorNamespaceClient) Ready(_ *admin.NamespaceReadyRequest) error {
+	return c.err
+}
+
 // errorPlacementClient follows the same pattern of errorNamespaceClient for
 // placement.Client.
 type errorPlacementClient struct {

@@ -149,6 +149,10 @@ func TestClient_DoHTTPRequest_Err(t *testing.T) {
 			expErr: ErrNotFound,
 		},
 		{
+			code:   405,
+			expErr: ErrMethodNotAllowed,
+		},
+		{
 			code:   500,
 			expErr: ErrNotOk,
 		},

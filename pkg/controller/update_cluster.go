@@ -73,7 +73,11 @@ func (c *M3DBController) reconcileNamespaces(cluster *myspec.M3DBCluster) error 
 		return err
 	}
 
-	return c.createNamespaces(cluster, resp.Registry)
+	if err := c.createNamespaces(cluster, resp.Registry); err != nil {
+		return err
+	}
+
+	return c.readyNamespaces(cluster, resp.Registry)
 }
 
 // createNamespaces will attempt to create in the cluster all namespaces which
@@ -105,6 +109,43 @@ func (c *M3DBController) createNamespaces(cluster *myspec.M3DBCluster, registry 
 	return nil
 }
 
+// readyNamespaces will attempt to mark all namespaces in the initializing state as ready.
+func (c *M3DBController) readyNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
+	// NB(nate): Marking namespaces ready (without force) involves checking dbnodes for namespace
+	// availability. External coordinators do not have connections to dbnodes so don't attempt this
+	// step for now.
+	if cluster.Spec.ExternalCoordinator != nil {
+		c.logger.Debug("using an external coordinator. will not attempt to ready namespaces")
+		return nil
+	}
+
+	toReady := namespacesToReady(registry, cluster.Spec.Namespaces)
+	for _, ns := range toReady {
+		req := &admin.NamespaceReadyRequest{
+			Name: ns.Name,
+		}
+		err := c.adminClient.namespaceClientForCluster(cluster).Ready(req)
+		cause := pkgerrors.Cause(err)
+		// NB(nate): Due to bug in coordinator API routing logic, missing routes may
+		// also be returned as 405s (i.e. method not allowed). So check for that in addition
+		// to 404s.
+		if cause == m3admin.ErrNotFound || cause == m3admin.ErrMethodNotAllowed {
+			c.logger.Info("coordinator does not yet support the ready endpoint. " +
+				"skipping readying namespaces until upgraded")
+			return nil
+		}
+		if err != nil {
+			c.logger.Error("error readying namespace",
+				zap.String("namespace", ns.Name),
+				zap.Error(err))
+
+			return fmt.Errorf("error readying namespace '%s': %v", ns.Name, err)
+		}
+	}
+
+	return nil
+}
+
 // pruneNamespaces will delete any namespaces in the m3db cluster that aren't
 // in the spec.
 func (c *M3DBController) pruneNamespaces(cluster *myspec.M3DBCluster, registry *dbns.Registry) error {
@@ -116,6 +157,8 @@ func (c *M3DBController) pruneNamespaces(cluster *myspec.M3DBCluster, registry *
 			c.recorder.NormalEvent(cluster, eventer.ReasonDeleting, "deleted namespace "+ns)
 			continue
 		}
+		// TODO(nate): Set the StagingStatus to initializing here once we're guaranteed that each
+		// coordinator can support receiving the JSON field.
 
 		if pkgerrors.Cause(err) == m3admin.ErrNotFound {
 			c.logger.Info("namespace has already been deleted", zap.String("namespace", ns))
@@ -156,6 +199,30 @@ func namespacesToDelete(registry *dbns.Registry, specNs []myspec.Namespace) (toD
 		if _, ok := inSpec[ns]; !ok {
 			toDelete = append(toDelete, ns)
 		}
+	}
+
+	return
+}
+
+// namespacesToReady returns an array of namespaces that are in the initializing state.
+func namespacesToReady(registry *dbns.Registry, specNs []myspec.Namespace) (toReady []myspec.Namespace) {
+	namespacesToReady := make(map[string]myspec.Namespace)
+	// Add namespaces we've just created.
+	for _, ns := range specNs {
+		if _, ok := registry.Namespaces[ns.Name]; !ok {
+			namespacesToReady[ns.Name] = ns
+		}
+	}
+
+	// Add any existing namespaces we've found not in the ready state.
+	for name, options := range registry.Namespaces {
+		if options.StagingState != nil && options.StagingState.Status != dbns.StagingStatus_READY {
+			namespacesToReady[name] = myspec.Namespace{Name: name}
+		}
+	}
+
+	for _, ns := range namespacesToReady {
+		toReady = append(toReady, ns)
 	}
 
 	return

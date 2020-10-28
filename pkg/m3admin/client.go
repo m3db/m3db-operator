@@ -46,6 +46,9 @@ var (
 
 	// ErrNotFound indicates that HTTP status was not found
 	ErrNotFound = errors.New("status not found")
+
+	// ErrMethodNotAllowed indicates that HTTP status was method not allowed
+	ErrMethodNotAllowed = errors.New("method not allowed")
 )
 
 // Client is an m3admin client.
@@ -174,6 +177,10 @@ func (c *client) DoHTTPRequest(
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, pkgerrors.WithMessage(ErrNotFound, errMsg)
+	}
+
+	if response.StatusCode == http.StatusMethodNotAllowed {
+		return nil, pkgerrors.WithMessage(ErrMethodNotAllowed, errMsg)
 	}
 
 	return nil, pkgerrors.WithMessage(ErrNotOk, errMsg)

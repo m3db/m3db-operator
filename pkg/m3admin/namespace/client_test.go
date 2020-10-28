@@ -158,3 +158,17 @@ func TestDeleteErr(t *testing.T) {
 	err := client.Delete("default")
 	require.NotNil(t, err)
 }
+
+func TestReady(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(`{"ready":true}`))
+	}))
+	defer s.Close()
+	client := newNamespaceClient(t, s.URL)
+
+	err := client.Ready(&admin.NamespaceReadyRequest{
+		Name: "foo",
+	})
+	require.NoError(t, err)
+}
