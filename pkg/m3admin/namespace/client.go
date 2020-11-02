@@ -34,10 +34,9 @@ import (
 )
 
 const (
-	namespaceLegacyBaseURL = "/api/v1/namespace"
-	namespaceBaseURL       = "/api/v1/services/m3db/namespace"
-	namespaceDeleteFmt     = namespaceLegacyBaseURL + "/%s"
-	namespaceReadyURL      = namespaceBaseURL + "/ready"
+	namespaceBaseURL   = "/api/v1/services/m3db/namespace"
+	namespaceDeleteFmt = namespaceBaseURL + "/%s"
+	namespaceReadyURL  = namespaceBaseURL + "/ready"
 )
 
 type namespaceClient struct {
@@ -102,7 +101,7 @@ func NewClient(opts ...Option) (Client, error) {
 
 // Create will create a namespace
 func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
-	url := n.url + namespaceLegacyBaseURL
+	url := n.url + namespaceBaseURL
 	err := n.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 	if err != nil {
 		return err
@@ -114,7 +113,7 @@ func (n *namespaceClient) Create(req *admin.NamespaceAddRequest) error {
 // List will retrieve all namespaces
 func (n *namespaceClient) List() (*admin.NamespaceGetResponse, error) {
 	var (
-		url  = n.url + namespaceLegacyBaseURL
+		url  = n.url + namespaceBaseURL
 		resp = &admin.NamespaceGetResponse{}
 	)
 	err := n.client.DoHTTPJSONPBRequest(http.MethodGet, url, nil, resp)
