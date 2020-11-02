@@ -12,6 +12,10 @@ This document enumerates the Custom Resource Definitions used by the M3DB Operat
 * [M3DBClusterList](#m3dbclusterlist)
 * [M3DBStatus](#m3dbstatus)
 * [NodeAffinityTerm](#nodeaffinityterm)
+* [AggregatedAttributes](#aggregatedattributes)
+* [Aggregation](#aggregation)
+* [AggregationOptions](#aggregationoptions)
+* [DownsampleOptions](#downsampleoptions)
 * [IndexOptions](#indexoptions)
 * [Namespace](#namespace)
 * [NamespaceOptions](#namespaceoptions)
@@ -145,6 +149,48 @@ NodeAffinityTerm represents a node label and a set of label values, any of which
 
 [Back to TOC](#table-of-contents)
 
+## AggregatedAttributes
+
+AggregatedAttributes are attributes specifying how data points are aggregated.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| resolution | Resolution is the time range to aggregate data across. | string | false |
+| downsampleOptions | DownsampleOptions stores options for downsampling data points. | *[DownsampleOptions](#downsampleoptions) | false |
+
+[Back to TOC](#table-of-contents)
+
+## Aggregation
+
+Aggregation describes data points within a namespace.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| aggregated | Aggregated indicates whether data points are aggregated or not. | bool | false |
+| attributes | Attributes defines how data is aggregated when Aggregated is set to true. This field is ignored when aggregated is false. | [AggregatedAttributes](#aggregatedattributes) | false |
+
+[Back to TOC](#table-of-contents)
+
+## AggregationOptions
+
+AggregationOptions is a set of options for aggregating data within the namespace.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| aggregations | Aggregations are the aggregations for a namespace. | [][Aggregation](#aggregation) | false |
+
+[Back to TOC](#table-of-contents)
+
+## DownsampleOptions
+
+DownsampleOptions is a set of options related to downsampling data.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| all | All indicates whether to send data points to this namespace. If set to false, this namespace will not receive data points. In this case, data will need to be sent to the namespace via another mechanism (e.g. rollup/recording rules). | bool | false |
+
+[Back to TOC](#table-of-contents)
+
 ## IndexOptions
 
 IndexOptions defines parameters for indexing.
@@ -183,6 +229,7 @@ NamespaceOptions defines parameters for an M3DB namespace. See https://m3db.gith
 | retentionOptions | RetentionOptions sets the retention parameters. | [RetentionOptions](#retentionoptions) | false |
 | indexOptions | IndexOptions sets the indexing parameters. | [IndexOptions](#indexoptions) | false |
 | coldWritesEnabled | ColdWritesEnabled controls whether cold writes are enabled. | bool | false |
+| aggregationOptions | AggregationOptions sets the aggregation parameters. | [AggregationOptions](#aggregationoptions) | false |
 
 [Back to TOC](#table-of-contents)
 
