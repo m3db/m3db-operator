@@ -79,6 +79,11 @@ func TestRequestFromSpec(t *testing.T) {
 						BlockSize: "1s",
 						Enabled:   true,
 					},
+					AggregationOptions: myspec.AggregationOptions{
+						Aggregations: []myspec.Aggregation{
+							{Aggregated: false},
+						},
+					},
 				},
 			},
 			req: &admin.NamespaceAddRequest{
@@ -96,6 +101,70 @@ func TestRequestFromSpec(t *testing.T) {
 					IndexOptions: &m3ns.IndexOptions{
 						BlockSizeNanos: 1000000000,
 						Enabled:        true,
+					},
+					AggregationOptions: &m3ns.AggregationOptions{
+						Aggregations: []*m3ns.Aggregation{
+							{Aggregated: false},
+						},
+					},
+				},
+			},
+		},
+		{
+			ns: myspec.Namespace{
+				Name: "aggregated",
+				Options: &myspec.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: myspec.RetentionOptions{
+						RetentionPeriod:                     "1s",
+						BlockSize:                           "1s",
+						BufferFuture:                        "1s",
+						BufferPast:                          "1s",
+						BlockDataExpiry:                     true,
+						BlockDataExpiryAfterNotAccessPeriod: "1s",
+					},
+					IndexOptions: myspec.IndexOptions{
+						BlockSize: "1s",
+						Enabled:   true,
+					},
+					AggregationOptions: myspec.AggregationOptions{
+						Aggregations: []myspec.Aggregation{
+							{
+								Aggregated: true,
+								Attributes: myspec.AggregatedAttributes{
+									Resolution: "1s",
+								},
+							},
+						},
+					},
+				},
+			},
+			req: &admin.NamespaceAddRequest{
+				Name: "aggregated",
+				Options: &m3ns.NamespaceOptions{
+					BootstrapEnabled: true,
+					RetentionOptions: &m3ns.RetentionOptions{
+						RetentionPeriodNanos:                     1000000000,
+						BlockSizeNanos:                           1000000000,
+						BufferFutureNanos:                        1000000000,
+						BufferPastNanos:                          1000000000,
+						BlockDataExpiry:                          true,
+						BlockDataExpiryAfterNotAccessPeriodNanos: 1000000000,
+					},
+					IndexOptions: &m3ns.IndexOptions{
+						BlockSizeNanos: 1000000000,
+						Enabled:        true,
+					},
+					AggregationOptions: &m3ns.AggregationOptions{
+						Aggregations: []*m3ns.Aggregation{
+							{
+								Aggregated: true,
+								Attributes: &m3ns.AggregatedAttributes{
+									ResolutionNanos:   1000000000,
+									DownsampleOptions: &m3ns.DownsampleOptions{All: true},
+								},
+							},
+						},
 					},
 				},
 			},

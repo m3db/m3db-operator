@@ -62,6 +62,16 @@ var (
 			BlockSize: (2 * time.Hour).String(),
 		},
 		ColdWritesEnabled: false,
+		AggregationOptions: myspec.AggregationOptions{
+			Aggregations: []myspec.Aggregation{
+				{
+					Aggregated: true,
+					Attributes: myspec.AggregatedAttributes{
+						Resolution: (10 * time.Second).String(),
+					},
+				},
+			},
+		},
 	}
 
 	presetOneMinuteFourtyDaysIndexed = myspec.NamespaceOptions{
@@ -84,5 +94,15 @@ var (
 			BlockSize: (24 * time.Hour).String(),
 		},
 		ColdWritesEnabled: false,
+		AggregationOptions: myspec.AggregationOptions{
+			Aggregations: []myspec.Aggregation{
+				{
+					Aggregated: true,
+					Attributes: myspec.AggregatedAttributes{
+						Resolution: (1 * time.Minute).String(),
+					},
+				},
+			},
+		},
 	}
 )

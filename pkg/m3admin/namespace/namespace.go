@@ -90,16 +90,22 @@ func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOp
 		return nil, err
 	}
 
+	aggOpts, err := m3dbAggregationOptsFromSpec(opts.AggregationOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &m3ns.NamespaceOptions{
-		BootstrapEnabled:  opts.BootstrapEnabled,
-		FlushEnabled:      opts.FlushEnabled,
-		WritesToCommitLog: opts.WritesToCommitLog,
-		CleanupEnabled:    opts.CleanupEnabled,
-		RepairEnabled:     opts.RepairEnabled,
-		RetentionOptions:  retentionOpts,
-		SnapshotEnabled:   opts.SnapshotEnabled,
-		IndexOptions:      indexOpts,
-		ColdWritesEnabled: opts.ColdWritesEnabled,
+		BootstrapEnabled:   opts.BootstrapEnabled,
+		FlushEnabled:       opts.FlushEnabled,
+		WritesToCommitLog:  opts.WritesToCommitLog,
+		CleanupEnabled:     opts.CleanupEnabled,
+		RepairEnabled:      opts.RepairEnabled,
+		RetentionOptions:   retentionOpts,
+		SnapshotEnabled:    opts.SnapshotEnabled,
+		IndexOptions:       indexOpts,
+		ColdWritesEnabled:  opts.ColdWritesEnabled,
+		AggregationOptions: aggOpts,
 	}, nil
 }
 
@@ -149,4 +155,40 @@ func m3dbIndexOptsFromSpec(opts myspec.IndexOptions) (*m3ns.IndexOptions, error)
 		Enabled:        opts.Enabled,
 		BlockSizeNanos: blockSize.Nanoseconds(),
 	}, nil
+}
+
+func m3dbAggregationOptsFromSpec(opts myspec.AggregationOptions) (*m3ns.AggregationOptions, error) {
+	if len(opts.Aggregations) == 0 {
+		return nil, nil
+	}
+
+	aggs := make([]*m3ns.Aggregation, 0, len(opts.Aggregations))
+	for _, specAgg := range opts.Aggregations {
+		agg := &m3ns.Aggregation{Aggregated: specAgg.Aggregated}
+		if agg.Aggregated {
+			resolution, err := time.ParseDuration(specAgg.Attributes.Resolution)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse aggregation option Resolution: %w", err)
+			}
+
+			agg.Attributes = &m3ns.AggregatedAttributes{
+				ResolutionNanos: resolution.Nanoseconds(),
+			}
+
+			if specAgg.Attributes.DownsampleOptions == nil {
+				agg.Attributes.DownsampleOptions = &m3ns.DownsampleOptions{All: true}
+			} else {
+				agg.Attributes.DownsampleOptions = &m3ns.DownsampleOptions{
+					All: specAgg.Attributes.DownsampleOptions.All,
+				}
+			}
+		}
+
+		aggs = append(aggs, agg)
+	}
+
+	return &m3ns.AggregationOptions{
+		Aggregations: aggs,
+	}, nil
+
 }
