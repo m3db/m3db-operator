@@ -220,6 +220,7 @@ func TestReadyNamespacesOldCoordinator(t *testing.T) {
 
 	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
 
+	nsMock.EXPECT().Ready(namespaceMatcher{"foo"}).AnyTimes().Return(nil)
 	nsMock.EXPECT().Ready(namespaceMatcher{"metrics-10s:2d"}).Return(m3admin.ErrNotFound)
 
 	err := controller.readyNamespaces(cluster, registry)
@@ -358,7 +359,7 @@ func TestNamespacesToReady(t *testing.T) {
 
 	for _, test := range tests {
 		res := namespacesToReady(test.registry, test.namespaces)
-		assert.Equal(t, test.exp, res)
+		assert.ElementsMatch(t, test.exp, res)
 	}
 }
 
