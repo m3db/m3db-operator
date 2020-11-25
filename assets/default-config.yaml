@@ -75,7 +75,7 @@ db:
   discovery:
     config:
       service:
-        env: "{{ .Env }}"
+        env: default_env
         zone: embedded
         service: m3db
         cacheDir: /var/lib/m3kv
