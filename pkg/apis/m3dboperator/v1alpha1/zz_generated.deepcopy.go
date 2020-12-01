@@ -217,6 +217,20 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.SidecarContainers != nil {
+		in, out := &in.SidecarContainers, &out.SidecarContainers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.SidecarVolumes != nil {
+		in, out := &in.SidecarVolumes, &out.SidecarVolumes
+		*out = make([]v1.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

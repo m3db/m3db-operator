@@ -505,6 +505,25 @@ func TestGenerateStatefulSet(t *testing.T) {
 		t.Log(diff)
 		t.Log(fixture.Spec.ParallelPodManagement)
 	}
+
+	// Test sidecar containers.
+	fixture = getFixture("testM3DBCluster.yaml", t)
+	fixture.Spec.SidecarContainers = []v1.Container{
+		{
+			Name: "sidecar0",
+		},
+	}
+
+	ss = baseSS.DeepCopy()
+	sidecar := v1.Container{Name: "sidecar0"}
+	ss.Spec.Template.Spec.Containers = append(ss.Spec.Template.Spec.Containers, sidecar)
+	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
+	assert.NoError(t, err)
+	assert.NotNil(t, newSS)
+	if !assert.Equal(t, ss, newSS) {
+		diff, _ := messagediff.PrettyDiff(ss, newSS)
+		t.Log(diff)
+	}
 }
 
 func TestGenerateM3DBService(t *testing.T) {

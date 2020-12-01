@@ -74,6 +74,8 @@ ClusterSpec defines the desired state for a M3 cluster to be converge to.
 | parallelPodManagement | ParallelPodManagement sets StatefulSets created by the operator to have Parallel pod management instead of OrderedReady. If nil, this will default to true. | *bool | true |
 | serviceAccountName | To use a non-default service account, specify the name here otherwise the service account \"default\" will be used. This is useful for advanced use-cases such as pod security policies. The service account must exist. This operator will not create it. | string | false |
 | frozen | Frozen is used to stop the operator from taking any further actions on a cluster. This is useful when troubleshooting as it guarantees the operator won't make any changes to the cluster. | bool | false |
+| sidecarContainers | SidecarContainers is used to add sidecar containers to the pods that run the cluster's nodes. If any storage volumes are needed by the sidecar containers, see SidecarVolumes below. | []corev1.Container | false |
+| sidecarVolumes | SidecarVolumes is used to add any volumes that are required by sidecar containers. | []corev1.Volume | false |
 
 [Back to TOC](#table-of-contents)
 
