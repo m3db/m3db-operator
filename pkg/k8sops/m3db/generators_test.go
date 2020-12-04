@@ -506,17 +506,28 @@ func TestGenerateStatefulSet(t *testing.T) {
 		t.Log(fixture.Spec.ParallelPodManagement)
 	}
 
-	// Test sidecar containers.
+	// Test sidecar containers and volumes.
 	fixture = getFixture("testM3DBCluster.yaml", t)
 	fixture.Spec.SidecarContainers = []v1.Container{
 		{
 			Name: "sidecar0",
 		},
 	}
+	fixture.Spec.SidecarVolumes = []v1.Volume{
+		{
+			Name: "sidecar0",
+		},
+	}
 
 	ss = baseSS.DeepCopy()
-	sidecar := v1.Container{Name: "sidecar0"}
+
+	var (
+		sidecar = v1.Container{Name: "sidecar0"}
+		volume  = v1.Volume{Name: "sidecar0"}
+	)
 	ss.Spec.Template.Spec.Containers = append(ss.Spec.Template.Spec.Containers, sidecar)
+	ss.Spec.Template.Spec.Volumes = append(ss.Spec.Template.Spec.Volumes, volume)
+
 	newSS, err = GenerateStatefulSet(fixture, isolationGroup, *instanceAmount)
 	assert.NoError(t, err)
 	assert.NotNil(t, newSS)
