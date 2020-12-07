@@ -310,6 +310,15 @@ type ClusterSpec struct {
 	// won't make any changes to the cluster.
 	// +optional
 	Frozen bool `json:"frozen,omitempty"`
+
+	// SidecarContainers is used to add sidecar containers to the pods that run
+	// the cluster's nodes. If any storage volumes are needed by the sidecar
+	// containers, see SidecarVolumes below.
+	SidecarContainers []corev1.Container `json:"sidecarContainers,omitempty"`
+
+	// SidecarVolumes is used to add any volumes that are required by sidecar
+	// containers.
+	SidecarVolumes []corev1.Volume `json:"sidecarVolumes,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external

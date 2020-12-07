@@ -624,6 +624,32 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"sidecarContainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SidecarContainers is used to add sidecar containers to the pods that run the cluster's nodes. If any storage volumes are needed by the sidecar containers, see SidecarVolumes below.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.Container"),
+									},
+								},
+							},
+						},
+					},
+					"sidecarVolumes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SidecarVolumes is used to add any volumes that are required by sidecar containers.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.Volume"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},
