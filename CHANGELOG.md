@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.0
+
+0.12.0 adds support for running sidecar containers in the M3DB pods.
+
+### Breaking Changes
+
+0.12.0 updates the default configuration file for M3DB. This is a breaking
+change as the operator will not be able to create a working default
+configuration file for pre-v1.0.0 deployments of M3DB. To use the new version
+of the operator with an older version of m3db you will have to provide a custom
+ConfigMap.
+
+* [FEATURE] Support adding sidecar containers to M3DB pods. ([#253][253])
+* [ENHANCEMENT] Update default configuration file for M3DB. ([#250][250])
+
 ## 0.11.0
 
 0.11.0 ensures the operator is compatible with clusters running M3 1.0. It removes usage of M3 APIs that were deprecated
@@ -300,3 +315,5 @@ If using a custom configmap, this same change will require a modification to you
 [245]: https://github.com/m3db/m3db-operator/pull/245
 [247]: https://github.com/m3db/m3db-operator/pull/247
 [248]: https://github.com/m3db/m3db-operator/pull/248
+[250]: https://github.com/m3db/m3db-operator/pull/250
+[253]: https://github.com/m3db/m3db-operator/pull/253
