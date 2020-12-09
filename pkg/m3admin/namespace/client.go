@@ -34,8 +34,9 @@ import (
 )
 
 const (
-	namespaceBaseURL   = "/api/v1/namespace"
+	namespaceBaseURL   = "/api/v1/services/m3db/namespace"
 	namespaceDeleteFmt = namespaceBaseURL + "/%s"
+	namespaceReadyURL  = namespaceBaseURL + "/ready"
 )
 
 type namespaceClient struct {
@@ -137,5 +138,19 @@ func (n *namespaceClient) Delete(namespace string) error {
 		return err
 	}
 	n.logger.Info("successfully deleted namespace")
+	return nil
+}
+
+// Ready will mark a namespace as ready
+func (n *namespaceClient) Ready(req *admin.NamespaceReadyRequest) error {
+	var (
+		url  = n.url + namespaceReadyURL
+		resp = &admin.NamespaceReadyResponse{}
+	)
+	err := n.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, resp)
+	if err != nil {
+		return err
+	}
+	n.logger.Info("marked namespace as ready", zap.String("namespace", req.Name))
 	return nil
 }

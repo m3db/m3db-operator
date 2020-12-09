@@ -1,12 +1,12 @@
 coordinator:
-  listenAddress:
-    type: "config"
-    value: "0.0.0.0:7201"
+  listenAddress: "0.0.0.0:7201"
   local:
     namespaces:
-    - namespace: default
-      type: unaggregated
-      retention: 48h
+      - namespace: default
+        type: unaggregated
+        retention: 48h
+  logging:
+    level: info
   metrics:
     scope:
       prefix: "coordinator"
@@ -45,7 +45,6 @@ db:
       path: /etc/m3db/pod-identity/identity
       timeout: 5m
 
-
   client:
     writeConsistencyLevel: majority
     readConsistencyLevel: unstrict_majority
@@ -57,26 +56,25 @@ db:
   writeNewSeriesBackoffDuration: 2ms
 
   bootstrap:
-    bootstrappers:
-        - filesystem
-        - commitlog
-        - peers
-        - uninitialized_topology
-    fs:
-        numProcessorsPerCPU: 0.125
+    filesystem:
+      numProcessorsPerCPU: 0.125
+    # https://docs.m3db.io/operational_guide/availability_consistency_durability/
+    commitlog:
+      returnUnfulfilledForCorruptCommitLogFiles: false
 
   commitlog:
     flushMaxBytes: 524288
     flushEvery: 1s
     queue:
-        calculationType: fixed
-        size: 2097152
+      calculationType: fixed
+      size: 2097152
 
-  fs:
+  filesystem:
     filePathPrefix: /var/lib/m3db
 
-  config:
-    service:
+  discovery:
+    config:
+      service:
         env: default_env
         zone: embedded
         service: m3db

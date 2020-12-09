@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+0.11.0 ensures the operator is compatible with clusters running M3 1.0. It removes usage of M3 APIs that were deprecated
+as part of that release.
+
+* [FEATURE] Allow AggregationOptions to be set for a namespace. ([#248][248])
+* [ENHANCEMENT] Update use of now deleted namespace urls in operator ([#247][247])
+* [ENHANCEMENT] Add calls to /namespace/ready if supported by coordinator ([#245][245])
+
+
 ## 0.10.0
 
 0.10.0 adds initial support for safe, graceful cluster upgrades. See [the upgrade
@@ -287,3 +297,6 @@ If using a custom configmap, this same change will require a modification to you
 [230]: https://github.com/m3db/m3db-operator/pull/230
 [233]: https://github.com/m3db/m3db-operator/pull/233
 [242]: https://github.com/m3db/m3db-operator/pull/242
+[245]: https://github.com/m3db/m3db-operator/pull/245
+[247]: https://github.com/m3db/m3db-operator/pull/247
+[248]: https://github.com/m3db/m3db-operator/pull/248

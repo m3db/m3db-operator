@@ -205,6 +205,16 @@ func GenerateStatefulSet(
 		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, cluster.Spec.InitVolumes...)
 	}
 
+	if cluster.Spec.SidecarContainers != nil && len(cluster.Spec.SidecarContainers) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.Containers = append(statefulSet.Spec.Template.Spec.Containers, cluster.Spec.SidecarContainers...)
+	}
+
+	if cluster.Spec.SidecarVolumes != nil && len(cluster.Spec.SidecarVolumes) > 0 {
+		cluster := cluster.DeepCopy()
+		statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes, cluster.Spec.SidecarVolumes...)
+	}
+
 	return statefulSet, nil
 }
 

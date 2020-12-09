@@ -61,7 +61,17 @@ type namespaceMatcher struct {
 }
 
 func (n namespaceMatcher) Matches(x interface{}) bool {
-	return x.(*admin.NamespaceAddRequest).Name == n.name
+	addReq, ok := x.(*admin.NamespaceAddRequest)
+	if ok {
+		return addReq.Name == n.name
+	}
+
+	readyReq, ok := x.(*admin.NamespaceReadyRequest)
+	if ok {
+		return readyReq.Name == n.name
+	}
+
+	return false
 }
 
 func (namespaceMatcher) String() string {
@@ -89,6 +99,7 @@ func TestReconcileNamespaces(t *testing.T) {
 
 	nsMock.EXPECT().Delete("a").Return(nil)
 	nsMock.EXPECT().Create(namespaceMatcher{"metrics-10s:2d"}).Return(nil)
+	nsMock.EXPECT().Ready(namespaceMatcher{"metrics-10s:2d"}).Return(nil)
 
 	err := controller.reconcileNamespaces(cluster)
 	assert.NoError(t, err)
@@ -148,6 +159,71 @@ func TestCreateNamespaces(t *testing.T) {
 	nsMock.EXPECT().Create(namespaceMatcher{"foo"}).Return(nil)
 
 	err := controller.createNamespaces(cluster, registry)
+	assert.NoError(t, err)
+}
+
+func TestReadyNamespaces(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	cluster.Spec.Namespaces = append(cluster.Spec.Namespaces, myspec.Namespace{
+		Name:   "foo",
+		Preset: "10s:2d",
+	})
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	nsMock := deps.namespaceClient
+	controller := deps.newController(t)
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
+
+	nsMock.EXPECT().Ready(namespaceMatcher{"metrics-10s:2d"}).Return(nil)
+	nsMock.EXPECT().Ready(namespaceMatcher{"foo"}).Return(nil)
+
+	err := controller.readyNamespaces(cluster, registry)
+	assert.NoError(t, err)
+}
+
+func TestReadyNamespacesNotSupported(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	cluster.Spec.ExternalCoordinator = &myspec.ExternalCoordinatorConfig{}
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	nsMock := deps.namespaceClient
+	controller := deps.newController(t)
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
+
+	nsMock.EXPECT().Ready(gomock.Any()).Times(0)
+
+	err := controller.readyNamespaces(cluster, registry)
+	assert.NoError(t, err)
+}
+
+func TestReadyNamespacesOldCoordinator(t *testing.T) {
+	cluster := getFixture("cluster-simple.yaml", t)
+	cluster.Spec.Namespaces = append(cluster.Spec.Namespaces, myspec.Namespace{
+		Name:   "foo",
+		Preset: "10s:2d",
+	})
+
+	deps := newTestDeps(t, &testOpts{
+		crdObjects: []runtime.Object{cluster},
+	})
+	nsMock := deps.namespaceClient
+	controller := deps.newController(t)
+	defer deps.cleanup()
+
+	registry := &dbns.Registry{Namespaces: map[string]*dbns.NamespaceOptions{}}
+
+	nsMock.EXPECT().Ready(namespaceMatcher{"foo"}).AnyTimes().Return(nil)
+	nsMock.EXPECT().Ready(namespaceMatcher{"metrics-10s:2d"}).Return(m3admin.ErrNotFound)
+
+	err := controller.readyNamespaces(cluster, registry)
 	assert.NoError(t, err)
 }
 
@@ -232,6 +308,58 @@ func TestNamespacesToDelete(t *testing.T) {
 	for _, test := range tests {
 		res := namespacesToDelete(test.registry, test.namespaces)
 		assert.Equal(t, test.exp, res)
+	}
+}
+
+func TestNamespacesToReady(t *testing.T) {
+	tests := []struct {
+		registry   *dbns.Registry
+		namespaces []myspec.Namespace
+		exp        []myspec.Namespace
+	}{
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": {},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo"},
+			},
+		},
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": {},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "foo"},
+				{Name: "baz"},
+			},
+			exp: []myspec.Namespace{
+				{Name: "baz"},
+			},
+		},
+		{
+			registry: &dbns.Registry{
+				Namespaces: map[string]*dbns.NamespaceOptions{
+					"foo": {StagingState: &dbns.StagingState{Status: dbns.StagingStatus_INITIALIZING}},
+				},
+			},
+			namespaces: []myspec.Namespace{
+				{Name: "baz"},
+			},
+			exp: []myspec.Namespace{
+				{Name: "baz"},
+				{Name: "foo"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		res := namespacesToReady(test.registry, test.namespaces)
+		assert.ElementsMatch(t, test.exp, res)
 	}
 }
 

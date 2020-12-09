@@ -97,3 +97,17 @@ func (mr *MockClientMockRecorder) Delete(namespace interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), namespace)
 }
+
+// Ready mocks base method
+func (m *MockClient) Ready(request *admin.NamespaceReadyRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ready", request)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ready indicates an expected call of Ready
+func (mr *MockClientMockRecorder) Ready(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockClient)(nil).Ready), request)
+}
