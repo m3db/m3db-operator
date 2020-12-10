@@ -2,7 +2,8 @@
 
 ## 0.12.0
 
-0.12.0 adds support for running sidecar containers in the M3DB pods.
+0.12.0 adds support for running sidecar containers in the M3DB pods and ensures
+clusters created by the operator use 1.0 M3DB configs by default.
 
 ### Breaking Changes
 
