@@ -24,5 +24,5 @@ package health
 type Client interface {
 	// Bootstrapped returns true or false depending on the/ bootstrapped state
 	// of the provided dbnode.
-	Bootstrapped(namespace string, podName string) (bool, error)
+	Bootstrapped(namespace string, podName string, port int) (bool, error)
 }

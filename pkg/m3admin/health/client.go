@@ -84,10 +84,10 @@ func NewClient(opts ...Option) (Client, error) {
 	return hc, nil
 }
 
-func (h *healthClient) Bootstrapped(namespace string, podName string) (bool, error) {
+func (h *healthClient) Bootstrapped(namespace string, podName string, port int) (bool, error) {
 	url := h.url
 	if url == "" {
-		url = getPodURL(namespace, podName)
+		url = getPodURL(namespace, podName, port)
 	}
 
 	_, err := h.client.DoHTTPRequest(http.MethodGet, url+bootstrappedPath, nil)
@@ -98,6 +98,6 @@ func (h *healthClient) Bootstrapped(namespace string, podName string) (bool, err
 	return true, nil
 }
 
-func getPodURL(namespace string, podName string) string {
-	return fmt.Sprintf("http://%s.%s.%s", podName, m3dbServiceName, namespace)
+func getPodURL(namespace string, podName string, port int) string {
+	return fmt.Sprintf("http://%s.%s.%s:%d", podName, m3dbServiceName, namespace, port)
 }
