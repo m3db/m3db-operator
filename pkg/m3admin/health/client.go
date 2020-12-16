@@ -25,19 +25,19 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 )
 
 const (
 	bootstrappedPath = "/bootstrapped"
 	m3dbServiceName  = "m3dbnode-m3-cluster-short"
-	defaultPort = 9002
 )
 
 type healthClient struct {
 	client m3admin.Client
 	url    string
-	port int
+	port   int
 }
 
 // Option provides an interface that can be used for setter options with the
@@ -73,7 +73,7 @@ func WithClient(cl m3admin.Client) Option {
 	})
 }
 
-// WithPort overrides the default port 9002. This does nothing if WithURL is used.
+// WithPort overrides the default port (m3db.PortM3DBHTTPNode). This does nothing if WithURL is used.
 func WithPort(port int) Option {
 	return optionFn(func(h *healthClient) error {
 		h.port = port
@@ -97,7 +97,7 @@ func NewClient(opts ...Option) (Client, error) {
 func (h *healthClient) Bootstrapped(namespace string, podName string) (bool, error) {
 	port := h.port
 	if port == 0 {
-		port = defaultPort
+		port = m3db.PortM3DBHTTPNode
 	}
 	url := h.url
 	if url == "" {
