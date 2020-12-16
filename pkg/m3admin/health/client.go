@@ -31,11 +31,13 @@ import (
 const (
 	bootstrappedPath = "/bootstrapped"
 	m3dbServiceName  = "m3dbnode-m3-cluster-short"
+	defaultPort = 9002
 )
 
 type healthClient struct {
 	client m3admin.Client
 	url    string
+	port int
 }
 
 // Option provides an interface that can be used for setter options with the
@@ -50,7 +52,7 @@ func (fn optionFn) execute(h *healthClient) error {
 	return fn(h)
 }
 
-// WithURL is a setter to override the default base url for a node.
+// WithURL is a setter to override the default base url for a node. This overrides the WithPort option.
 func WithURL(u string) Option {
 	return optionFn(func(h *healthClient) error {
 		if u != "" {
@@ -71,6 +73,14 @@ func WithClient(cl m3admin.Client) Option {
 	})
 }
 
+// WithPort overrides the default port 9002. This does nothing if WithURL is used.
+func WithPort(port int) Option {
+	return optionFn(func(h *healthClient) error {
+		h.port = port
+		return nil
+	})
+}
+
 // NewClient constructs a new health client.
 func NewClient(opts ...Option) (Client, error) {
 	hc := &healthClient{
@@ -84,7 +94,11 @@ func NewClient(opts ...Option) (Client, error) {
 	return hc, nil
 }
 
-func (h *healthClient) Bootstrapped(namespace string, podName string, port int) (bool, error) {
+func (h *healthClient) Bootstrapped(namespace string, podName string) (bool, error) {
+	port := h.port
+	if port == 0 {
+		port = defaultPort
+	}
 	url := h.url
 	if url == "" {
 		url = getPodURL(namespace, podName, port)

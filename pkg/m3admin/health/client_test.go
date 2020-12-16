@@ -45,7 +45,7 @@ func TestBootstrapped(t *testing.T) {
 	defer s.Close()
 	client := newHealthClientWithURL(t, newM3adminClient(s.Client()), s.URL)
 
-	bootstrapped, err := client.Bootstrapped("foo", "bar", 0)
+	bootstrapped, err := client.Bootstrapped("foo", "bar")
 
 	require.NoError(t, err)
 	require.True(t, bootstrapped)
@@ -62,7 +62,28 @@ func TestBootstrapped_ValidateURL(t *testing.T) {
 
 	client := newHealthClient(t, adminClient)
 
-	bootstrapped, err := client.Bootstrapped("foo", "bar", 9002)
+	bootstrapped, err := client.Bootstrapped("foo", "bar")
+
+	require.NoError(t, err)
+	require.True(t, bootstrapped)
+}
+
+func TestBootstrapped_WithPort(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	adminClient := m3admin.NewMockClient(ctrl)
+	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:8088/bootstrapped",
+		nil).
+		Return(&http.Response{}, nil)
+
+	client, err := NewClient(
+		WithClient(adminClient),
+		WithPort(8088),
+	)
+	require.NoError(t, err)
+
+	bootstrapped, err := client.Bootstrapped("foo", "bar")
 
 	require.NoError(t, err)
 	require.True(t, bootstrapped)
@@ -80,7 +101,7 @@ func TestBootstrapped_NotReady(t *testing.T) {
 	defer s.Close()
 	client := newHealthClientWithURL(t, newM3adminClient(s.Client()), s.URL)
 
-	bootstrapped, err := client.Bootstrapped("foo", "bar", 0)
+	bootstrapped, err := client.Bootstrapped("foo", "bar")
 
 	require.Error(t, err)
 	require.False(t, bootstrapped)
