@@ -56,10 +56,32 @@ func TestBootstrapped_ValidateURL(t *testing.T) {
 	defer ctrl.Finish()
 
 	adminClient := m3admin.NewMockClient(ctrl)
-	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo/bootstrapped", nil).
+	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:9002/bootstrapped",
+		nil).
 		Return(&http.Response{}, nil)
 
 	client := newHealthClient(t, adminClient)
+
+	bootstrapped, err := client.Bootstrapped("foo", "bar")
+
+	require.NoError(t, err)
+	require.True(t, bootstrapped)
+}
+
+func TestBootstrapped_WithPort(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	adminClient := m3admin.NewMockClient(ctrl)
+	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:8088/bootstrapped",
+		nil).
+		Return(&http.Response{}, nil)
+
+	client, err := NewClient(
+		WithClient(adminClient),
+		WithPort(8088),
+	)
+	require.NoError(t, err)
 
 	bootstrapped, err := client.Bootstrapped("foo", "bar")
 
