@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -39,7 +40,7 @@ func TestBootstrapped(t *testing.T) {
 		require.NoError(t, err)
 
 		w.WriteHeader(200)
-		w.Write([]byte("{}"))
+		w.Write([]byte(`{"ok":true, "bootstrapped":true}`))
 	}))
 
 	defer s.Close()
@@ -56,9 +57,12 @@ func TestBootstrapped_ValidateURL(t *testing.T) {
 	defer ctrl.Finish()
 
 	adminClient := m3admin.NewMockClient(ctrl)
-	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:9002/bootstrapped",
+
+	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:9002/health",
 		nil).
-		Return(&http.Response{}, nil)
+		Return(&http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`{"ok":true, "bootstrapped":true}`)),
+		}, nil)
 
 	client := newHealthClient(t, adminClient)
 
@@ -73,9 +77,11 @@ func TestBootstrapped_WithPort(t *testing.T) {
 	defer ctrl.Finish()
 
 	adminClient := m3admin.NewMockClient(ctrl)
-	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:8088/bootstrapped",
+	adminClient.EXPECT().DoHTTPRequest("GET", "http://bar.m3dbnode-m3-cluster-short.foo:8088/health",
 		nil).
-		Return(&http.Response{}, nil)
+		Return(&http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(`{"ok":true, "bootstrapped":true}`)),
+		}, nil)
 
 	client, err := NewClient(
 		WithClient(adminClient),
