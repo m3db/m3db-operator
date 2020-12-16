@@ -21,7 +21,9 @@
 package health
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -30,8 +32,8 @@ import (
 )
 
 const (
-	bootstrappedPath = "/bootstrapped"
-	m3dbServiceName  = "m3dbnode-m3-cluster-short"
+	healthPath      = "/health"
+	m3dbServiceName = "m3dbnode-m3-cluster-short"
 )
 
 type healthClient struct {
@@ -104,14 +106,33 @@ func (h *healthClient) Bootstrapped(namespace string, podName string) (bool, err
 		url = getPodURL(namespace, podName, port)
 	}
 
-	_, err := h.client.DoHTTPRequest(http.MethodGet, url+bootstrappedPath, nil)
+	// The /health endpoint is used since it returns a 200 even if not bootstrapped. The /bootstrapped endpoint returns
+	// an error if not bootstrapped. This makes it difficult to differentiate transient errors from not bootstrapped.
+	resp, err := h.client.DoHTTPRequest(http.MethodGet, url+healthPath, nil)
 	if err != nil {
 		return false, err
 	}
 
-	return true, nil
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+	resp.Body.Close()
+	var result healthResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, err
+	}
+
+	return result.Bootstrapped && result.Ok, nil
 }
 
 func getPodURL(namespace string, podName string, port int) string {
 	return fmt.Sprintf("http://%s.%s.%s:%d", podName, m3dbServiceName, namespace, port)
 }
+
+type healthResult struct {
+	Ok bool `json:"ok"`
+	Status string `json:"status"`
+	Bootstrapped bool `json:"bootstrapped"`
+}
+
