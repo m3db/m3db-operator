@@ -479,7 +479,12 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// another event (ready == bootstrapped)
 	for _, sts := range childrenSets {
 		if sts.Spec.Replicas == nil {
-			// TODO(schallert): figure out what to do if replicas is not set
+			c.logger.Warn("skip check for statefulset, replicas is nil",
+				zap.String("name", sts.Name),
+				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
+				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
+				zap.String("currentRevision", sts.Status.CurrentRevision),
+				zap.String("updateRevision", sts.Status.UpdateRevision))
 			continue
 		}
 
