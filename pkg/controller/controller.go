@@ -478,9 +478,39 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// If any of the statefulsets aren't ready, wait until they are as we'll get
 	// another event (ready == bootstrapped)
 	for _, sts := range childrenSets {
-		if sts.Spec.Replicas != nil && *sts.Spec.Replicas != sts.Status.ReadyReplicas {
-			// TODO(schallert): figure out what to do if replicas is not set
-			c.logger.Info("waiting for statefulset to be ready", zap.String("name", sts.Name), zap.Int32("ready", sts.Status.ReadyReplicas))
+		if sts.Spec.Replicas == nil {
+			c.logger.Warn("skip check for statefulset, replicas is nil",
+				zap.String("name", sts.Name),
+				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
+				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
+				zap.String("currentRevision", sts.Status.CurrentRevision),
+				zap.String("updateRevision", sts.Status.UpdateRevision))
+			continue
+		}
+
+		replicas := *sts.Spec.Replicas
+		ready := replicas == sts.Status.ReadyReplicas
+		if sts.Status.UpdateRevision != "" {
+			// If there is an update revision, ensure all pods are updated
+			// otherwise there is a rollout in progress.
+			// Note: This ensures there is no race condition between
+			// updating a stateful set and it seemingly being "ready" and
+			// all pods healthy immediately after the update, since the
+			// updated replicas will not match the desired replicas
+			// and avoid the race condition of proceeding to another update
+			// before a stateful set has had a chance to update the pods
+			// but otherwise seemingly is healthy.
+			ready = ready && replicas == sts.Status.UpdatedReplicas
+		}
+
+		if !ready {
+			c.logger.Info("waiting for statefulset to be ready",
+				zap.String("name", sts.Name),
+				zap.Int32("replicas", replicas),
+				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
+				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
+				zap.String("currentRevision", sts.Status.CurrentRevision),
+				zap.String("updateRevision", sts.Status.UpdateRevision))
 			return nil
 		}
 	}

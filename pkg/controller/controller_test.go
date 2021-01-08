@@ -141,16 +141,27 @@ func setupTestCluster(
 	return cluster, deps
 }
 
+type waitForStatefulSetsOptions struct {
+	setReadyReplicas       bool
+	expectedStatefulSets   []string
+	simulatePodsNotUpdated bool
+}
+
+type waitForStatefulSetsResult struct {
+	updatedStatefulSets      []string
+	failedUpdateStatefulSets []string
+}
+
 func waitForStatefulSets(
 	t *testing.T,
 	controller *M3DBController,
 	cluster *myspec.M3DBCluster,
 	verb string,
-	setReadyReplicas bool,
-	expectedStatefulSets []string,
-) bool {
+	opts waitForStatefulSetsOptions,
+) (waitForStatefulSetsResult, bool) {
 	var (
 		mu         sync.Mutex
+		updates    int
 		actualSets = make(map[string]bool)
 	)
 
@@ -161,11 +172,21 @@ func waitForStatefulSets(
 			sts = action.(kubetesting.CreateActionImpl).GetObject().(*appsv1.StatefulSet)
 		case "update":
 			sts = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
+			// Note: Simulate an update revision to make sure the updated
+			// replicas check is enforced.
+			updates++
+			sts.Status.UpdateRevision = fmt.Sprintf("updated-revision-%d", updates)
+			if !opts.simulatePodsNotUpdated {
+				// Simulate all update immediately, unless explicitly
+				// testing for when not updating them.
+				sts.Status.UpdatedReplicas = *sts.Spec.Replicas
+			}
 		default:
 			t.Errorf("verb %s is not supported", verb)
 		}
 
-		if setReadyReplicas && sts.Spec.Replicas != nil {
+		if opts.setReadyReplicas {
+			// Note: should always have replicas set.
 			sts.Status.ReadyReplicas = *sts.Spec.Replicas
 		}
 
@@ -183,8 +204,7 @@ func waitForStatefulSets(
 	// we see all stateful sets that we expect and also be able to catch any extra stateful
 	// sets that we don't.
 	var (
-		done  bool
-		iters = math.Max(float64(2*len(expectedStatefulSets)), 5)
+		iters = math.Max(float64(2*len(opts.expectedStatefulSets)), 5)
 	)
 	for i := 0; i < int(iters); i++ {
 		err := controller.handleClusterUpdate(cluster)
@@ -199,13 +219,49 @@ func waitForStatefulSets(
 		}
 		mu.Unlock()
 
-		if seen != len(expectedStatefulSets) {
+		if seen != len(opts.expectedStatefulSets) {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		done = true
+
+		break
 	}
-	return done
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	var (
+		updated []string
+		failed  []string
+		seen    int
+	)
+	// Start with all failed.
+	for _, name := range opts.expectedStatefulSets {
+		failed = append(failed, name)
+	}
+	for name, found := range actualSets {
+		if found {
+			seen++
+
+			// Updated.
+			updated = append(updated, name)
+
+			// Remove from failed.
+			filterFailed := failed[:]
+			failed = failed[:0]
+			for _, elem := range filterFailed {
+				if elem != name {
+					failed = append(failed, elem)
+				}
+			}
+		}
+	}
+
+	done := seen == len(opts.expectedStatefulSets)
+	return waitForStatefulSetsResult{
+		updatedStatefulSets:      updated,
+		failedUpdateStatefulSets: failed,
+	}, done
 }
 
 func TestNew(t *testing.T) {
@@ -623,7 +679,10 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			done := waitForStatefulSets(t, c, cluster, "create", false, test.expCreateStatefulSets)
+			_, done := waitForStatefulSets(t, c, cluster, "create", waitForStatefulSetsOptions{
+				setReadyReplicas:     false,
+				expectedStatefulSets: test.expCreateStatefulSets,
+			})
 			assert.True(t, done, "expected all sets to be created")
 		})
 	}
@@ -631,13 +690,16 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 	tests := []struct {
-		name                  string
-		cluster               *metav1.ObjectMeta
-		sets                  []*metav1.ObjectMeta
-		newImage              string
-		newConfigMap          string
-		increaseReplicas      bool
-		expUpdateStatefulSets []string
+		name                        string
+		cluster                     *metav1.ObjectMeta
+		sets                        []*metav1.ObjectMeta
+		newImage                    string
+		newConfigMap                string
+		increaseReplicas            bool
+		simulatePodsNotUpdated      bool
+		expUpdateStatefulSets       []string
+		expFailedUpdateStatefulSets []string
+		expNotDone                  bool
 	}{
 		{
 			name: "updates stateful sets when image is out of date",
@@ -735,6 +797,30 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			increaseReplicas:      true,
 			expUpdateStatefulSets: []string{},
 		},
+		{
+			name: "updates stateful sets does not progress if pods not updated",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+			},
+			newImage:                    "m3db:v2.0.0",
+			simulatePodsNotUpdated:      true,
+			expUpdateStatefulSets:       []string{"cluster1-rep0", "cluster1-rep1", "cluster1-rep2"},
+			expFailedUpdateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
+			expNotDone:                  true,
+		},
 	}
 
 	for _, test := range tests {
@@ -780,8 +866,19 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 				})
 			}
 
-			done := waitForStatefulSets(t, c, cluster, "update", true, test.expUpdateStatefulSets)
-			assert.True(t, done, "expected all sets to be updated")
+			result, done := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
+				setReadyReplicas:       true,
+				expectedStatefulSets:   test.expUpdateStatefulSets,
+				simulatePodsNotUpdated: test.simulatePodsNotUpdated,
+			})
+			if test.expNotDone {
+				assert.False(t, done, "expected not all sets to be updated")
+			} else {
+				assert.True(t, done, "expected all sets to be updated")
+			}
+			if len(test.expFailedUpdateStatefulSets) > 0 {
+				assert.Equal(t, test.expFailedUpdateStatefulSets, result.failedUpdateStatefulSets)
+			}
 		})
 	}
 }
