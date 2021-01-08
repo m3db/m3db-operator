@@ -13,22 +13,10 @@ spec:
   isolationGroups:
   - name: group1
     numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - us-east1-b
   - name: group2
     numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - us-east1-c
   - name: group3
     numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - us-east1-d
   namespaces:
     - name: metrics-10s:2d
       preset: 10s:2d
