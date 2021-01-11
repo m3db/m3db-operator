@@ -543,6 +543,13 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		return nil
 	}
 
+	if !cluster.Status.HasInitializedPlacement() {
+		cluster, err = c.validatePlacementWithStatus(cluster)
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := c.reconcileNamespaces(cluster); err != nil {
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, "failed to create namespace: %s", err)
 		c.logger.Error("error reconciling namespaces", zap.Error(err))
@@ -552,13 +559,6 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	if len(cluster.Spec.Namespaces) == 0 {
 		c.logger.Warn("cluster has no namespaces defined", zap.String("cluster", cluster.Name))
 		c.recorder.WarningEvent(cluster, eventer.ReasonUnknown, "cluster %s has no namespaces", cluster.Name)
-	}
-
-	if !cluster.Status.HasInitializedPlacement() {
-		cluster, err = c.validatePlacementWithStatus(cluster)
-		if err != nil {
-			return err
-		}
 	}
 
 	// At this point we have the desired number of statefulsets, and every pod
