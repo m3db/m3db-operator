@@ -14,11 +14,6 @@ More information:
 - [Gitter room](https://gitter.im/m3db/kubernetes)
 - [M3DB Google Group](https://groups.google.com/forum/#!forum/m3db)
 
-### Kubernetes Cluster Prerequisites
-
-The M3DB operator targets Kubernetes **1.11** and **1.12**. We generally aim to target the latest two minor versions
-supported by GKE but welcome community contributions to support more versions!
-
 The M3DB operator is intended for creating highly available clusters across distinct failure domains. For this reason we
 currently only support Kubernetes clusters with nodes in at least 3 zones, but [support][zonal] for zonal clusters is
 coming soon.
