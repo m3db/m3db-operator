@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.1
+
+0.12.1 fixes bugs related to cluster startup and update due to the release of M3DB 1.0.
+
+* [ENHANCEMENT] Wait for replica to update pods before processing next statefulset update ([#260][260])
+* [BUGFIX] Ensure fresh cluster startup succeeds in M3 1.0+ ([#261][261])
+
 ## 0.12.0
 
 0.12.0 adds support for running sidecar containers in the M3DB pods and ensures
@@ -318,3 +325,5 @@ If using a custom configmap, this same change will require a modification to you
 [248]: https://github.com/m3db/m3db-operator/pull/248
 [250]: https://github.com/m3db/m3db-operator/pull/250
 [253]: https://github.com/m3db/m3db-operator/pull/253
+[260]: https://github.com/m3db/m3db-operator/pull/260
+[261]: https://github.com/m3db/m3db-operator/pull/261
