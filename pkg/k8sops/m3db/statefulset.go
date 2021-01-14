@@ -44,8 +44,9 @@ const (
 )
 
 var (
-	errEmptyNodeAffinityKey    = errors.New("node affinity term key cannot be empty")
-	errEmptyNodeAffinityValues = errors.New("node affinity term values cannot be empty")
+	errEmptyNodeAffinityKey       = errors.New("node affinity term key cannot be empty")
+	errEmptyNodeAffinityValues    = errors.New("node affinity term values cannot be empty")
+	errEmptyPodAffinityToplogyKey = errors.New("pod affinity toplogy key cannot be empty")
 )
 
 // NewBaseStatefulSet returns a base configured stateful set.
@@ -219,9 +220,38 @@ func generateDownwardAPIVolumeMount() v1.VolumeMount {
 	}
 }
 
-// GenerateStatefulSetAffinity generates a node affinity requiring a strict match for
+// GenerateStatefulSetPodAntiAffinity generates a pod anti-affinity for m3db
+// pods, using labels.Component and labels.ComponentM3DBNode consts as
+// matchexpression key and values, respectively.
+func GenerateStatefulSetPodAntiAffinity(isoGroup myspec.IsolationGroup) (*v1.PodAntiAffinity, error) {
+	if !isoGroup.UsePodAntiAffinity {
+		return nil, nil
+	}
+
+	if isoGroup.PodAffinityToplogyKey == "" {
+		return nil, errEmptyPodAffinityToplogyKey
+	}
+
+	return &v1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      labels.Component,
+							Operator: "In",
+							Values:   []string{labels.ComponentM3DBNode},
+						},
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+// GenerateStatefulSetNodeAffinity generates a node affinity requiring a strict match for
 // given key and values.
-func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) (*v1.Affinity, error) {
+func GenerateStatefulSetNodeAffinity(isoGroup myspec.IsolationGroup) (*v1.NodeAffinity, error) {
 	if len(isoGroup.NodeAffinityTerms) == 0 {
 		return nil, nil
 	}
@@ -242,16 +272,36 @@ func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) (*v1.Affinity, 
 		}
 	}
 
-	return &v1.Affinity{
-		NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					{
-						MatchExpressions: expressions,
-					},
+	return &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: expressions,
 				},
 			},
 		},
+	}, nil
+}
+
+// GenerateStatefulSetAffinity generates affinity settings for the statefulset.
+func GenerateStatefulSetAffinity(isoGroup myspec.IsolationGroup) (*v1.Affinity, error) {
+	if len(isoGroup.NodeAffinityTerms) == 0 && !isoGroup.UsePodAntiAffinity {
+		return nil, nil
+	}
+
+	nodeAffinity, nodeErr := GenerateStatefulSetNodeAffinity(isoGroup)
+	if nodeErr != nil {
+		return nil, nodeErr
+	}
+
+	podAntiAffinity, podErr := GenerateStatefulSetPodAntiAffinity(isoGroup)
+	if podErr != nil {
+		return nil, podErr
+	}
+
+	return &v1.Affinity{
+		NodeAffinity:    nodeAffinity,
+		PodAntiAffinity: podAntiAffinity,
 	}, nil
 }
 
