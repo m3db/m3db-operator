@@ -98,6 +98,8 @@ IsolationGroup defines the name of zone as well attributes for the zone configur
 | ----- | ----------- | ------ | -------- |
 | name | Name is the value that will be used in StatefulSet labels, pod labels, and M3DB placement \"isolationGroup\" fields. | string | true |
 | nodeAffinityTerms | NodeAffinityTerms is an array of NodeAffinityTerm requirements, which are ANDed together to indicate what nodes an isolation group can be assigned to. | [][NodeAffinityTerm](#nodeaffinityterm) | false |
+| usePodAntiAffinity | UsePodAntiAffinity enables M3DB pod anti-affinity by using M3DB pod component labels to prevent multiple M3DB pods from being scheduled in the same failure domain, determined by podAffinityToplogyKey. | bool | false |
+| podAffinityToplogyKey | PodAffinityToplogyKey defines the node label used for pod anti-affinity. This parameter is required when usePodAntiAffinity is set to true. | string | false |
 | numInstances | NumInstances defines the number of instances. | int32 | true |
 | storageClassName | StorageClassName is the name of the StorageClass to use for this isolation group. This allows ensuring that PVs will be created in the same zone as the pinned statefulset on Kubernetes < 1.12 (when topology aware volume scheduling was introduced). Only has effect if the clusters `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template will have its storageClassName field overridden per-isolationgroup. If unset the storageClassName of the volumeClaimTemplate will be used. | string | false |
 

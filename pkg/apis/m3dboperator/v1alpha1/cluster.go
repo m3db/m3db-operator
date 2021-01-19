@@ -360,8 +360,8 @@ type IsolationGroup struct {
 	NodeAffinityTerms []NodeAffinityTerm `json:"nodeAffinityTerms,omitempty"`
 
 	// UsePodAntiAffinity enables M3DB pod anti-affinity by using M3DB pod
-	// component labels to prevent multiple M3DB pods from being scheduled on the
-	// same Kubernetes node.
+	// component labels to prevent multiple M3DB pods from being scheduled in the
+	// same failure domain, determined by podAffinityToplogyKey.
 	UsePodAntiAffinity bool `json:"usePodAntiAffinity,omitempty"`
 
 	// PodAffinityToplogyKey defines the node label used for pod anti-affinity.

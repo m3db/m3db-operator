@@ -686,6 +686,20 @@ func schema_pkg_apis_m3dboperator_v1alpha1_IsolationGroup(ref common.ReferenceCa
 							},
 						},
 					},
+					"usePodAntiAffinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UsePodAntiAffinity enables M3DB pod anti-affinity by using M3DB pod component labels to prevent multiple M3DB pods from being scheduled in the same failure domain, determined by podAffinityToplogyKey.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"podAffinityToplogyKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodAffinityToplogyKey defines the node label used for pod anti-affinity. This parameter is required when usePodAntiAffinity is set to true.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"numInstances": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NumInstances defines the number of instances.",
