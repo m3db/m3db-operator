@@ -25,7 +25,10 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -73,7 +76,7 @@ func TestGenerateDownwardAPIVolumePath(t *testing.T) {
 	assert.Equal(t, exp, vm)
 }
 
-func TestGenerateStatefulSetAffinity(t *testing.T) {
+func TestGenerateStatefulSetNodeAffinity(t *testing.T) {
 	type expTerm struct {
 		key    string
 		values []string
@@ -155,18 +158,18 @@ func TestGenerateStatefulSetAffinity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		affinity, err := GenerateStatefulSetAffinity(test.isoGroup)
+		nodeaffinity, err := GenerateStatefulSetNodeAffinity(test.isoGroup)
 		if test.expErr != nil {
 			assert.Equal(t, test.expErr, err)
 			continue
 		}
 
 		if len(test.expTerms) == 0 {
-			assert.Nil(t, affinity)
+			assert.Nil(t, nodeaffinity)
 			continue
 		}
 
-		terms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		terms := nodeaffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, terms, 1)
 
 		expTerms := make([]corev1.NodeSelectorRequirement, len(test.expTerms))
@@ -179,5 +182,73 @@ func TestGenerateStatefulSetAffinity(t *testing.T) {
 		}
 
 		assert.Equal(t, expTerms, terms[0].MatchExpressions)
+	}
+}
+
+func TestGenerateStatefulSetPodAntiAffinity(t *testing.T) {
+	tests := []struct {
+		isoGroup myspec.IsolationGroup
+		expTerm  string
+		expErr   error
+	}{
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name: "group1",
+			},
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name:               "group2",
+				UsePodAntiAffinity: false,
+			},
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name:                  "group3",
+				UsePodAntiAffinity:    true,
+				PodAffinityToplogyKey: "hostname",
+			},
+			expTerm: "hostname",
+		},
+		{
+			isoGroup: myspec.IsolationGroup{
+				Name:               "group4",
+				UsePodAntiAffinity: true,
+			},
+			expErr: errEmptyPodAffinityToplogyKey,
+		},
+	}
+
+	for _, test := range tests {
+		antiaffinity, err := GenerateStatefulSetPodAntiAffinity(test.isoGroup)
+
+		if test.expErr != nil {
+			assert.Equal(t, test.expErr, err)
+			continue
+		}
+
+		if !test.isoGroup.UsePodAntiAffinity {
+			assert.Nil(t, antiaffinity)
+			continue
+		}
+
+		terms := antiaffinity.RequiredDuringSchedulingIgnoredDuringExecution
+
+		expTerms := []corev1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      labels.Component,
+							Operator: "In",
+							Values:   []string{labels.ComponentM3DBNode},
+						},
+					},
+				},
+				TopologyKey: test.expTerm,
+			},
+		}
+
+		assert.Equal(t, expTerms, terms)
 	}
 }

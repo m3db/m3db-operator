@@ -359,6 +359,15 @@ type IsolationGroup struct {
 	// to.
 	NodeAffinityTerms []NodeAffinityTerm `json:"nodeAffinityTerms,omitempty"`
 
+	// UsePodAntiAffinity enables M3DB pod anti-affinity by using M3DB pod
+	// component labels to prevent multiple M3DB pods from being scheduled in the
+	// same failure domain, determined by podAffinityToplogyKey.
+	UsePodAntiAffinity bool `json:"usePodAntiAffinity,omitempty"`
+
+	// PodAffinityToplogyKey defines the node label used for pod anti-affinity.
+	// This parameter is required when usePodAntiAffinity is set to true.
+	PodAffinityToplogyKey string `json:"podAffinityToplogyKey,omitempty"`
+
 	// NumInstances defines the number of instances.
 	NumInstances int32 `json:"numInstances"`
 
