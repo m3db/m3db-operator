@@ -188,21 +188,19 @@ func TestGenerateStatefulSetNodeAffinity(t *testing.T) {
 func TestGenerateStatefulSetPodAntiAffinity(t *testing.T) {
 	tests := []struct {
 		isoGroup myspec.IsolationGroup
-		expBool  bool
+		expTerm  string
 		expErr   error
 	}{
 		{
 			isoGroup: myspec.IsolationGroup{
 				Name: "group1",
 			},
-			expBool: false,
 		},
 		{
 			isoGroup: myspec.IsolationGroup{
 				Name:               "group2",
 				UsePodAntiAffinity: false,
 			},
-			expBool: false,
 		},
 		{
 			isoGroup: myspec.IsolationGroup{
@@ -210,43 +208,47 @@ func TestGenerateStatefulSetPodAntiAffinity(t *testing.T) {
 				UsePodAntiAffinity:    true,
 				PodAffinityToplogyKey: "hostname",
 			},
-			expBool: true,
+			expTerm: "hostname",
 		},
 		{
 			isoGroup: myspec.IsolationGroup{
 				Name:               "group4",
 				UsePodAntiAffinity: true,
 			},
-			expBool: true,
-			expErr:  errEmptyPodAffinityToplogyKey,
+			expErr: errEmptyPodAffinityToplogyKey,
 		},
 	}
 
 	for _, test := range tests {
 		antiaffinity, err := GenerateStatefulSetPodAntiAffinity(test.isoGroup)
 
-		if !test.expBool {
-			assert.Nil(t, antiaffinity)
-			continue
-		}
-
 		if test.expErr != nil {
 			assert.Equal(t, test.expErr, err)
 			continue
 		}
 
+		if !test.isoGroup.UsePodAntiAffinity {
+			assert.Nil(t, antiaffinity)
+			continue
+		}
+
 		terms := antiaffinity.RequiredDuringSchedulingIgnoredDuringExecution
 
-		expTerms := &metav1.LabelSelector{
-			MatchExpressions: []metav1.LabelSelectorRequirement{
-				{
-					Key:      labels.Component,
-					Operator: "In",
-					Values:   []string{labels.ComponentM3DBNode},
+		expTerms := []corev1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      labels.Component,
+							Operator: "In",
+							Values:   []string{labels.ComponentM3DBNode},
+						},
+					},
 				},
+				TopologyKey: test.expTerm,
 			},
 		}
 
-		assert.Equal(t, expTerms, terms[0].LabelSelector)
+		assert.Equal(t, expTerms, terms)
 	}
 }
