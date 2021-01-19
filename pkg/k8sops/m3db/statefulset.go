@@ -244,6 +244,7 @@ func GenerateStatefulSetPodAntiAffinity(isoGroup myspec.IsolationGroup) (*v1.Pod
 						},
 					},
 				},
+				TopologyKey: isoGroup.PodAffinityToplogyKey,
 			},
 		},
 	}, nil
