@@ -108,6 +108,8 @@ type controllerBase struct {
 	podWorkQueue workqueue.RateLimitingInterface
 
 	recorder eventer.Poster
+
+	statefulSetCheckpoints map[string]int64
 }
 
 // M3DBController object
@@ -187,6 +189,8 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 			podWorkQueue: podWorkQueue,
 			// TODO(celina): figure out if we actually need a recorder for each namespace
 			recorder: r,
+
+			statefulSetCheckpoints: make(map[string]int64),
 		},
 
 		k8sclient:     kclient,
@@ -456,19 +460,12 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 				return err
 			}
 
-			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
+			set, err := c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
 			if err != nil {
-				if kerrors.IsAlreadyExists(err) {
-					// There may be a delay between when a StatefulSet is created and when it is
-					// returned in calls to List because of the caching that the k8s client does.
-					// So if we receive an error because the StatefulSet already exists that's not
-					// indicative of a real problem.
-					c.logger.Info("statefulset already exists", zap.String("name", name))
-					return nil
-				}
-				c.logger.Error(err.Error())
+				c.logger.Error("failed to create StatefulSet", zap.Error(err))
 				return err
 			}
+			c.updateStatefulSetCheckpoint(set)
 
 			c.logger.Info("created statefulset", zap.String("name", name))
 			return nil
@@ -533,11 +530,12 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			continue
 		}
 
-		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
+		set, err := c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
 		if err != nil {
-			c.logger.Error(err.Error())
+			c.logger.Error("failed to update StatefulSet", zap.Error(err), zap.String("name", name))
 			return err
 		}
+		c.updateStatefulSetCheckpoint(set)
 
 		c.logger.Info("updated statefulset", zap.String("name", name))
 		return nil
@@ -693,8 +691,9 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			StatefulSets(set.Namespace).
 			Patch(set.Name, types.MergePatchType, patchBytes)
 		if err != nil {
-			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
+			return fmt.Errorf("error patching statefulset %s: %v", set.Name, err)
 		}
+		c.updateStatefulSetCheckpoint(set)
 
 		return nil
 	}
@@ -731,8 +730,6 @@ func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placemen
 	return insts
 }
 
-// This func is currently read-only, but if we end up modifying statefulsets
-// we'll have to deepcopy.
 func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*appsv1.StatefulSet, error) {
 	labels := labels.BaseLabels(cluster)
 	statefulSets, err := c.statefulSetLister.StatefulSets(cluster.Namespace).List(klabels.Set(labels).AsSelector())
@@ -744,11 +741,30 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 	childrenSets := make([]*appsv1.StatefulSet, 0)
 	for _, sts := range statefulSets {
 		if metav1.IsControlledBy(sts, cluster) {
+			// The StatefulSetsLister that we use caches StatefulSet's so updates we make may
+			// not be visible immediately. To ensure we don't have multiple updates in flight
+			// concurrently we checkpoint the generation of the StatefulSets used the value
+			// returned in Update calls.
+			wantGen, ok := c.statefulSetCheckpoints[sts.Name]
+			if ok && wantGen > sts.Generation {
+				c.logger.Warn(
+					"a StatefulSet returned by Lister is behind it's checkpoint",
+					zap.String("name", sts.Name),
+					zap.Int64("current_generation", sts.Generation),
+					zap.Int64("desired_generation", wantGen),
+				)
+				return nil, errors.New("StatefulSetLister is behind checkpoint")
+			}
+
 			childrenSets = append(childrenSets, sts.DeepCopy())
 		}
 	}
 
 	return childrenSets, nil
+}
+
+func (c *M3DBController) updateStatefulSetCheckpoint(set *appsv1.StatefulSet) {
+	c.statefulSetCheckpoints[set.Name] = set.Generation
 }
 
 func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
