@@ -75,6 +75,7 @@ var (
 	errOrphanedPod         = errors.New("pod does not belong to an m3db cluster")
 	errInvalidNumIsoGroups = errors.New("number of isolationgroups not equal to replication factor")
 	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
+	errStaleCache          = errors.New("StatefulSetLister is behind checkpoint")
 )
 
 // Configuration contains parameters for the controller.
@@ -693,7 +694,6 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		if err != nil {
 			return fmt.Errorf("error patching statefulset %s: %v", set.Name, err)
 		}
-		c.updateStatefulSetCheckpoint(set)
 
 		return nil
 	}
@@ -748,16 +748,27 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 			wantGen, ok := c.statefulSetCheckpoints[sts.Name]
 			if ok && wantGen > sts.Generation {
 				c.logger.Warn(
-					"a StatefulSet returned by Lister is behind it's checkpoint",
+					"StatefulSetLister returned stale StatefulSet",
 					zap.String("name", sts.Name),
 					zap.Int64("current_generation", sts.Generation),
 					zap.Int64("desired_generation", wantGen),
 				)
-				return nil, errors.New("StatefulSetLister is behind checkpoint")
+				return nil, errStaleCache
 			}
-
 			childrenSets = append(childrenSets, sts.DeepCopy())
 		}
+	}
+
+	// Once we reach here we know that all StatefulSet's returned by the Lister are
+	// up-to-date. But we also need to check that the Lister isn't missing any entirely.
+	for want := range c.statefulSetCheckpoints {
+		for _, sts := range childrenSets {
+			if sts.Name == want {
+				continue
+			}
+		}
+		c.logger.Warn("StatefulSetLister is missing a StatefulSet", zap.String("name", want))
+		return nil, errStaleCache
 	}
 
 	return childrenSets, nil
