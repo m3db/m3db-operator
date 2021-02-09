@@ -100,8 +100,9 @@ func (deps *testDeps) newController(t *testing.T) *M3DBController {
 			podWorkQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), podWorkQueueName),
 			podLister:    deps.podLister,
 
-			statefulSetLister: deps.statefulSetLister,
-			recorder:          eventer.NewNopPoster(),
+			statefulSetLister:      deps.statefulSetLister,
+			statefulSetCheckpoints: make(map[string]int64),
+			recorder:               eventer.NewNopPoster(),
 		},
 
 		k8sclient:     k8sopsClient,
