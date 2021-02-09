@@ -421,16 +421,16 @@ func TestInstancesInIsoGroup(t *testing.T) {
 
 func TestGetClusterValue(t *testing.T) {
 	pod := &corev1.Pod{}
-	cluster, ok := getClusterValue(pod)
-	assert.False(t, ok)
+	cluster, err := getClusterValue(pod)
+	assert.Error(t, err)
 	assert.Equal(t, "", cluster)
 
 	pod.Labels = map[string]string{
 		"operator.m3db.io/cluster": "foo",
 	}
 
-	cluster, ok = getClusterValue(pod)
-	assert.True(t, ok)
+	cluster, err = getClusterValue(pod)
+	assert.NoError(t, err)
 	assert.Equal(t, "foo", cluster)
 }
 
