@@ -89,7 +89,7 @@ type Configuration struct {
 }
 
 type controllerBase struct {
-	lock   *sync.Mutex
+	lock   sync.RWMutex
 	logger *zap.Logger
 	clock  clock.Clock
 	scope  tally.Scope
@@ -170,7 +170,7 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 
 	p := &M3DBController{
 		controllerBase: controllerBase{
-			lock:   &sync.Mutex{},
+			lock:   sync.RWMutex{},
 			logger: logger,
 			scope:  scope,
 			config: options.config,
@@ -745,7 +745,9 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 			// not be visible immediately. To ensure we don't have multiple updates in flight
 			// concurrently we checkpoint the generation of the StatefulSets used the value
 			// returned in Update calls.
+			c.lock.RLock()
 			wantGen, ok := c.statefulSetCheckpoints[sts.Name]
+			c.lock.RUnlock()
 			if ok && wantGen > sts.Generation {
 				c.logger.Warn(
 					"StatefulSetLister returned stale StatefulSet",
@@ -761,6 +763,8 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 
 	// Once we reach here we know that all StatefulSet's returned by the Lister are
 	// up-to-date. But we also need to check that the Lister isn't missing any entirely.
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	for want := range c.statefulSetCheckpoints {
 		var found bool
 		for _, sts := range childrenSets {
@@ -780,7 +784,9 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 }
 
 func (c *M3DBController) updateStatefulSetCheckpoint(set *appsv1.StatefulSet) {
+	c.lock.Lock()
 	c.statefulSetCheckpoints[set.Name] = set.Generation
+	c.lock.Unlock()
 }
 
 func (c *M3DBController) handleStatefulSetUpdate(obj interface{}) {
