@@ -762,13 +762,18 @@ func (c *M3DBController) getChildStatefulSets(cluster *myspec.M3DBCluster) ([]*a
 	// Once we reach here we know that all StatefulSet's returned by the Lister are
 	// up-to-date. But we also need to check that the Lister isn't missing any entirely.
 	for want := range c.statefulSetCheckpoints {
+		var found bool
 		for _, sts := range childrenSets {
 			if sts.Name == want {
-				continue
+				found = true
+				break
 			}
 		}
-		c.logger.Warn("StatefulSetLister is missing a StatefulSet", zap.String("name", want))
-		return nil, errStaleCache
+
+		if !found {
+			c.logger.Warn("StatefulSetLister is missing a StatefulSet", zap.String("name", want))
+			return nil, errStaleCache
+		}
 	}
 
 	return childrenSets, nil
