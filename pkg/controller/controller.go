@@ -73,7 +73,6 @@ const (
 
 var (
 	errOrphanedPod         = errors.New("pod does not belong to an m3db cluster")
-	errNoSetLabel          = errors.New("pod does not have a parent statefulset error")
 	errInvalidNumIsoGroups = errors.New("number of isolationgroups not equal to replication factor")
 	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
@@ -476,15 +475,6 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 	}
 
-	// At this point we have the desired number of statefulsets, and every pod
-	// across those sets is bootstrapped. However some may be bootstrapped because
-	// they own no shards. Check to see that all pods are in the placement.
-	clusterPodsSelector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
-	pods, err := c.podLister.Pods(cluster.Namespace).List(clusterPodsSelector)
-	if err != nil {
-		return fmt.Errorf("could not list pods to check update revision: %v", err)
-	}
-
 	// For all statefulsets, ensure their observered generation is up to date.
 	// This means that the k8s statefulset controller has updated Status (and
 	// therefore ready replicas + updated replicas). If observed generation !=
@@ -615,9 +605,8 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// At this point we have the desired number of statefulsets, and every pod
 	// across those sets is bootstrapped. However some may be bootstrapped because
 	// they own no shards. Check to see that all pods are in the placement.
-	// NB(schallert): we also fetch pods above, but out of paranoia re-fetch to
-	// match old behavior.
-	pods, err = c.podLister.Pods(cluster.Namespace).List(clusterPodsSelector)
+	clusterPodsSelector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
+	pods, err := c.podLister.Pods(cluster.Namespace).List(clusterPodsSelector)
 	if err != nil {
 		return fmt.Errorf("error listing pods to construct placement: %v", err)
 	}
