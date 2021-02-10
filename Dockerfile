@@ -9,13 +9,8 @@ RUN apk add --update ca-certificates openssl && \
 # Install Build Binaries
 RUN apk add --update curl git make bash
 
-RUN mkdir -p /go/src/github.com/m3db/m3db-operator
-
-ADD go.mod go.sum /go/src/github.com/m3db/m3db-operator/
-RUN cd /go/src/github.com/m3db/m3db-operator/ && \
-  go mod download
-
 # Add source code
+RUN mkdir -p /go/src/github.com/m3db/m3db-operator
 ADD . /go/src/github.com/m3db/m3db-operator
 
 # Build m3dbnode binary
