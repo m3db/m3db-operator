@@ -37,5 +37,13 @@ spec:
       memory: 4Gi
       cpu: '1'
     limits:
-      memory: 32Gi
-      cpu: '8'
+      memory: 12Gi
+  dataDirVolumeClaimTemplate:
+    metadata:
+      name: m3db-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 32Gi
