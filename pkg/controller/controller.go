@@ -498,7 +498,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// If any of the statefulsets aren't ready, wait until they are as we'll get
 	// another event (ready == bootstrapped)
 	for _, sts := range childrenSets {
-		c.logger.Info("processing set",
+		c.logger.Debug("processing set",
 			zap.String("namespace", sts.Namespace),
 			zap.String("name", sts.Name),
 			zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
@@ -579,7 +579,10 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			zap.Int32("expected_readyReplicas", expected.Status.ReadyReplicas),
 			zap.Int32("expected_updatedReplicas", expected.Status.UpdatedReplicas),
 			zap.String("expected_currentRevision", expected.Status.CurrentRevision),
-			zap.String("expected_updateRevision", expected.Status.UpdateRevision))
+			zap.String("expected_updateRevision", expected.Status.UpdateRevision),
+			zap.Int64("generation", expected.Generation),
+			zap.Int64("observed", expected.Status.ObservedGeneration),
+		)
 
 		return nil
 	}
