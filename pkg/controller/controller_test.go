@@ -142,9 +142,11 @@ func setupTestCluster(
 }
 
 type waitForStatefulSetsOptions struct {
-	setReadyReplicas       bool
-	expectedStatefulSets   []string
-	simulatePodsNotUpdated bool
+	setReadyReplicas        bool
+	expectedStatefulSets    []string
+	simulatePodsNotUpdated  bool
+	simulateStaleGeneration bool
+	expectError             string
 }
 
 type waitForStatefulSetsResult struct {
@@ -181,6 +183,10 @@ func waitForStatefulSets(
 				// testing for when not updating them.
 				sts.Status.UpdatedReplicas = *sts.Spec.Replicas
 			}
+			if opts.simulateStaleGeneration {
+				sts.Status.ObservedGeneration = 2
+				sts.ObjectMeta.Generation = 1
+			}
 		default:
 			t.Errorf("verb %s is not supported", verb)
 		}
@@ -204,11 +210,16 @@ func waitForStatefulSets(
 	// we see all stateful sets that we expect and also be able to catch any extra stateful
 	// sets that we don't.
 	var (
-		iters = math.Max(float64(2*len(opts.expectedStatefulSets)), 5)
+		iters    = math.Max(float64(2*len(opts.expectedStatefulSets)), 5)
+		finalErr error
 	)
 	for i := 0; i < int(iters); i++ {
 		err := controller.handleClusterUpdate(cluster)
-		require.NoError(t, err)
+		if opts.expectError != "" {
+			finalErr = err
+		} else {
+			require.NoError(t, err)
+		}
 
 		mu.Lock()
 		var seen int
@@ -255,6 +266,10 @@ func waitForStatefulSets(
 				}
 			}
 		}
+	}
+
+	if opts.expectError != "" {
+		require.EqualError(t, finalErr, opts.expectError)
 	}
 
 	done := seen == len(opts.expectedStatefulSets)
@@ -697,8 +712,10 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 		newConfigMap                string
 		increaseReplicas            bool
 		simulatePodsNotUpdated      bool
+		simulateStaleGeneration     bool
 		expUpdateStatefulSets       []string
 		expFailedUpdateStatefulSets []string
+		expError                    string
 		expNotDone                  bool
 	}{
 		{
@@ -821,6 +838,29 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			expFailedUpdateStatefulSets: []string{"cluster1-rep1", "cluster1-rep2"},
 			expNotDone:                  true,
 		},
+		{
+			name: "fails if generation is stale",
+			cluster: newMeta("cluster1", map[string]string{
+				"foo":                      "bar",
+				"operator.m3db.io/app":     "m3db",
+				"operator.m3db.io/cluster": "cluster1",
+			}, nil),
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: "enabled",
+				}),
+			},
+			newImage:                "m3db:v2.0.0",
+			simulateStaleGeneration: true,
+			expNotDone:              true,
+			expError:                "set cluster1-rep0 generation is not up to date (current: 1, observed: 2)",
+		},
 	}
 
 	for _, test := range tests {
@@ -867,9 +907,11 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			}
 
 			result, done := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
-				setReadyReplicas:       true,
-				expectedStatefulSets:   test.expUpdateStatefulSets,
-				simulatePodsNotUpdated: test.simulatePodsNotUpdated,
+				setReadyReplicas:        true,
+				expectedStatefulSets:    test.expUpdateStatefulSets,
+				simulatePodsNotUpdated:  test.simulatePodsNotUpdated,
+				simulateStaleGeneration: test.simulateStaleGeneration,
+				expectError:             test.expError,
 			})
 			if test.expNotDone {
 				assert.False(t, done, "expected not all sets to be updated")
