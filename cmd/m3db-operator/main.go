@@ -264,7 +264,7 @@ func main() {
 		os.Exit(1)
 	}()
 
-	if err := controller.Run(2, stopCh); err != nil {
+	if err := controller.Run(1, stopCh); err != nil {
 		logger.Fatal("error running controller", zap.Error(err))
 	}
 }

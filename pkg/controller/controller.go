@@ -475,9 +475,40 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 	}
 
+	// For all statefulsets, ensure their observered generation is up to date.
+	// This means that the k8s statefulset controller has updated Status (and
+	// therefore ready replicas + updated replicas). If observed generation !=
+	// generation, it means Status will contain stale info.
+	for _, sts := range childrenSets {
+		if sts.Generation != sts.Status.ObservedGeneration {
+			c.logger.Warn("stateful set not up to date",
+				zap.String("namespace", sts.Namespace),
+				zap.String("name", sts.Name),
+				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
+				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
+				zap.String("currentRevision", sts.Status.CurrentRevision),
+				zap.String("updateRevision", sts.Status.UpdateRevision),
+				zap.Int64("generation", sts.Generation),
+				zap.Int64("observed", sts.Status.ObservedGeneration),
+			)
+			return fmt.Errorf("set %s generation is not up to date (current: %d, observed: %d)", sts.Name, sts.Generation, sts.Status.ObservedGeneration)
+		}
+	}
+
 	// If any of the statefulsets aren't ready, wait until they are as we'll get
 	// another event (ready == bootstrapped)
 	for _, sts := range childrenSets {
+		c.logger.Debug("processing set",
+			zap.String("namespace", sts.Namespace),
+			zap.String("name", sts.Name),
+			zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
+			zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
+			zap.String("currentRevision", sts.Status.CurrentRevision),
+			zap.String("updateRevision", sts.Status.UpdateRevision),
+			zap.Int64("generation", sts.Generation),
+			zap.Int64("observed", sts.Status.ObservedGeneration),
+		)
+
 		if sts.Spec.Replicas == nil {
 			c.logger.Warn("skip check for statefulset, replicas is nil",
 				zap.String("name", sts.Name),
@@ -539,7 +570,20 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			return err
 		}
 
-		c.logger.Info("updated statefulset", zap.String("name", name))
+		c.logger.Info("updated statefulset",
+			zap.String("name", expected.Name),
+			zap.Int32("actual_readyReplicas", actual.Status.ReadyReplicas),
+			zap.Int32("actual_updatedReplicas", actual.Status.UpdatedReplicas),
+			zap.String("actual_currentRevision", actual.Status.CurrentRevision),
+			zap.String("actual_updateRevision", actual.Status.UpdateRevision),
+			zap.Int32("expected_readyReplicas", expected.Status.ReadyReplicas),
+			zap.Int32("expected_updatedReplicas", expected.Status.UpdatedReplicas),
+			zap.String("expected_currentRevision", expected.Status.CurrentRevision),
+			zap.String("expected_updateRevision", expected.Status.UpdateRevision),
+			zap.Int64("generation", expected.Generation),
+			zap.Int64("observed", expected.Status.ObservedGeneration),
+		)
+
 		return nil
 	}
 
@@ -564,10 +608,10 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// At this point we have the desired number of statefulsets, and every pod
 	// across those sets is bootstrapped. However some may be bootstrapped because
 	// they own no shards. Check to see that all pods are in the placement.
-	selector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
-	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
+	clusterPodsSelector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
+	pods, err := c.podLister.Pods(cluster.Namespace).List(clusterPodsSelector)
 	if err != nil {
-		return fmt.Errorf("error listing pods: %v", err)
+		return fmt.Errorf("error listing pods to construct placement: %v", err)
 	}
 
 	placement, err := c.adminClient.placementClientForCluster(cluster).Get()
@@ -867,7 +911,7 @@ func (c *M3DBController) handlePodEvent(key string) error {
 
 func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 	// We only process pods that are members of m3db clusters.
-	if _, found := getClusterValue(pod); !found {
+	if _, err := getClusterValue(pod); err != nil {
 		return nil
 	}
 
@@ -945,19 +989,19 @@ func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 	return nil
 }
 
-func getClusterValue(pod *corev1.Pod) (string, bool) {
+func getClusterValue(pod *corev1.Pod) (string, error) {
 	cluster, ok := pod.Labels[labels.Cluster]
 	if !ok {
-		return "", false
+		return "", errOrphanedPod
 	}
 
-	return cluster, true
+	return cluster, nil
 }
 
 func (c *M3DBController) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster, error) {
-	clusterName, found := getClusterValue(pod)
-	if !found {
-		return nil, errOrphanedPod
+	clusterName, err := getClusterValue(pod)
+	if err != nil {
+		return nil, err
 	}
 
 	cluster, err := c.clusterLister.M3DBClusters(pod.Namespace).Get(clusterName)
@@ -1030,6 +1074,13 @@ func updatedStatefulSet(
 		delete(actual.Annotations, annotations.Update)
 		return actual, true, nil
 	}
+
+	// Ensure we keep old object meta so that resource version info can be used by
+	// K8s API for conflict resolution.
+	expected.ObjectMeta = *actual.ObjectMeta.DeepCopy()
+	// Reset expected annotations since we ensure their final state below.
+	expected.ObjectMeta.Annotations = map[string]string{}
+	expected.Status = actual.DeepCopy().Status
 
 	copyAnnotations(expected, actual)
 	return expected, true, nil
