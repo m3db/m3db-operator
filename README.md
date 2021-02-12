@@ -1,139 +1,114 @@
-# M3DB Operator [![Build status](https://badge.buildkite.com/6cf88054469d7d59a584f618426dc2bd436f816daaf5000db8.svg)](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
+# M3 Operator [![Build status](https://badge.buildkite.com/6cf88054469d7d59a584f618426dc2bd436f816daaf5000db8.svg)](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)
 
-The M3DB Operator is a project dedicated to setting up M3DB on Kubernetes. It aims to automate everyday tasks around managing M3DB. Specifically, it aims to automate:
+The M3 Operator helps you set up M3 on Kubernetes. It aims to automate everyday tasks around managing M3, specifically, it aims to automate:
 
-* Creating M3DB clusters
-* Destroying M3DB clusters
-* Expanding clusters (adding instances)
-* Shrinking clusters (removing instances)
-* Replacing failed instances
+-   Creating clusters
+-   Destroying clusters
+-   Expanding clusters (adding instances)
+-   Shrinking clusters (removing instances)
+-   Replacing failed instances
 
-More information:
+## Table of Contents
 
-- [Documentation][docs]
-- [Gitter room](https://gitter.im/m3db/kubernetes)
-- [M3DB Google Group](https://groups.google.com/forum/#!forum/m3db)
+- [M3 Operator ![Build status](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)](#m3-operator--)
+  - [Table of Contents](#table-of-contents)
+  - [More Information](#more-information)
+    - [Community Meetings](#community-meetings)
+    - [Office Hours](#office-hours)
+  - [Install](#install)
+    - [Dependencies](#dependencies)
+  - [Usage](#usage)
+    - [Create an etcd Cluster](#create-an-etcd-cluster)
+    - [Install the Operator](#install-the-operator)
+    - [Create an M3 Cluster](#create-an-m3-cluster)
+    - [Resize a Cluster](#resize-a-cluster)
+    - [Delete a Cluster](#delete-a-cluster)
+  - [Contributing](#contributing)
 
-## Getting Started
+## More Information
 
-The following instructions serve as a quickstart to get an M3DB cluster up and running in your Kubernetes cluster. This
-setup is not for production use, as there's no persistent storage. More information on production-grade clusters can be
-found in our [docs][docs].
+-   [Documentation](https://m3db.io/docs/operator/)
+-   [Slack](http://bit.ly/m3slack)
+-   [Forum (Google Group)](https://groups.google.com/forum/#!forum/m3db)
 
-### Kubernetes Cluster Prerequisites
+### Community Meetings
 
-The M3DB operator targets Kubernetes **1.11** and **1.12**. We generally aim to target the latest two minor versions
-supported by GKE but welcome community contributions to support more versions!
+M3 contributors and maintainers have regular meetings. Join our M3 meetup group to receive notifications on upcoming meetings: <https://www.meetup.com/M3-Community/>.
 
-The M3DB operator is intended for creating highly available clusters across distinct failure domains. For this reason we
-currently only support Kubernetes clusters with nodes in at least 3 zones, but [support][zonal] for zonal clusters is
-coming soon.
+You can find recordings of past meetups here: <https://vimeo.com/user/120001164/folder/2290331>.
 
-When running on GKE, the user applying the manifests will need the ability to allow `cluster-admin-binding` during the
-installation. Use the following `ClusterRoleBinding` with the user name provided by gcloud:
+### Office Hours
 
-```
-kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value core/account)
-```
+Members of the M3 team hold office hours on the third Thursday of every month from 11-1pm EST. To join, make sure to sign up for a slot here: <https://calendly.com/chronosphere-intro/m3-community-office-hours>.
 
-### Installing the M3DB Operator
+## Install
 
-With Helm:
+### Dependencies
 
-```
-helm repo add m3db https://m3-helm-charts.storage.googleapis.com/stable
-helm install m3db/m3db-operator --namespace m3db-operator
-```
+The M3 operator targets Kubernetes **1.11** and **1.12**. We aim to target the latest two minor versions supported by GKE but welcome community contributions to support more versions
 
-With `kubectl` (will install in the `default` namespace):
+The M3 operator is intended for creating highly available clusters across distinct failure domains. For this reason it only support Kubernetes clusters with nodes **in at least 3 zones**, but [support][https://github.com/m3db/m3db-operator/issues/68] for zonal clusters is coming soon.
 
-```
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/bundle.yaml
-```
+## Usage
 
-## Managing Clusters
+The following instructions are a quickstart to get a cluster up and running. This setup is not for production use, as it has no persistent storage. [Read the operator documentation](https://m3db.io/docs/operator/) for more information on production-grade clusters.
 
-### Creating a Cluster
+### Create an etcd Cluster
 
-Create a simple etcd cluster to store M3DB's topology:
+M3 stores its cluster placements and runtime metadata in [etcd](https://etcd.io/) and needs a running cluster to communicate with.
 
-```
+```shell
 kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/example/etcd/etcd-basic.yaml
 ```
 
-Apply manifest with your zones specified for isolation groups:
+### Install the Operator
 
-```yaml
-apiVersion: operator.m3db.io/v1alpha1
-kind: M3DBCluster
-metadata:
-  name: simple-cluster
-spec:
-  image: quay.io/m3db/m3dbnode:latest
-  replicationFactor: 3
-  numberOfShards: 256
-  # Default endpoints if using provided etcd manifests.
-  etcdEndpoints:
-  - http://etcd-0.etcd:2379
-  - http://etcd-1.etcd:2379
-  - http://etcd-2.etcd:2379
-  isolationGroups:
-  - name: group1
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-a>
-  - name: group2
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-b>
-  - name: group3
-    numInstances: 1
-    nodeAffinityTerms:
-    - key: failure-domain.beta.kubernetes.io/zone
-      values:
-      - <zone-c>
-  podIdentityConfig:
-    sources: []
-  namespaces:
-    - name: metrics-10s:2d
-      preset: 10s:2d
-  dataDirVolumeClaimTemplate:
-    metadata:
-      name: m3db-data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 100Gi
+Using `kubectl` (installs in the `default` namespace):
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/bundle.yaml
 ```
 
-### Resizing a Cluster
+### Create an M3 Cluster
 
-To resize a cluster, specify the new number of instances you want in each zone either by reapplying your manifest or
-using `kubectl edit`. The operator will safely scale up or scale down your cluster.
+The following creates an M3 cluster with 3 replicas of data across 256 shards that connects to the 3 available etcd endpoints.
 
-### Deleting a Cluster
-
-Delete a cluster using `kubectl delete`. You will to remove the etcd data as well, or wipe the data generated by the
-operator if you intend to reuse the etcd cluster for another M3DB cluster:
-
+```shell
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/master/example/m3db-local.yaml
 ```
+
+When running on GKE, the user applying the manifests needs the ability to allow `cluster-admin-binding` during installation. Use the following `ClusterRoleBinding` with the user name provided by gcloud:
+
+```shell
+kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value core/account)
+```
+
+### Resize a Cluster
+
+To resize a cluster, specify the new number of instances you want in each zone either by reapplying your manifest or using `kubectl edit`. The operator safely scales up or scales down the cluster.
+
+### Delete a Cluster
+
+```shell
+kubectl delete m3dbcluster simple-cluster
+```
+
+You also need to remove the etcd data, or wipe the data generated by the operator if you intend to reuse the etcd cluster for another M3 cluster:
+
+```shell
 kubectl exec etcd-0 -- env ETCDCTL_API=3 etcdctl del --keys-only --prefix ""
 ```
 
 ## Contributing
 
-We welcome community contributions to to the M3DB operator! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for more
-information. Please note that on creating a pull request you will be asked to agree to the Uber CLA before we can accept
-your contribution.
+You can ask questions and give feedback in the following ways:
 
-## License
-This project is licensed under the Apache license -- see the [LICENSE](https://github.com/m3db/m3db-operator/blob/master/LICENSE) file for details.
+-   [Create a GitHub issue](https://github.com/m3db/m3db-operator/issues)
+-   [In the public M3 Slack](http://bit.ly/m3slack)
+-   [In the M3 forum (Google Group)](https://groups.google.com/forum/#!forum/m3db)
 
-[docs]: https://operator.m3db.io/
-[zonal]: https://github.com/m3db/m3db-operator/issues/68
+The M3 operator welcomes pull requests, read [the development guide](CONTRIBUTING.md) to help you get setup for building and contributing.
+
+* * *
+
+This project is released under the [Apache License, Version 2.0](https://github.com/m3db/m3/blob/master/LICENSE).
