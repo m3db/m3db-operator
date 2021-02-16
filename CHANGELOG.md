@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+
+0.13.0 adds support for pod anti-affinity. It also fixes a bug in StatefulSet updates caused by making decisions about
+updates without the set metadata being fully up-to-date.
+
+* [BUGFIX] Ensure k8s statefulset statuses are fresh ([#271][271])
+* [FEATURE] Add support for pod anti-affinity ([#266][266])
+
 ## 0.12.1
 
 0.12.1 fixes bugs related to cluster startup and update due to the release of M3DB 1.0.
@@ -327,3 +335,5 @@ If using a custom configmap, this same change will require a modification to you
 [253]: https://github.com/m3db/m3db-operator/pull/253
 [260]: https://github.com/m3db/m3db-operator/pull/260
 [261]: https://github.com/m3db/m3db-operator/pull/261
+[266]: https://github.com/m3db/m3db-operator/pull/266
+[271]: https://github.com/m3db/m3db-operator/pull/271
