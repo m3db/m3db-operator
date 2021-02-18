@@ -69,7 +69,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/bu
 
 ### Create an M3 Cluster
 
-The following creates an M3 cluster with 3 replicas of data across 256 shards that connects to the 3 available etcd endpoints.
+The following command creates an M3 cluster with 3 replicas of data across 256 shards that connects to the 3 available etcd endpoints.
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/master/example/m3db-local.yaml
