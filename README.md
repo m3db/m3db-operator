@@ -10,20 +10,18 @@ The M3 Operator helps you set up M3 on Kubernetes. It aims to automate everyday 
 
 ## Table of Contents
 
-- [M3 Operator ![Build status](https://buildkite.com/m3/m3db-operator) [![codecov](https://codecov.io/gh/m3db/m3db-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/m3db/m3db-operator)](#m3-operator--)
-  - [Table of Contents](#table-of-contents)
-  - [More Information](#more-information)
-    - [Community Meetings](#community-meetings)
-    - [Office Hours](#office-hours)
-  - [Install](#install)
-    - [Dependencies](#dependencies)
-  - [Usage](#usage)
-    - [Create an etcd Cluster](#create-an-etcd-cluster)
-    - [Install the Operator](#install-the-operator)
-    - [Create an M3 Cluster](#create-an-m3-cluster)
-    - [Resize a Cluster](#resize-a-cluster)
-    - [Delete a Cluster](#delete-a-cluster)
-  - [Contributing](#contributing)
+- [More Information](#more-information)
+  - [Community Meetings](#community-meetings)
+  - [Office Hours](#office-hours)
+- [Install](#install)
+  - [Dependencies](#dependencies)
+- [Usage](#usage)
+  - [Create an etcd Cluster](#create-an-etcd-cluster)
+  - [Install the Operator](#install-the-operator)
+  - [Create an M3 Cluster](#create-an-m3-cluster)
+  - [Resize a Cluster](#resize-a-cluster)
+  - [Delete a Cluster](#delete-a-cluster)
+- [Contributing](#contributing)
 
 ## More Information
 
