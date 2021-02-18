@@ -1,6 +1,5 @@
 PROJECT_NAME := m3db-operator
 OUTPUT_DIR   := out
-DOCS_OUT_DIR := site
 .DEFAULT_GOAL := all
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -189,7 +188,7 @@ asset-gen:
 
 # NB(schallert): order matters -- we want license generation after all else.
 .PHONY: all-gen
-all-gen: mock-gen kubernetes-gen asset-gen helm-bundle docs-api-gen license-gen
+all-gen: mock-gen kubernetes-gen asset-gen helm-bundle license-gen
 
 # Ensure base commit had up-to-date generated artifacts
 .PHONY: test-all-gen
@@ -245,29 +244,3 @@ helm-bundle: install-tools helm-bundle-no-deps
 publish-helm-charts: ## pushes a new version of the helm chart
 	@echo "+ $@"
 	./build/package-helm-charts.sh
-
-## Documentation
-
-.PHONY: docs-clean
-docs-clean:
-	mkdir -p $(DOCS_OUT_DIR)
-	rm -rf $(DOCS_OUT_DIR)/*
-
-.PHONY: docs-container
-docs-container:
-	docker build -t m3db-docs -f docs/Dockerfile docs
-
-.PHONY: docs-build
-docs-build: docs-clean docs-container
-	docker run -v $(PWD):/m3db --rm m3db-docs "mkdocs build -e docs/theme -t material"
-
-.PHONY: docs-serve
-docs-serve: docs-clean docs-container
-	docker run -v $(PWD):/m3db -p 8000:8000 -it --rm m3db-docs "mkdocs serve -e docs/theme -t material -a 0.0.0.0:8000"
-
-.PHONY: docs-api-gen-no-deps
-docs-api-gen-no-deps:
-	$(SELF_DIR)/out/docgen api pkg/apis/m3dboperator/v1alpha1/cluster.go pkg/apis/m3dboperator/v1alpha1/namespace.go pkg/apis/m3dboperator/v1alpha1/pod_identity.go > $(SELF_DIR)/docs/api.md
-
-.PHONY: docs-api-gen
-docs-api-gen: docgen docs-api-gen-no-deps
