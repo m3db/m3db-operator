@@ -237,7 +237,7 @@ func TestErrorPlacementClient(t *testing.T) {
 	err = cl.Delete()
 	assert.Equal(t, clErr, err)
 
-	err = cl.Add(placementpb.Instance{})
+	err = cl.Add([]*placementpb.Instance{&placementpb.Instance{}})
 	assert.Equal(t, clErr, err)
 
 	err = cl.Remove("foo")
