@@ -47,8 +47,9 @@ spec:
     spec:
       containers:
       - name: etcd
-        image: quay.io/coreos/etcd:v3.3.3
-        imagePullPolicy: Always
+        # 3.3.18
+        image: gcr.io/etcd-development/etcd@sha256:e80582131febde2862a530660cb74c6b1cb2e1d2b443e6c563139cedc636f2e7
+        imagePullPolicy: IfNotPresent
         command:
         - "etcd"
         - "--name"
@@ -74,6 +75,9 @@ spec:
           name: client
         - containerPort: 2380
           name: peer
+        volumeMounts:
+        - name: etcd-data
+          mountPath: /var/lib/etcd
         env:
         - name: MY_IP
           valueFrom:
@@ -83,3 +87,17 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: ETCDCTL_API
+          value: "3"
+  # Kind has a default storageclass. No need to set storageClassName.
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 4Gi
+        limits:
+          storage: 4Gi

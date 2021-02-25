@@ -46,7 +46,7 @@ const (
 )
 
 func (h *Harness) createEtcdCluster() error {
-	f, err := os.Open("../manifests/etcd-kind.yaml")
+	f, err := os.Open("../manifests/etcd.yaml")
 	if err != nil {
 		return err
 	}
