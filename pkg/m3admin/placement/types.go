@@ -37,7 +37,7 @@ type Client interface {
 	// Delete will delete the current placment
 	Delete() error
 	// Add will add an instance to the placement
-	Add(instance placementpb.Instance) error
+	Add(instances []*placementpb.Instance) error
 	// Remove removes a given instance with the given ID from the placement.
 	Remove(id string) error
 	// Replace replaces one instance with another.
