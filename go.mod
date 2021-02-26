@@ -3,7 +3,6 @@ module github.com/m3db/m3db-operator
 go 1.13
 
 require (
-	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5 // indirect
 	github.com/ant31/crd-validation v0.0.0-20180801212718-38f6a293f140
 	github.com/axw/gocov v1.0.0
 	github.com/cirocosta/grafana-sync v0.0.0-20181123215626-6cbb4a9501c1
@@ -13,7 +12,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/fossas/fossa-cli v1.0.30
 	github.com/garethr/kubeval v0.0.0-20180821130434-c44f5193dc94
-	github.com/go-lintpack/lintpack v0.5.2 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-openapi/runtime v0.19.5 // indirect
 	github.com/go-openapi/spec v0.19.3
@@ -21,25 +19,15 @@ require (
 	github.com/go-swagger/scan-repo-boundary v0.0.0-20180623220736-973b3573c013 // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.4.4
-	github.com/golangci/go-tools v0.0.0-20190318055746-e32c54105b7c // indirect
-	github.com/golangci/goconst v0.0.0-20180610141641-041c5f2b40f3 // indirect
-	github.com/golangci/gocyclo v0.0.0-20180528134321-2becd97e67ee // indirect
 	github.com/golangci/golangci-lint v1.37.0
-	github.com/golangci/gosec v0.0.0-20190211064107-66fb7fc33547 // indirect
-	github.com/golangci/prealloc v0.0.0-20180630174525-215b22d4de21 // indirect
 	github.com/googleapis/gnostic v0.3.1 // indirect
-	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.0
-	github.com/jcmturner/gokrb5/v8 v8.2.0 // indirect
-	github.com/klauspost/cpuid v1.2.0 // indirect
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
 	github.com/m3db/m3 v1.1.1-0.20210226110415-9482057159cd
 	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
-	github.com/ory/dockertest v3.3.5+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.6
-	github.com/robskillington/gorename v0.0.0-20180424020013-52c7307cddd2 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	github.com/uber-go/tally v3.3.17+incompatible
@@ -48,11 +36,6 @@ require (
 	go.uber.org/zap v1.13.0
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f
 	google.golang.org/appengine v1.6.2 // indirect
-	gopkg.in/jcmturner/aescts.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/dnsutils.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
-	gopkg.in/jcmturner/gokrb5.v7 v7.5.0 // indirect
-	gopkg.in/jcmturner/rpc.v1 v1.1.0 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.3
@@ -62,7 +45,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	sigs.k8s.io/yaml v1.2.0 // indirect
-	sourcegraph.com/sqs/pbtypes v0.0.0-20180604144634-d3ebe8f20ae4 // indirect
 )
 
 replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628-53dd39833a08
