@@ -12,7 +12,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/fossas/fossa-cli v1.0.30
 	github.com/garethr/kubeval v0.0.0-20180821130434-c44f5193dc94
-	github.com/go-lintpack/lintpack v0.5.2 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-openapi/runtime v0.19.5 // indirect
 	github.com/go-openapi/spec v0.19.3
