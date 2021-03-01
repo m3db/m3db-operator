@@ -1,6 +1,0 @@
-vendor/
-generated/
-pkg/client/
-pkg/assets/
-zz_generated
-_mock.go
