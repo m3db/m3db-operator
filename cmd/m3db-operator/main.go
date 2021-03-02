@@ -37,7 +37,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
-	"github.com/m3db/m3x/instrument"
+	"github.com/m3db/m3/src/x/instrument"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
