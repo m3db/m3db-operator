@@ -37,6 +37,8 @@ const (
 	// Update is the annotation used by the operator to determine if a StatefulSet is
 	// allowed to be updated.
 	Update = "operator.m3db.io/update"
+	// Rollout is the annotation used by the operator to force rollout update of a StatefulSet.
+	Rollout = "operator.m3db.io/rollout"
 
 	// EnabledVal is the value that indicates an annotation is enabled.
 	EnabledVal = "enabled"
