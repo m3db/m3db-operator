@@ -24,7 +24,6 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.0
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
 	github.com/m3db/m3 v0.15.18-0.20201027011129-53414ba8082a
-	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.6
