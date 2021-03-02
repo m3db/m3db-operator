@@ -39,10 +39,6 @@ coverfile            := cover.out
 coverage_xml         := coverage.xml
 junit_xml            := junit.xml
 test_log             := test.log
-lint_check           := .ci/lint.sh
-metalint_check       := .ci/metalint.sh
-metalint_config      := .metalinter.json
-metalint_exclude     := .excludemetalint
 gopath_prefix        := $(GOPATH)/src
 package_root         := github.com/m3db/m3db-operator
 package_path         := $(gopath_prefix)/$(package_root)
@@ -53,7 +49,6 @@ mockgen_package      := github.com/golang/mock/mockgen
 mocks_output_dir     := generated/mocks
 mocks_rules_dir      := generated/mocks
 auto_gen             := scripts/auto-gen.sh
-GOMETALINT_VERSION   := v2.0.5
 
 LINUX_AMD64_ENV 					:= GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 GO_BUILD_LDFLAGS_CMD      := $(abspath ./.ci/go-build-ldflags.sh) $(package_root)
@@ -94,12 +89,7 @@ build-integration:
 .PHONY: lint
 lint: install-tools
 	@echo "--- $@"
-	PATH=$(combined_bin_paths):$(PATH) $(lint_check)
-
-.PHONY: metalint
-metalint: install-tools install-gometalinter
-	@echo "--- $@"
-	@(PATH=$(combined_bin_paths):$(PATH) $(metalint_check) $(metalint_config) $(metalint_exclude) && echo "metalinted successfully!") || (echo "metalinter failed" && exit 1)
+	PATH=$(combined_bin_paths):$(PATH) golangci-lint run ./...
 
 .PHONY: test-xml
 test-xml: test-base
@@ -110,7 +100,7 @@ test-xml: test-base
 	@rm $(coverfile) &> /dev/null
 
 .PHONY: test-all
-test-all: clean-all install-tools verify-gen lint metalint test-all-gen bins test
+test-all: clean-all install-tools verify-gen lint test-all-gen bins test
 	@echo "--- $@"
 
 .PHONY: test
@@ -154,15 +144,10 @@ install-tools:
 	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/importorder
 	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/utilities/genclean
 	GOBIN=$(tools_bin_path) go install github.com/m3db/tools/update-license
+	GOBIN=$(tools_bin_path) go install github.com/golangci/golangci-lint/cmd/golangci-lint
 	GOBIN=$(tools_bin_path) go install github.com/rakyll/statik
 	GOBIN=$(tools_bin_path) go install golang.org/x/lint/golint
 	GOBIN=$(tools_bin_path) go install k8s.io/kube-openapi/cmd/openapi-gen
-
-.PHONY: install-gometalinter
-install-gometalinter:
-	@mkdir -p $(tools_bin_path)
-	@echo "--- Installing gometalinter"
-	./scripts/install-gometalinter.sh -b $(tools_bin_path) -d $(GOMETALINT_VERSION)
 
 .PHONY: mock-gen
 mock-gen: install-tools mock-gen-no-deps
@@ -211,7 +196,7 @@ clean-all: clean ## Clean-all cleans all build dependencies.
 	@rm -rf _tools/
 
 .PHONY: all
-all: clean-all kubernetes-gen lint metalint test-ci-unit bins
+all: clean-all kubernetes-gen lint test-ci-unit bins
 	@echo "$@ successfully finished"
 
 .PHONY: kubernetes-gen

@@ -19,12 +19,11 @@ require (
 	github.com/go-swagger/scan-repo-boundary v0.0.0-20180623220736-973b3573c013 // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.4.4
-	github.com/golangci/golangci-lint v1.37.0
+	github.com/golangci/golangci-lint v1.37.1
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.0
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
-	github.com/m3db/m3 v1.1.1-0.20210226110415-9482057159cd
-	github.com/m3db/m3x v0.0.0-20190408051622-ebf3c7b94afd
+	github.com/m3db/m3 v1.1.1-0.20210302095536-802492679da1
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.6
