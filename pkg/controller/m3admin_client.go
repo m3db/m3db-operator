@@ -267,7 +267,7 @@ func (c errorPlacementClient) Delete() error {
 	return c.err
 }
 
-func (c errorPlacementClient) Add(placementpb.Instance) error {
+func (c errorPlacementClient) Add([]*placementpb.Instance) error {
 	return c.err
 }
 

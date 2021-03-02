@@ -365,7 +365,7 @@ func TestNamespacesToReady(t *testing.T) {
 
 func TestSetPodBootstrappingStatus(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
-	assert.False(t, cluster.Status.HasPodBootstrapping())
+	assert.False(t, cluster.Status.HasPodsBootstrapping())
 
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
@@ -373,10 +373,10 @@ func TestSetPodBootstrappingStatus(t *testing.T) {
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
-	cluster, err := controller.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "foo", "bar")
+	cluster, err := controller.setStatusPodsBootstrapping(cluster, corev1.ConditionTrue, "foo", "bar")
 	assert.NoError(t, err)
 
-	assert.True(t, cluster.Status.HasPodBootstrapping())
+	assert.True(t, cluster.Status.HasPodsBootstrapping())
 }
 
 func TestSetStatus(t *testing.T) {
@@ -426,7 +426,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
-	const cond = myspec.ClusterConditionPodBootstrapping
+	const cond = myspec.ClusterConditionPodsBootstrapping
 
 	newPl := func(state shard.State) placement.Placement {
 		return placement.NewPlacement().SetInstances([]placement.Instance{
@@ -452,7 +452,8 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	assert.Equal(t, string(corev1.ConditionFalse), string(c.Status))
 }
 
-func TestAddPodToPlacement(t *testing.T) {
+// nolint: paralleltest
+func TestAddPodsToPlacement(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 
 	deps := newTestDeps(t, &testOpts{
@@ -461,36 +462,41 @@ func TestAddPodToPlacement(t *testing.T) {
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "pod-a",
-			Labels: map[string]string{
-				"operator.m3db.io/isolation-group": "zone-a",
+	var (
+		podNames   = []string{"pod-a1", "pod-a2"}
+		pods       = make([]*corev1.Pod, 0, len(podNames))
+		placements = make([]*placementpb.Instance, 0, len(podNames))
+	)
+	for _, name := range podNames {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"operator.m3db.io/isolation-group": "zone-a",
+				},
 			},
-		},
+		}
+		deps.idProvider.EXPECT().Identity(pod, cluster).Return(&myspec.PodIdentity{}, nil)
+		pods = append(pods, pod)
+		placements = append(placements, &placementpb.Instance{
+			Id:             "{}",
+			IsolationGroup: "zone-a",
+			Zone:           "embedded",
+			Endpoint:       fmt.Sprintf("%s.m3dbnode-cluster-simple:9000", name),
+			Hostname:       fmt.Sprintf("%s.m3dbnode-cluster-simple", name),
+			Port:           9000,
+			Weight:         100,
+		})
 	}
+	deps.placementClient.EXPECT().Add(placements)
 
-	deps.idProvider.EXPECT().Identity(pod, cluster).Return(&myspec.PodIdentity{}, nil)
-
-	expInstance := placementpb.Instance{
-		Id:             "{}",
-		IsolationGroup: "zone-a",
-		Zone:           "embedded",
-		Endpoint:       "pod-a.m3dbnode-cluster-simple:9000",
-		Hostname:       "pod-a.m3dbnode-cluster-simple",
-		Port:           9000,
-		Weight:         100,
-	}
-
-	deps.placementClient.EXPECT().Add(expInstance)
-
-	err := controller.addPodToPlacement(cluster, pod)
+	err := controller.addPodsToPlacement(cluster, pods)
 	assert.NoError(t, err)
 
 	cluster, err = controller.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	assert.True(t, cluster.Status.HasPodBootstrapping())
+	assert.True(t, cluster.Status.HasPodsBootstrapping())
 }
 
 func podsForClusterSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, numPods int) []*corev1.Pod {
@@ -599,19 +605,23 @@ func TestExpandPlacementForSet(t *testing.T) {
 
 	identifyPods(idProvider, pods, nil)
 
-	pl := placementFromPods(t, cluster, pods[:2], idProvider)
+	pl := placementFromPods(t, cluster, pods[:1], idProvider)
 	group := cluster.Spec.IsolationGroups[0]
 
-	instPb, err := m3db.PlacementInstanceFromPod(cluster, pods[2], idProvider)
-	require.NoError(t, err)
+	placements := make([]*placementpb.Instance, 0, len(pods[1:]))
+	for _, pod := range pods[1:] {
+		instPb, err := m3db.PlacementInstanceFromPod(cluster, pod, idProvider)
+		require.NoError(t, err)
+		placements = append(placements, instPb)
+	}
 
-	placementMock.EXPECT().Add(*instPb)
+	placementMock.EXPECT().Add(placements)
 	err = controller.expandPlacementForSet(cluster, set, group, pl)
 	assert.NoError(t, err)
 
 	cluster, err = deps.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.True(t, cluster.Status.HasPodBootstrapping())
+	assert.True(t, cluster.Status.HasPodsBootstrapping())
 }
 
 func TestExpandPlacementForSet_Nop(t *testing.T) {
@@ -853,7 +863,6 @@ func TestSortPods(t *testing.T) {
 }
 
 func TestCheckPodsForReplacement(t *testing.T) {
-
 	cluster := getFixture("cluster-3-zones.yaml", t)
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
@@ -888,7 +897,8 @@ func TestCheckPodsForReplacement(t *testing.T) {
 			Labels: map[string]string{
 				"different": "label",
 			},
-		}})
+		},
+	})
 
 	identifyPods(idProvider, replacePods, nil)
 
@@ -950,7 +960,6 @@ func TestReplacePodInPlacement(t *testing.T) {
 
 	err = controller.replacePodInPlacement(cluster, pl, testLeavingInstanceID, testNewPod)
 	require.NoError(t, err)
-
 }
 
 func TestReplacePodInPlacementWithError(t *testing.T) {
@@ -972,7 +981,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 	pl := placementFromPods(t, cluster, podsForPlacement, idProvider)
 
 	// error creating instance
-	var badPod = &corev1.Pod{
+	badPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: podsForPlacement[0].Name,
 			UID:  types.UID("ABC"),

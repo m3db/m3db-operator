@@ -34,3 +34,6 @@ linux-amd64/
 
 # Helm packages
 helm/**/*.tgz
+
+# Vim swap files
+*.swp
