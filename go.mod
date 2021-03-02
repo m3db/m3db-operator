@@ -23,13 +23,13 @@ require (
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.0
 	github.com/m3db/build-tools v0.0.0-20181013000606-edd1bdd1df8a
-	github.com/m3db/m3 v0.15.18-0.20201027011129-53414ba8082a
+	github.com/m3db/m3 v1.1.1-0.20210302095536-802492679da1
 	github.com/m3db/tools v0.0.0-20181008195521-c6ded3f34878
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.6
 	github.com/stretchr/testify v1.7.0
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
-	github.com/uber-go/tally v3.3.13+incompatible
+	github.com/uber-go/tally v3.3.17+incompatible
 	github.com/urfave/cli v1.22.2 // indirect
 	go.uber.org/atomic v1.6.0
 	go.uber.org/zap v1.13.0
