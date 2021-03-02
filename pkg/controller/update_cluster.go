@@ -382,7 +382,7 @@ func (c *M3DBController) addPodsToPlacement(cluster *myspec.M3DBCluster, pods []
 	reason := reasonBuf.String()
 	_, err := c.setStatusPodsBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
 	if err != nil {
-		err := fmt.Errorf("error setting pods bootstrapping status: %v", err)
+		err := fmt.Errorf("error setting pods bootstrapping status: %w", err)
 		c.logger.Error(err.Error())
 		return err
 	}

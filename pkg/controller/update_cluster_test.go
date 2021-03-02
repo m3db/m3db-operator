@@ -452,6 +452,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	assert.Equal(t, string(corev1.ConditionFalse), string(c.Status))
 }
 
+// nolint: paralleltest
 func TestAddPodsToPlacement(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 
@@ -462,10 +463,11 @@ func TestAddPodsToPlacement(t *testing.T) {
 	defer deps.cleanup()
 
 	var (
-		pods       []*corev1.Pod
-		placements []*placementpb.Instance
+		podNames   = []string{"pod-a1", "pod-a2"}
+		pods       = make([]*corev1.Pod, 0, len(podNames))
+		placements = make([]*placementpb.Instance, 0, len(podNames))
 	)
-	for _, name := range []string{"pod-a1", "pod-a2"} {
+	for _, name := range podNames {
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -606,7 +608,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 	pl := placementFromPods(t, cluster, pods[:1], idProvider)
 	group := cluster.Spec.IsolationGroups[0]
 
-	var placements []*placementpb.Instance
+	placements := make([]*placementpb.Instance, 0, len(pods[1:]))
 	for _, pod := range pods[1:] {
 		instPb, err := m3db.PlacementInstanceFromPod(cluster, pod, idProvider)
 		require.NoError(t, err)

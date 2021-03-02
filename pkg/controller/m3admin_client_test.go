@@ -24,20 +24,18 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
+	"github.com/m3db/m3/src/msg/generated/proto/topicpb"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/m3admin/placement"
 	"github.com/m3db/m3db-operator/pkg/m3admin/topic"
-
-	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
-	"github.com/m3db/m3/src/msg/generated/proto/topicpb"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
@@ -237,7 +235,7 @@ func TestErrorPlacementClient(t *testing.T) {
 	err = cl.Delete()
 	assert.Equal(t, clErr, err)
 
-	err = cl.Add([]*placementpb.Instance{&placementpb.Instance{}})
+	err = cl.Add([]*placementpb.Instance{{}})
 	assert.Equal(t, clErr, err)
 
 	err = cl.Remove("foo")
