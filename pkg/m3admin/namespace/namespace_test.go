@@ -220,7 +220,7 @@ func TestRequestFromSpec(t *testing.T) {
 						Type: "testOpts",
 						Options: &pbtypes.Struct{Fields: map[string]*pbtypes.Value{
 							"key1": {Kind: &pbtypes.Value_StringValue{StringValue: "str"}},
-							"key2": {Kind: &pbtypes.Value_NumberValue{NumberValue: 555}},
+							"key2": {Kind: &pbtypes.Value_NumberValue{NumberValue: 123}},
 							"key3": {Kind: &pbtypes.Value_StructValue{StructValue: &pbtypes.Struct{
 								Fields: map[string]*pbtypes.Value{
 									"subKey1": {Kind: &pbtypes.Value_StringValue{StringValue: "foo"}},
