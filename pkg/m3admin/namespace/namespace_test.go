@@ -21,6 +21,7 @@
 package namespace
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -187,13 +188,13 @@ func TestRequestFromSpec(t *testing.T) {
 					},
 					ExtendedOptions: &myspec.ExtendedOptions{
 						Type: "testOpts",
-						Options: map[string]myspec.DynamicOption{
-							"key1": myspec.NewDynamicOption("str"),
-							"key2": myspec.NewDynamicOption(555),
-							"key3": myspec.NewDynamicOption(map[string]interface{}{
+						Options: map[string]json.RawMessage{
+							"key1": json.RawMessage(`"str"`),
+							"key2": json.RawMessage(`123`),
+							"key3": json.RawMessage(`{
 								"subKey1": "foo",
-								"subKey2": "bar",
-							}),
+								"subKey2": "bar"
+							}`),
 						},
 					},
 				},

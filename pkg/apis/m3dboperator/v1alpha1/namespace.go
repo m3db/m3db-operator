@@ -100,35 +100,10 @@ type DownsampleOptions struct {
 	All bool `json:"all,omitempty"`
 }
 
-// DynamicOption is an option the type of which is only known at run time.
-type DynamicOption interface {
-	json.Marshaler
-	DeepCopyDynamicOption() DynamicOption
-}
-
-type dynamicOption struct {
-	o interface{}
-}
-
-// NewDynamicOption creates a new DynamicOption.
-func NewDynamicOption(value interface{}) DynamicOption {
-	return &dynamicOption{value}
-}
-
-func (o *dynamicOption) DeepCopyDynamicOption() DynamicOption {
-	// We can fake DeepCopy by resorting to shallow copy here because
-	// within this service dynamic options are effectively immutable.
-	return o
-}
-
-func (o *dynamicOption) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.o)
-}
-
 // ExtendedOptions stores the extended namespace options.
 type ExtendedOptions struct {
-	Type    string                   `json:"type,omitempty"`
-	Options map[string]DynamicOption `json:"options,omitempty"`
+	Type    string                     `json:"type,omitempty"`
+	Options map[string]json.RawMessage `json:"options,omitempty"`
 }
 
 // NamespaceOptions defines parameters for an M3DB namespace. See

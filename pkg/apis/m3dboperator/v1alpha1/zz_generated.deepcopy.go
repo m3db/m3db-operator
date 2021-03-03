@@ -25,6 +25,8 @@
 package v1alpha1
 
 import (
+	json "encoding/json"
+
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -265,13 +267,17 @@ func (in *ExtendedOptions) DeepCopyInto(out *ExtendedOptions) {
 	*out = *in
 	if in.Options != nil {
 		in, out := &in.Options, &out.Options
-		*out = make(map[string]DynamicOption, len(*in))
+		*out = make(map[string]json.RawMessage, len(*in))
 		for key, val := range *in {
+			var outVal []byte
 			if val == nil {
 				(*out)[key] = nil
 			} else {
-				(*out)[key] = val.DeepCopyDynamicOption()
+				in, out := &val, &outVal
+				*out = make(json.RawMessage, len(*in))
+				copy(*out, *in)
 			}
+			(*out)[key] = outVal
 		}
 	}
 	return

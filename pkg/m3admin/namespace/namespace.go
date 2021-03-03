@@ -219,7 +219,7 @@ func m3dbExtendedOptsFromSpec(opts *myspec.ExtendedOptions) (*m3ns.ExtendedOptio
 	}, nil
 }
 
-func pbStructFromSpec(opts map[string]myspec.DynamicOption) (*pbtypes.Struct, error) {
+func pbStructFromSpec(opts map[string]json.RawMessage) (*pbtypes.Struct, error) {
 	jsonBytes, err := json.Marshal(opts)
 	if err != nil {
 		return nil, err
