@@ -27,7 +27,6 @@ import (
 	"reflect"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
@@ -70,7 +69,6 @@ const (
 	controllerName       = "m3db-controller"
 	clusterWorkQueueName = "m3dbcluster-work-queue"
 	podWorkQueueName     = "pods-work-queue"
-	rolloutTimeFormat    = "2006-01-02T150405"
 )
 
 var (
@@ -1095,7 +1093,8 @@ func updateSpecTemplate(sts *appsv1.StatefulSet) {
 	if sts.Spec.Template.Annotations == nil {
 		sts.Spec.Template.Annotations = map[string]string{}
 	}
-	sts.Spec.Template.Annotations[annotations.Rollout] = time.Now().Format(rolloutTimeFormat)
+
+	sts.Spec.Template.Annotations[annotations.Rollout] = metav1.Now().String()
 }
 
 func copyAnnotations(expected, actual *appsv1.StatefulSet) {
