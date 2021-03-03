@@ -21,12 +21,16 @@
 package namespace
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
+	"github.com/gogo/protobuf/jsonpb"
+	pbtypes "github.com/gogo/protobuf/types"
 	m3ns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 )
@@ -95,6 +99,11 @@ func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOp
 		return nil, err
 	}
 
+	extOpts, err := m3dbExtendedOptsFromSpec(opts.ExtendedOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &m3ns.NamespaceOptions{
 		BootstrapEnabled:   opts.BootstrapEnabled,
 		FlushEnabled:       opts.FlushEnabled,
@@ -106,6 +115,7 @@ func m3dbNamespaceOptsFromSpec(opts *myspec.NamespaceOptions) (*m3ns.NamespaceOp
 		IndexOptions:       indexOpts,
 		ColdWritesEnabled:  opts.ColdWritesEnabled,
 		AggregationOptions: aggOpts,
+		ExtendedOptions:    extOpts,
 	}, nil
 }
 
@@ -191,4 +201,34 @@ func m3dbAggregationOptsFromSpec(opts myspec.AggregationOptions) (*m3ns.Aggregat
 		Aggregations: aggs,
 	}, nil
 
+}
+
+func m3dbExtendedOptsFromSpec(opts *myspec.ExtendedOptions) (*m3ns.ExtendedOptions, error) {
+	if opts == nil {
+		return nil, nil
+	}
+
+	pbStruct, err := pbStructFromSpec(opts.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &m3ns.ExtendedOptions{
+		Type:    opts.Type,
+		Options: pbStruct,
+	}, nil
+}
+
+func pbStructFromSpec(opts map[string]interface{}) (*pbtypes.Struct, error) {
+	jsonBytes, err := json.Marshal(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	pbStruct := &pbtypes.Struct{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(jsonBytes), pbStruct); err != nil {
+		return nil, err
+	}
+
+	return pbStruct, nil
 }
