@@ -102,8 +102,8 @@ type DownsampleOptions struct {
 
 // DynamicOption is an option the type of which is only known at run time.
 type DynamicOption interface {
+	json.Marshaler
 	DeepCopyDynamicOption() DynamicOption
-	MarshalJSON() ([]byte, error)
 }
 
 type dynamicOption struct {
