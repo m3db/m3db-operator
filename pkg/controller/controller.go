@@ -1094,7 +1094,8 @@ func updateSpecTemplate(sts *appsv1.StatefulSet) {
 		sts.Spec.Template.Annotations = map[string]string{}
 	}
 
-	sts.Spec.Template.Annotations[annotations.Rollout] = metav1.Now().String()
+	now, _ := metav1.Now().MarshalQueryParameter()
+	sts.Spec.Template.Annotations[annotations.Rollout] = now
 }
 
 func copyAnnotations(expected, actual *appsv1.StatefulSet) {
