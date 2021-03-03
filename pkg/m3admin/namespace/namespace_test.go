@@ -40,29 +40,25 @@ func TestRequestFromSpec(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
+		name   string
 		ns     myspec.Namespace
 		req    *admin.NamespaceAddRequest
 		expErr bool
 	}{
 		{
+			name:   "no fields",
 			ns:     myspec.Namespace{},
 			expErr: true,
 		},
 		{
+			name: "only name set",
 			ns: myspec.Namespace{
 				Name: "empty",
 			},
 			expErr: true,
 		},
 		{
-			ns: myspec.Namespace{
-				Name:    "badpreset",
-				Preset:  "a",
-				Options: &myspec.NamespaceOptions{},
-			},
-			expErr: true,
-		},
-		{
+			name: "valid custom",
 			ns: myspec.Namespace{
 				Name: "validcustom",
 				Options: &myspec.NamespaceOptions{
@@ -111,6 +107,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "AggregatedOptions",
 			ns: myspec.Namespace{
 				Name: "aggregated",
 				Options: &myspec.NamespaceOptions{
@@ -170,6 +167,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "ExtendedOptions",
 			ns: myspec.Namespace{
 				Name: "extended",
 				Options: &myspec.NamespaceOptions{
@@ -189,13 +187,13 @@ func TestRequestFromSpec(t *testing.T) {
 					},
 					ExtendedOptions: &myspec.ExtendedOptions{
 						Type: "testOpts",
-						Options: map[string]interface{}{
-							"key1": "str",
-							"key2": 555,
-							"key3": map[string]interface{}{
+						Options: map[string]myspec.DynamicOption{
+							"key1": myspec.NewDynamicOption("str"),
+							"key2": myspec.NewDynamicOption(555),
+							"key3": myspec.NewDynamicOption(map[string]interface{}{
 								"subKey1": "foo",
 								"subKey2": "bar",
-							},
+							}),
 						},
 					},
 				},
@@ -234,6 +232,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid custom",
 			ns: myspec.Namespace{
 				Name: "invalidcustom",
 				Options: &myspec.NamespaceOptions{
@@ -261,6 +260,16 @@ func TestRequestFromSpec(t *testing.T) {
 			expErr: true,
 		},
 		{
+			name: "bad preset 1",
+			ns: myspec.Namespace{
+				Name:    "badpreset",
+				Preset:  "a",
+				Options: &myspec.NamespaceOptions{},
+			},
+			expErr: true,
+		},
+		{
+			name: "bad preset 2",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "a",
@@ -268,6 +277,7 @@ func TestRequestFromSpec(t *testing.T) {
 			expErr: true,
 		},
 		{
+			name: "preset 10s:2d",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "10s:2d",
@@ -278,6 +288,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "preset 1m:40d",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "1m:40d",
@@ -290,13 +301,15 @@ func TestRequestFromSpec(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		req, err := RequestFromSpec(test.ns)
-		if test.expErr {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-			assert.Equal(t, test.req, req)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			req, err := RequestFromSpec(test.ns)
+			if test.expErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.req, req)
+			}
+		})
 	}
 }
 
