@@ -21,14 +21,15 @@
 package namespace
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
+	pbtypes "github.com/gogo/protobuf/types"
 	m3ns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,29 +41,25 @@ func TestRequestFromSpec(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
+		name   string
 		ns     myspec.Namespace
 		req    *admin.NamespaceAddRequest
 		expErr bool
 	}{
 		{
+			name:   "no fields",
 			ns:     myspec.Namespace{},
 			expErr: true,
 		},
 		{
+			name: "only name set",
 			ns: myspec.Namespace{
 				Name: "empty",
 			},
 			expErr: true,
 		},
 		{
-			ns: myspec.Namespace{
-				Name:    "badpreset",
-				Preset:  "a",
-				Options: &myspec.NamespaceOptions{},
-			},
-			expErr: true,
-		},
-		{
+			name: "valid custom",
 			ns: myspec.Namespace{
 				Name: "validcustom",
 				Options: &myspec.NamespaceOptions{
@@ -111,6 +108,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "AggregatedOptions",
 			ns: myspec.Namespace{
 				Name: "aggregated",
 				Options: &myspec.NamespaceOptions{
@@ -170,6 +168,72 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "ExtendedOptions",
+			ns: myspec.Namespace{
+				Name: "extended",
+				Options: &myspec.NamespaceOptions{
+					BootstrapEnabled:  true,
+					WritesToCommitLog: false,
+					RetentionOptions: myspec.RetentionOptions{
+						RetentionPeriod:                     "1s",
+						BlockSize:                           "1s",
+						BufferFuture:                        "1s",
+						BufferPast:                          "1s",
+						BlockDataExpiry:                     true,
+						BlockDataExpiryAfterNotAccessPeriod: "1s",
+					},
+					IndexOptions: myspec.IndexOptions{
+						BlockSize: "1s",
+						Enabled:   true,
+					},
+					ExtendedOptions: &myspec.ExtendedOptions{
+						Type: "testOpts",
+						Options: map[string]json.RawMessage{
+							"key1": json.RawMessage(`"str"`),
+							"key2": json.RawMessage(`123`),
+							"key3": json.RawMessage(`{
+								"subKey1": "foo",
+								"subKey2": "bar"
+							}`),
+						},
+					},
+				},
+			},
+			req: &admin.NamespaceAddRequest{
+				Name: "extended",
+				Options: &m3ns.NamespaceOptions{
+					BootstrapEnabled:  true,
+					WritesToCommitLog: false,
+					RetentionOptions: &m3ns.RetentionOptions{
+						RetentionPeriodNanos:                     1000000000,
+						BlockSizeNanos:                           1000000000,
+						BufferFutureNanos:                        1000000000,
+						BufferPastNanos:                          1000000000,
+						BlockDataExpiry:                          true,
+						BlockDataExpiryAfterNotAccessPeriodNanos: 1000000000,
+					},
+					IndexOptions: &m3ns.IndexOptions{
+						BlockSizeNanos: 1000000000,
+						Enabled:        true,
+					},
+					ExtendedOptions: &m3ns.ExtendedOptions{
+						Type: "testOpts",
+						Options: &pbtypes.Struct{Fields: map[string]*pbtypes.Value{
+							"key1": {Kind: &pbtypes.Value_StringValue{StringValue: "str"}},
+							"key2": {Kind: &pbtypes.Value_NumberValue{NumberValue: 123}},
+							"key3": {Kind: &pbtypes.Value_StructValue{StructValue: &pbtypes.Struct{
+								Fields: map[string]*pbtypes.Value{
+									"subKey1": {Kind: &pbtypes.Value_StringValue{StringValue: "foo"}},
+									"subKey2": {Kind: &pbtypes.Value_StringValue{StringValue: "bar"}},
+								},
+							}}},
+						}},
+					},
+				},
+			},
+		},
+		{
+			name: "invalid custom",
 			ns: myspec.Namespace{
 				Name: "invalidcustom",
 				Options: &myspec.NamespaceOptions{
@@ -197,6 +261,16 @@ func TestRequestFromSpec(t *testing.T) {
 			expErr: true,
 		},
 		{
+			name: "bad preset 1",
+			ns: myspec.Namespace{
+				Name:    "badpreset",
+				Preset:  "a",
+				Options: &myspec.NamespaceOptions{},
+			},
+			expErr: true,
+		},
+		{
+			name: "bad preset 2",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "a",
@@ -204,6 +278,7 @@ func TestRequestFromSpec(t *testing.T) {
 			expErr: true,
 		},
 		{
+			name: "preset 10s:2d",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "10s:2d",
@@ -214,6 +289,7 @@ func TestRequestFromSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "preset 1m:40d",
 			ns: myspec.Namespace{
 				Name:   "foo",
 				Preset: "1m:40d",
@@ -226,24 +302,26 @@ func TestRequestFromSpec(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		req, err := RequestFromSpec(test.ns)
-		if test.expErr {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-			assert.Equal(t, test.req, req)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			req, err := RequestFromSpec(test.ns)
+			if test.expErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.req, req)
+			}
+		})
 	}
 }
 
 func TestRetentionOptsFromAPI(t *testing.T) {
 	opts := myspec.RetentionOptions{
-		RetentionPeriod:                     time.Duration(time.Second).String(),
-		BlockSize:                           time.Duration(2 * time.Second).String(),
-		BufferFuture:                        time.Duration(3 * time.Second).String(),
-		BufferPast:                          time.Duration(4 * time.Second).String(),
+		RetentionPeriod:                     time.Second.String(),
+		BlockSize:                           (2 * time.Second).String(),
+		BufferFuture:                        (3 * time.Second).String(),
+		BufferPast:                          (4 * time.Second).String(),
 		BlockDataExpiry:                     true,
-		BlockDataExpiryAfterNotAccessPeriod: time.Duration(5 * time.Second).String(),
+		BlockDataExpiryAfterNotAccessPeriod: (5 * time.Second).String(),
 	}
 
 	nsOpts, err := m3dbRetentionOptsFromSpec(opts)

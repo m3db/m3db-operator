@@ -20,6 +20,8 @@
 
 package v1alpha1
 
+import "encoding/json"
+
 // Namespace defines an M3DB namespace or points to a preset M3DB namespace.
 type Namespace struct {
 	// Name is the namespace name.
@@ -98,6 +100,12 @@ type DownsampleOptions struct {
 	All bool `json:"all,omitempty"`
 }
 
+// ExtendedOptions stores the extended namespace options.
+type ExtendedOptions struct {
+	Type    string                     `json:"type,omitempty"`
+	Options map[string]json.RawMessage `json:"options,omitempty"`
+}
+
 // NamespaceOptions defines parameters for an M3DB namespace. See
 // https://m3db.github.io/m3/operational_guide/namespace_configuration/ for more
 // details.
@@ -131,4 +139,7 @@ type NamespaceOptions struct {
 
 	// AggregationOptions sets the aggregation parameters.
 	AggregationOptions AggregationOptions `json:"aggregationOptions,omitempty"`
+
+	// ExtendedOptions stores the extended namespace options.
+	ExtendedOptions *ExtendedOptions `json:"extendedOptions,omitempty"`
 }
