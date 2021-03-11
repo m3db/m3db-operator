@@ -184,6 +184,10 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		stsSpec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
+	if cluster.Spec.OnDeleteUpdateStrategy {
+		stsSpec.UpdateStrategy.Type = appsv1.OnDeleteStatefulSetStrategyType
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
