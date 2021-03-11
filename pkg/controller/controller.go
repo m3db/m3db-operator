@@ -868,15 +868,20 @@ func (c *M3DBController) updateStatefulSetNodes(
 	}
 
 	// If there are no pods to update, we're fully rolled out so remove
-	// the update annotation.
+	// the update annotation and update status.
+	//
+	// NB(nate): K8s handles this for you when using the RollingUpdate update strategy.
+	// However, since OnDelete removes k8s from the pod update process, it's our
+	// responsibility to set this once done rolling out.
+	sts.Status.CurrentReplicas = sts.Status.UpdatedReplicas
+	sts.Status.CurrentRevision = sts.Status.UpdateRevision
+
+	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).UpdateStatus(sts); err != nil {
+		return false, err
+	}
+
 	if err = c.patchStatefulSet(sts, func(set *appsv1.StatefulSet) {
 		delete(set.Annotations, annotations.ParallelUpdateInProgress)
-
-		// NB(nate): K8s handles this for you when using the RollingUpdate update strategy.
-		// However, since OnDelete removes k8s from the pod update process, it's our
-		// responsibility to set this once done rolling out.
-		set.Status.CurrentReplicas = set.Status.UpdatedReplicas
-		set.Status.CurrentRevision = set.Status.UpdateRevision
 	}); err != nil {
 		return false, err
 	}
