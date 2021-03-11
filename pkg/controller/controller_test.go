@@ -133,6 +133,7 @@ func setupTestCluster(
 	}
 
 	for _, pod := range pods {
+		// nolint:makezero
 		objects = append(objects, runtime.Object(pod))
 	}
 
@@ -217,14 +218,15 @@ func waitForStatefulSets(
 		return false, nil, nil
 	})
 
-	controller.kubeClient.(*kubefake.Clientset).PrependReactor("delete", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
-		podName := action.(kubetesting.DeleteActionImpl).GetName()
-		mu.Lock()
-		updatedPods = append(updatedPods, podName)
-		mu.Unlock()
+	controller.kubeClient.(*kubefake.Clientset).PrependReactor(
+		"delete", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
+			podName := action.(kubetesting.DeleteActionImpl).GetName()
+			mu.Lock()
+			updatedPods = append(updatedPods, podName)
+			mu.Unlock()
 
-		return false, nil, nil
-	})
+			return false, nil, nil
+		})
 
 	// Iterate through the expected stateful sets twice (or at least 5 times) to make sure
 	// we see all stateful sets that we expect and also be able to catch any extra stateful
@@ -713,7 +715,9 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, nil, test.replicationFactor, 1, false)
+			cluster, deps := setupTestCluster(
+				t, *test.cluster, test.sets, nil, test.replicationFactor, 1, false,
+			)
 			defer deps.cleanup()
 			c := deps.newController(t)
 
@@ -1071,7 +1075,13 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 	assert.Equal(t, int64(0), count.Load())
 }
 
-func generateSets(clusterName string, rf int32, updateVal string, withAnnotation bool) []*metav1.ObjectMeta {
+func generateSets(
+	// nolint:unparam
+	clusterName string,
+	rf int32,
+	updateVal string,
+	withAnnotation bool,
+) []*metav1.ObjectMeta {
 	var sets []*metav1.ObjectMeta
 	for i := 0; i < int(rf); i++ {
 		var ann map[string]string
@@ -1087,6 +1097,7 @@ func generateSets(clusterName string, rf int32, updateVal string, withAnnotation
 	return sets
 }
 
+// nolint:unparam
 func generatePods(clusterName string, rf int32, nodes int32, revision string) []*corev1.Pod {
 	var pods []*corev1.Pod
 	for i := 0; i < int(rf); i++ {

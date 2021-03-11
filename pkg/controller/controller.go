@@ -790,7 +790,7 @@ func (c *M3DBController) patchStatefulSet(
 		StatefulSets(set.Namespace).
 		Patch(set.Name, types.MergePatchType, patchBytes)
 	if err != nil {
-		return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
+		return fmt.Errorf("error updating statefulset %s: %w", set.Name, err)
 	}
 
 	return nil
@@ -863,22 +863,22 @@ func (c *M3DBController) updateStatefulSetNodes(
 		}
 		logger.Info("restarting pods", zap.Any("pods", names))
 		return true, nil
-	} else {
-		// If there are no pods to update, we're fully rolled out so remove
-		// the update annotation.
-		if err = c.patchStatefulSet(sts, func(set *appsv1.StatefulSet) {
-			delete(set.Annotations, annotations.ParallelUpdateInProgress)
-
-			// NB(nate): K8s handles this for you when using the RollingUpdate update strategy.
-			// However, since OnDelete removes k8s from the pod update process, it's our
-			// responsibility to set this once done rolling out.
-			set.Status.CurrentReplicas = set.Status.UpdatedReplicas
-			set.Status.CurrentRevision = set.Status.UpdateRevision
-		}); err != nil {
-			return false, err
-		}
-		logger.Info("update complete")
 	}
+
+	// If there are no pods to update, we're fully rolled out so remove
+	// the update annotation.
+	if err = c.patchStatefulSet(sts, func(set *appsv1.StatefulSet) {
+		delete(set.Annotations, annotations.ParallelUpdateInProgress)
+
+		// NB(nate): K8s handles this for you when using the RollingUpdate update strategy.
+		// However, since OnDelete removes k8s from the pod update process, it's our
+		// responsibility to set this once done rolling out.
+		set.Status.CurrentReplicas = set.Status.UpdatedReplicas
+		set.Status.CurrentRevision = set.Status.UpdateRevision
+	}); err != nil {
+		return false, err
+	}
+	logger.Info("update complete")
 
 	return false, nil
 }
@@ -933,7 +933,7 @@ func (c *M3DBController) podsToUpdate(
 		return nil, err
 	}
 
-	var toUpdate []*corev1.Pod
+	toUpdate := make([]*corev1.Pod, 0, len(sortedPods))
 	for _, pod := range sortedPods {
 		toUpdate = append(toUpdate, pod.pod)
 		if len(toUpdate) == numPods {
