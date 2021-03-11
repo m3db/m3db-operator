@@ -568,23 +568,26 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			continue
 		}
 
-		// processNext indicates whether we should process the next statefulset in the loop.
-		// processNext will be true if the statefulset or pods for this statefulset
-		// are not updated. We do not process the next statefulset if we've performed any
-		// updates as we want to wait for those updates to be completed successfully first
-		// (i.e. new pods are in the ready state).
-		processNext := true
 		if update {
 			actual, err = c.applyStatefulSetUpdate(cluster, actual, expected)
 			if err != nil {
 				c.logger.Error(err.Error())
 				return err
 			}
-			processNext = false
+			// If using a RollingUpdate strategy, do not process the next statefulset.
+			// We must wait for the kube controller to update the pods.
+			if !cluster.Spec.OnDeleteUpdateStrategy {
+				return nil
+			}
 		}
 
-		// The OnDelete update strategy requires us to restart the statefulset nodes instead
-		// of k8s handling it for us, so do that if necessary.
+		// Using an OnDelete strategy, we have to update nodes if:
+		//   - a statefulset update just happened
+		//   - we're already in the middle of a rollout
+		//     * because nodes are rolled out in chunks this can happen in many iterations
+		// Therefore, always check to see if pods need to be updated and return from this loop
+		// if the statefulset or pods were updated. If a rollout is finished or there has not
+		// been a change, this call is a no-op.
 		if cluster.Spec.OnDeleteUpdateStrategy {
 			nodesUpdated, err := c.updateStatefulSetNodes(cluster, actual)
 			if err != nil {
@@ -594,14 +597,13 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 					zap.String("name", actual.Name))
 				return err
 			}
-			processNext = !nodesUpdated
-		}
 
-		if processNext {
-			continue
+			// If we've performed any updates at all, do not process the next statefulset.
+			// Wait for the updated pods to become healthy.
+			if update || nodesUpdated {
+				return nil
+			}
 		}
-
-		return nil
 	}
 
 	if !cluster.Status.HasInitializedPlacement() {
@@ -837,7 +839,7 @@ func (c *M3DBController) updateStatefulSetNodes(
 		return false, nil
 	}
 
-	numPods, err := c.getMaxPodsToUpdate(sts)
+	numPods, err := getMaxPodsToUpdate(sts)
 	if err != nil {
 		return false, err
 	}
@@ -861,7 +863,7 @@ func (c *M3DBController) updateStatefulSetNodes(
 			}
 			names = append(names, pod.Name)
 		}
-		logger.Info("restarting pods", zap.Any("pods", names))
+		logger.Info("restarting pods", zap.Strings("pods", names))
 		return true, nil
 	}
 
@@ -883,7 +885,7 @@ func (c *M3DBController) updateStatefulSetNodes(
 	return false, nil
 }
 
-func (c *M3DBController) getMaxPodsToUpdate(actual *appsv1.StatefulSet) (int, error) {
+func getMaxPodsToUpdate(actual *appsv1.StatefulSet) (int, error) {
 	var (
 		rawVal string
 		ok     bool
