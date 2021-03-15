@@ -920,6 +920,7 @@ func (c *M3DBController) podsToUpdate(
 		currRev   = sts.Status.CurrentRevision
 		updateRev = sts.Status.UpdateRevision
 	)
+	// nolint:gocritic
 	if currRev == "" {
 		return nil, errors.New("currentRevision empty")
 	} else if updateRev == "" {
@@ -930,19 +931,10 @@ func (c *M3DBController) podsToUpdate(
 	}
 
 	// Get any pods not on the updateRevision for this statefulset
-	revReq, err := klabels.NewRequirement(
-		"controller-revision-hash", selection.NotEquals, []string{updateRev},
-	)
+	podSelector, err := generatePodSelector(updateRev, sts)
 	if err != nil {
 		return nil, err
 	}
-	stsReq, err := klabels.NewRequirement(
-		labels.StatefulSet, selection.Equals, []string{sts.Name},
-	)
-	if err != nil {
-		return nil, err
-	}
-	podSelector := klabels.NewSelector().Add(*revReq, *stsReq)
 	pods, err := c.podLister.Pods(namespace).List(podSelector)
 	if err != nil {
 		return nil, err
@@ -966,6 +958,23 @@ func (c *M3DBController) podsToUpdate(
 	}
 
 	return toUpdate, nil
+}
+
+func generatePodSelector(updateRev string, sts *appsv1.StatefulSet) (klabels.Selector, error) {
+	revReq, err := klabels.NewRequirement(
+		"controller-revision-hash", selection.NotEquals, []string{updateRev},
+	)
+	if err != nil {
+		return nil, err
+	}
+	stsReq, err := klabels.NewRequirement(
+		labels.StatefulSet, selection.Equals, []string{sts.Name},
+	)
+	if err != nil {
+		return nil, err
+	}
+	podSelector := klabels.NewSelector().Add(*revReq, *stsReq)
+	return podSelector, nil
 }
 
 func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placement.Instance {
