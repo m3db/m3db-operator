@@ -49,6 +49,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -915,18 +916,34 @@ func (c *M3DBController) podsToUpdate(
 	sts *appsv1.StatefulSet,
 	numPods int,
 ) ([]*corev1.Pod, error) {
-	currRev := sts.Status.CurrentRevision
+	var (
+		currRev   = sts.Status.CurrentRevision
+		updateRev = sts.Status.UpdateRevision
+	)
 	if currRev == "" {
 		return nil, errors.New("currentRevision empty")
-	} else if currRev == sts.Status.UpdateRevision {
+	} else if updateRev == "" {
+		return nil, errors.New("updateRevision empty")
+	} else if currRev == updateRev {
 		// No pods to update because current and update revision are the same
 		return nil, nil
 	}
 
-	label := map[string]string{
-		"controller-revision-hash": sts.Status.CurrentRevision,
+	// Get any pods not on the updateRevision for this statefulset
+	revReq, err := klabels.NewRequirement(
+		"controller-revision-hash", selection.NotEquals, []string{updateRev},
+	)
+	if err != nil {
+		return nil, err
 	}
-	pods, err := c.podLister.Pods(namespace).List(klabels.Set(label).AsSelector())
+	stsReq, err := klabels.NewRequirement(
+		labels.StatefulSet, selection.Equals, []string{sts.Name},
+	)
+	if err != nil {
+		return nil, err
+	}
+	podSelector := klabels.NewSelector().Add(*revReq, *stsReq)
+	pods, err := c.podLister.Pods(namespace).List(podSelector)
 	if err != nil {
 		return nil, err
 	} else if len(pods) == 0 {

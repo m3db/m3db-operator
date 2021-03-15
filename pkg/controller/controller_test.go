@@ -1021,7 +1021,7 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			nodes := int32(len(test.pods))
+			nodes := int32(len(test.pods) / len(test.sets))
 			cluster, deps := setupTestCluster(
 				t, *rawCluster, test.sets, test.pods, int(replicas), nodes, true,
 			)
@@ -1104,7 +1104,8 @@ func generatePods(clusterName string, rf int32, nodes int32, revision string) []
 		for j := 0; j < int(nodes); j++ {
 			pods = append(pods, &corev1.Pod{
 				ObjectMeta: *newMeta(fmt.Sprintf("%s-rep%d-%d", clusterName, i, j), map[string]string{
-					"controller-revision-hash": fmt.Sprintf("%s-rep%d-%s", clusterName, i, revision),
+					"controller-revision-hash":      fmt.Sprintf("%s-rep%d-%s", clusterName, i, revision),
+					"operator.m3db.io/stateful-set": fmt.Sprintf("%s-rep%d", clusterName, i),
 				}, nil),
 			})
 		}
