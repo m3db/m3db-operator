@@ -583,11 +583,11 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 
 		// Using an OnDelete strategy, we have to update nodes if:
-		//   - a statefulset update just happened
+		//   - a statefulset update has happened OR
 		//   - we're already in the middle of a rollout
-		//     * because nodes are rolled out in chunks this can happen in many iterations
-		// Therefore, always check to see if pods need to be updated and return from this loop
-		// if the statefulset or pods were updated. If a rollout is finished or there has not
+		//     * because nodes are rolled out in chunks, this can happen over many iterations
+		// Therefore, check to see if pods need to be updated and return from this loop
+		// if pods were updated. If a rollout is finished or there has not
 		// been a change, this call is a no-op.
 		if onDeleteUpdateStrategy {
 			nodesUpdated, err := c.updateStatefulSetPods(cluster, actual)
@@ -1316,6 +1316,12 @@ func copyAnnotations(expected, actual *appsv1.StatefulSet) {
 	// the cluster spec.
 	for k, v := range actual.Annotations {
 		if k == annotations.Update {
+			// NB(nate): add this check for backwards compatibility. Existing components
+			// may be using the old update annotation. We want to ensure rollouts still work as
+			// expected.
+			if expected.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+				expected.Annotations[annotations.ParallelUpdateInProgress] = "1"
+			}
 			continue
 		}
 
