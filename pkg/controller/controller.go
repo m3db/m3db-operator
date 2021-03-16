@@ -1316,6 +1316,12 @@ func copyAnnotations(expected, actual *appsv1.StatefulSet) {
 	// the cluster spec.
 	for k, v := range actual.Annotations {
 		if k == annotations.Update {
+			// NB(nate): add this check for backwards compatibility. Existing components
+			// may be using the old update annotation. We want to ensure rollouts still work as
+			// expected.
+			if expected.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+				expected.Annotations[annotations.ParallelUpdateInProgress] = "1"
+			}
 			continue
 		}
 

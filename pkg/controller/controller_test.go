@@ -1012,6 +1012,31 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 			updateVal: 1,
 		},
 		{
+			name: "update with the old update annotation",
+			sets: []*metav1.ObjectMeta{
+				newMeta("cluster1-rep0", nil, map[string]string{
+					annotations.Update: annotations.EnabledVal,
+				}),
+				newMeta("cluster1-rep1", nil, map[string]string{
+					annotations.Update: annotations.EnabledVal,
+				}),
+				newMeta("cluster1-rep2", nil, map[string]string{
+					annotations.Update: annotations.EnabledVal,
+				}),
+			},
+			pods:                  generatePods(clusterName, replicas, 2, currentRevision),
+			expUpdateStatefulSets: []string{"cluster1-rep0", "cluster1-rep1", "cluster1-rep2"},
+			expPodUpdateGroups: [][]string{
+				{"cluster1-rep0-0"},
+				{"cluster1-rep0-1"},
+				{"cluster1-rep1-0"},
+				{"cluster1-rep1-1"},
+				{"cluster1-rep2-0"},
+				{"cluster1-rep2-1"},
+			},
+			updateVal: 1,
+		},
+		{
 			name:                  "no update annotation, do nothing",
 			sets:                  generateSets(clusterName, replicas, "3", false),
 			pods:                  generatePods(clusterName, replicas, 3, currentRevision),
