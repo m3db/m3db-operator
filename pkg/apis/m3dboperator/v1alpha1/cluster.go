@@ -319,6 +319,10 @@ type ClusterSpec struct {
 	// SidecarVolumes is used to add any volumes that are required by sidecar
 	// containers.
 	SidecarVolumes []corev1.Volume `json:"sidecarVolumes,omitempty"`
+
+	// OnDeleteUpdateStrategy sets StatefulSets created by the operator to
+	// have OnDelete as the update strategy instead of RollingUpdate.
+	OnDeleteUpdateStrategy bool `json:"onDeleteUpdateStrategy,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external

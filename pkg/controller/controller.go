@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
@@ -48,6 +49,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	klabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -57,12 +59,12 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/pointer"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
 )
 
 const (
@@ -315,7 +317,6 @@ func (c *M3DBController) processClusterQueueItem() bool {
 
 		return nil
 	}(obj)
-
 	if err != nil {
 		runtime.HandleError(err)
 	}
@@ -521,7 +522,8 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 		replicas := *sts.Spec.Replicas
 		ready := replicas == sts.Status.ReadyReplicas
-		if sts.Status.UpdateRevision != "" {
+		if sts.Status.UpdateRevision != "" &&
+			sts.Spec.UpdateStrategy.Type == appsv1.RollingUpdateStatefulSetStrategyType {
 			// If there is an update revision, ensure all pods are updated
 			// otherwise there is a rollout in progress.
 			// Note: This ensures there is no race condition between
@@ -536,6 +538,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 		if !ready {
 			c.logger.Info("waiting for statefulset to be ready",
+				zap.String("namespace", sts.Namespace),
 				zap.String("name", sts.Name),
 				zap.Int32("replicas", replicas),
 				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
@@ -560,31 +563,48 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			return err
 		}
 
-		if !update {
+		// If we're not updating the statefulset AND we're not using the OnDelete update
+		// strategy, then move to the next statefulset. When using the OnDelete update
+		// strategy, we still may want to restart nodes for this particular statefulset,
+		// so don't continue yet.
+		onDeleteUpdateStrategy :=
+			actual.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType
+		if !update && !onDeleteUpdateStrategy {
 			continue
 		}
 
-		_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
-		if err != nil {
-			c.logger.Error(err.Error())
-			return err
+		if update {
+			_, err = c.applyStatefulSetUpdate(cluster, actual, expected)
+			if err != nil {
+				c.logger.Error(err.Error())
+				return err
+			}
+			return nil
 		}
 
-		c.logger.Info("updated statefulset",
-			zap.String("name", expected.Name),
-			zap.Int32("actual_readyReplicas", actual.Status.ReadyReplicas),
-			zap.Int32("actual_updatedReplicas", actual.Status.UpdatedReplicas),
-			zap.String("actual_currentRevision", actual.Status.CurrentRevision),
-			zap.String("actual_updateRevision", actual.Status.UpdateRevision),
-			zap.Int32("expected_readyReplicas", expected.Status.ReadyReplicas),
-			zap.Int32("expected_updatedReplicas", expected.Status.UpdatedReplicas),
-			zap.String("expected_currentRevision", expected.Status.CurrentRevision),
-			zap.String("expected_updateRevision", expected.Status.UpdateRevision),
-			zap.Int64("generation", expected.Generation),
-			zap.Int64("observed", expected.Status.ObservedGeneration),
-		)
+		// Using an OnDelete strategy, we have to update nodes if:
+		//   - a statefulset update just happened
+		//   - we're already in the middle of a rollout
+		//     * because nodes are rolled out in chunks this can happen in many iterations
+		// Therefore, always check to see if pods need to be updated and return from this loop
+		// if the statefulset or pods were updated. If a rollout is finished or there has not
+		// been a change, this call is a no-op.
+		if onDeleteUpdateStrategy {
+			nodesUpdated, err := c.updateStatefulSetPods(cluster, actual)
+			if err != nil {
+				c.logger.Error("error performing update",
+					zap.Error(err),
+					zap.String("namespace", cluster.Namespace),
+					zap.String("name", actual.Name))
+				return err
+			}
 
-		return nil
+			// If we've performed any updates at all, do not process the next statefulset.
+			// Wait for the updated pods to become healthy.
+			if nodesUpdated {
+				return nil
+			}
+		}
 	}
 
 	if !cluster.Status.HasInitializedPlacement() {
@@ -715,29 +735,11 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 		setLogger.Info("resizing set, desired != current", zap.Int32("newSize", newCount))
 
-		setBytes, err := json.Marshal(set)
-		if err != nil {
+		if err = c.patchStatefulSet(set, func(set *appsv1.StatefulSet) {
+			set.Spec.Replicas = pointer.Int32Ptr(newCount)
+		}); err != nil {
+			c.logger.Error("error patching statefulset", zap.Error(err))
 			return err
-		}
-
-		set.Spec.Replicas = pointer.Int32Ptr(newCount)
-
-		setModifiedBytes, err := json.Marshal(set)
-		if err != nil {
-			return err
-		}
-
-		patchBytes, err := jsonpatch.CreateMergePatch(setBytes, setModifiedBytes)
-		if err != nil {
-			return err
-		}
-
-		set, err = c.kubeClient.
-			AppsV1().
-			StatefulSets(set.Namespace).
-			Patch(set.Name, types.MergePatchType, patchBytes)
-		if err != nil {
-			return fmt.Errorf("error updating statefulset %s: %v", set.Name, err)
 		}
 
 		return nil
@@ -763,6 +765,216 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
 	return nil
+}
+
+func (c *M3DBController) patchStatefulSet(
+	set *appsv1.StatefulSet,
+	action func(set *appsv1.StatefulSet),
+) error {
+	setBytes, err := json.Marshal(set)
+	if err != nil {
+		return err
+	}
+
+	action(set)
+
+	setModifiedBytes, err := json.Marshal(set)
+	if err != nil {
+		return err
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(setBytes, setModifiedBytes)
+	if err != nil {
+		return err
+	}
+
+	set, err = c.kubeClient.
+		AppsV1().
+		StatefulSets(set.Namespace).
+		Patch(set.Name, types.MergePatchType, patchBytes)
+	if err != nil {
+		return fmt.Errorf("error updating statefulset %s: %w", set.Name, err)
+	}
+
+	return nil
+}
+
+func (c *M3DBController) applyStatefulSetUpdate(
+	cluster *myspec.M3DBCluster,
+	actual *appsv1.StatefulSet,
+	expected *appsv1.StatefulSet,
+) (*appsv1.StatefulSet, error) {
+	updated, err := c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
+	if err != nil {
+		c.logger.Error(err.Error())
+		return nil, err
+	}
+
+	c.logger.Info("updated statefulset",
+		zap.String("name", expected.Name),
+		zap.Int32("actual_readyReplicas", actual.Status.ReadyReplicas),
+		zap.Int32("actual_updatedReplicas", actual.Status.UpdatedReplicas),
+		zap.String("actual_currentRevision", actual.Status.CurrentRevision),
+		zap.String("actual_updateRevision", actual.Status.UpdateRevision),
+		zap.Int32("expected_readyReplicas", expected.Status.ReadyReplicas),
+		zap.Int32("expected_updatedReplicas", expected.Status.UpdatedReplicas),
+		zap.String("expected_currentRevision", expected.Status.CurrentRevision),
+		zap.String("expected_updateRevision", expected.Status.UpdateRevision),
+		zap.Int64("generation", expected.Generation),
+		zap.Int64("observed", expected.Status.ObservedGeneration),
+	)
+	return updated, nil
+}
+
+// updateStatefulSetPods returns true if it updates any pods
+func (c *M3DBController) updateStatefulSetPods(
+	cluster *myspec.M3DBCluster,
+	sts *appsv1.StatefulSet,
+) (bool, error) {
+	logger := c.logger.With(
+		zap.String("namespace", cluster.Namespace), zap.String("name", sts.Name),
+	)
+
+	if _, ok := sts.Annotations[annotations.ParallelUpdateInProgress]; !ok {
+		logger.Debug("no update and no rollout in progress so move to next statefulset")
+		return false, nil
+	}
+
+	numPods, err := getMaxPodsToUpdate(sts)
+	if err != nil {
+		return false, err
+	}
+
+	if numPods == 0 {
+		return false, errors.New("parallel update annotation set to 0. will not perform pod updates")
+	}
+
+	pods, err := c.podsToUpdate(cluster.Namespace, sts, numPods)
+	if err != nil {
+		return false, err
+	}
+
+	if len(pods) > 0 {
+		names := make([]string, 0, len(pods))
+		for _, pod := range pods {
+			if err := c.kubeClient.CoreV1().
+				Pods(pod.Namespace).
+				Delete(pod.Name, &metav1.DeleteOptions{}); err != nil {
+				return false, err
+			}
+			names = append(names, pod.Name)
+		}
+		logger.Info("restarting pods", zap.Strings("pods", names))
+		return true, nil
+	}
+
+	// If there are no pods to update, we're fully rolled out so remove
+	// the update annotation and update status.
+	//
+	// NB(nate): K8s handles this for you when using the RollingUpdate update strategy.
+	// However, since OnDelete removes k8s from the pod update process, it's our
+	// responsibility to set this once done rolling out.
+	sts.Status.CurrentReplicas = sts.Status.UpdatedReplicas
+	sts.Status.CurrentRevision = sts.Status.UpdateRevision
+
+	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).UpdateStatus(sts); err != nil {
+		return false, err
+	}
+
+	if err = c.patchStatefulSet(sts, func(set *appsv1.StatefulSet) {
+		delete(set.Annotations, annotations.ParallelUpdateInProgress)
+	}); err != nil {
+		return false, err
+	}
+	logger.Info("update complete")
+
+	return false, nil
+}
+
+func getMaxPodsToUpdate(actual *appsv1.StatefulSet) (int, error) {
+	var (
+		rawVal string
+		ok     bool
+	)
+	if rawVal, ok = actual.Annotations[annotations.ParallelUpdateInProgress]; !ok {
+		return 0, errors.New("parallel update annotation missing during statefulset update")
+	}
+
+	var (
+		maxPodsPerUpdate int
+		err              error
+	)
+	if maxPodsPerUpdate, err = strconv.Atoi(rawVal); err != nil {
+		return 0, fmt.Errorf("failed to parse parallel update annotation: %v", rawVal)
+	}
+
+	return maxPodsPerUpdate, nil
+}
+
+func (c *M3DBController) podsToUpdate(
+	namespace string,
+	sts *appsv1.StatefulSet,
+	numPods int,
+) ([]*corev1.Pod, error) {
+	var (
+		currRev   = sts.Status.CurrentRevision
+		updateRev = sts.Status.UpdateRevision
+	)
+	// nolint:gocritic
+	if currRev == "" {
+		return nil, errors.New("currentRevision empty")
+	} else if updateRev == "" {
+		return nil, errors.New("updateRevision empty")
+	} else if currRev == updateRev {
+		// No pods to update because current and update revision are the same
+		return nil, nil
+	}
+
+	// Get any pods not on the updateRevision for this statefulset
+	podSelector, err := generatePodSelector(updateRev, sts)
+	if err != nil {
+		return nil, err
+	}
+	pods, err := c.podLister.Pods(namespace).List(podSelector)
+	if err != nil {
+		return nil, err
+	} else if len(pods) == 0 {
+		return nil, nil
+	}
+
+	// NB(nate): Sort here so updates are always done in a consistent order.
+	// Statefulset 0 -> N: Pod 0 -> N
+	sortedPods, err := sortPods(pods)
+	if err != nil {
+		return nil, err
+	}
+
+	toUpdate := make([]*corev1.Pod, 0, len(sortedPods))
+	for _, pod := range sortedPods {
+		toUpdate = append(toUpdate, pod.pod)
+		if len(toUpdate) == numPods {
+			break
+		}
+	}
+
+	return toUpdate, nil
+}
+
+func generatePodSelector(updateRev string, sts *appsv1.StatefulSet) (klabels.Selector, error) {
+	revReq, err := klabels.NewRequirement(
+		"controller-revision-hash", selection.NotEquals, []string{updateRev},
+	)
+	if err != nil {
+		return nil, err
+	}
+	stsReq, err := klabels.NewRequirement(
+		labels.StatefulSet, selection.Equals, []string{sts.Name},
+	)
+	if err != nil {
+		return nil, err
+	}
+	podSelector := klabels.NewSelector().Add(*revReq, *stsReq)
+	return podSelector, nil
 }
 
 func instancesInIsoGroup(pl m3placement.Placement, isoGroup string) []m3placement.Instance {
@@ -876,7 +1088,6 @@ func (c *M3DBController) processPodQueueItem() bool {
 
 		return nil
 	}(obj)
-
 	if err != nil {
 		runtime.HandleError(err)
 	}
@@ -1039,7 +1250,16 @@ func updatedStatefulSet(
 	// The operator will only perform an update if the current StatefulSet has been
 	// annotated to indicate that it is okay to update it.
 	if val, ok := actual.Annotations[annotations.Update]; !ok || val != annotations.EnabledVal {
-		return nil, false, nil
+		str, ok := actual.Annotations[annotations.ParallelUpdate]
+		if !ok {
+			return nil, false, nil
+		}
+
+		if parallelVal, err := strconv.Atoi(str); err != nil {
+			return nil, false, err
+		} else if parallelVal < 1 {
+			return nil, false, fmt.Errorf("parallel update value invalid: %v", str)
+		}
 	}
 
 	expected, err := m3db.GenerateStatefulSet(cluster, isoGroup.Name, isoGroup.NumInstances)
@@ -1067,11 +1287,12 @@ func updatedStatefulSet(
 	}
 
 	// If we don't need to perform an update to the StatefulSet's spec, but the StatefulSet
-	// has the update annotation, we'll still update the StatefulSet to remove the update
-	// annotation. This ensures that users can always set the update annotation and then
+	// has an update annotation, we'll still update the StatefulSet to remove the update
+	// annotation. This ensures that users can always set an update annotation and then
 	// wait for it to be removed to know if the operator has processed a StatefulSet.
 	if !update {
 		delete(actual.Annotations, annotations.Update)
+		delete(actual.Annotations, annotations.ParallelUpdate)
 		return actual, true, nil
 	}
 
@@ -1095,6 +1316,15 @@ func copyAnnotations(expected, actual *appsv1.StatefulSet) {
 	// the cluster spec.
 	for k, v := range actual.Annotations {
 		if k == annotations.Update {
+			continue
+		}
+
+		// For parallel updates, remove the initial annotation added by the client and add rollout
+		// in progress annotation. This will ensure that in future passes we don't attempt to
+		// update the statefulset again unnecessarily and simply roll pods that need to pick up
+		// updates.
+		if k == annotations.ParallelUpdate {
+			expected.Annotations[annotations.ParallelUpdateInProgress] = v
 			continue
 		}
 
