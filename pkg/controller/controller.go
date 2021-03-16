@@ -583,11 +583,11 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 
 		// Using an OnDelete strategy, we have to update nodes if:
-		//   - a statefulset update just happened
+		//   - a statefulset update has happened OR
 		//   - we're already in the middle of a rollout
-		//     * because nodes are rolled out in chunks this can happen in many iterations
-		// Therefore, always check to see if pods need to be updated and return from this loop
-		// if the statefulset or pods were updated. If a rollout is finished or there has not
+		//     * because nodes are rolled out in chunks, this can happen over many iterations
+		// Therefore, check to see if pods need to be updated and return from this loop
+		// if pods were updated. If a rollout is finished or there has not
 		// been a change, this call is a no-op.
 		if onDeleteUpdateStrategy {
 			nodesUpdated, err := c.updateStatefulSetPods(cluster, actual)
