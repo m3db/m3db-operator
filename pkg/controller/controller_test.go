@@ -232,7 +232,7 @@ func waitForStatefulSets(
 	// we see all stateful sets that we expect and also be able to catch any extra stateful
 	// sets that we don't.
 	var (
-		iters           = math.Max(float64(2*len(opts.expectedStatefulSets)), 5)
+		iters           = math.Max(float64(2*len(opts.expectedStatefulSets)), 10)
 		finalErr        error
 		podUpdateGroups [][]string
 	)

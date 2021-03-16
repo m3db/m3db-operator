@@ -522,7 +522,8 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 		replicas := *sts.Spec.Replicas
 		ready := replicas == sts.Status.ReadyReplicas
-		if sts.Status.UpdateRevision != "" {
+		if sts.Status.UpdateRevision != "" &&
+			sts.Spec.UpdateStrategy.Type == appsv1.RollingUpdateStatefulSetStrategyType {
 			// If there is an update revision, ensure all pods are updated
 			// otherwise there is a rollout in progress.
 			// Note: This ensures there is no race condition between
@@ -537,6 +538,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 		if !ready {
 			c.logger.Info("waiting for statefulset to be ready",
+				zap.String("namespace", sts.Namespace),
 				zap.String("name", sts.Name),
 				zap.Int32("replicas", replicas),
 				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
@@ -565,21 +567,19 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		// strategy, then move to the next statefulset. When using the OnDelete update
 		// strategy, we still may want to restart nodes for this particular statefulset,
 		// so don't continue yet.
-		if !update && !cluster.Spec.OnDeleteUpdateStrategy {
+		onDeleteUpdateStrategy :=
+			actual.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType
+		if !update && !onDeleteUpdateStrategy {
 			continue
 		}
 
 		if update {
-			actual, err = c.applyStatefulSetUpdate(cluster, actual, expected)
+			_, err = c.applyStatefulSetUpdate(cluster, actual, expected)
 			if err != nil {
 				c.logger.Error(err.Error())
 				return err
 			}
-			// If using a RollingUpdate strategy, do not process the next statefulset.
-			// We must wait for the kube controller to update the pods.
-			if !cluster.Spec.OnDeleteUpdateStrategy {
-				return nil
-			}
+			return nil
 		}
 
 		// Using an OnDelete strategy, we have to update nodes if:
@@ -589,8 +589,8 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		// Therefore, always check to see if pods need to be updated and return from this loop
 		// if the statefulset or pods were updated. If a rollout is finished or there has not
 		// been a change, this call is a no-op.
-		if cluster.Spec.OnDeleteUpdateStrategy {
-			nodesUpdated, err := c.updateStatefulSetNodes(cluster, actual)
+		if onDeleteUpdateStrategy {
+			nodesUpdated, err := c.updateStatefulSetPods(cluster, actual)
 			if err != nil {
 				c.logger.Error("error performing update",
 					zap.Error(err),
@@ -601,7 +601,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 			// If we've performed any updates at all, do not process the next statefulset.
 			// Wait for the updated pods to become healthy.
-			if update || nodesUpdated {
+			if nodesUpdated {
 				return nil
 			}
 		}
@@ -826,8 +826,8 @@ func (c *M3DBController) applyStatefulSetUpdate(
 	return updated, nil
 }
 
-// updateStatefulSetNodes returns true if it updates any pods
-func (c *M3DBController) updateStatefulSetNodes(
+// updateStatefulSetPods returns true if it updates any pods
+func (c *M3DBController) updateStatefulSetPods(
 	cluster *myspec.M3DBCluster,
 	sts *appsv1.StatefulSet,
 ) (bool, error) {
@@ -1325,6 +1325,7 @@ func copyAnnotations(expected, actual *appsv1.StatefulSet) {
 		// updates.
 		if k == annotations.ParallelUpdate {
 			expected.Annotations[annotations.ParallelUpdateInProgress] = v
+			continue
 		}
 
 		if _, ok := expected.Annotations[k]; !ok {
