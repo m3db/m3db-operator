@@ -39,8 +39,8 @@ func TestStatus(t *testing.T) {
 			f:    func(s *M3DBStatus) bool { return s.HasInitializedPlacement() },
 		},
 		{
-			cond: ClusterConditionPodBootstrapping,
-			f:    func(s *M3DBStatus) bool { return s.HasPodBootstrapping() },
+			cond: ClusterConditionPodsBootstrapping,
+			f:    func(s *M3DBStatus) bool { return s.HasPodsBootstrapping() },
 		},
 	} {
 		t.Run(string(test.cond), func(t *testing.T) {

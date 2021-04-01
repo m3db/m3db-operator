@@ -37,6 +37,12 @@ const (
 	// Update is the annotation used by the operator to determine if a StatefulSet is
 	// allowed to be updated.
 	Update = "operator.m3db.io/update"
+	// ParallelUpdate is the annotation used by the operator to determine if a StatefulSet
+	// is allowed to be updated in parallel.
+	ParallelUpdate = "operator.m3db.io/parallel-update"
+	// ParallelUpdateInProgress is the annotation used by the operator indicate a parallel update
+	// is underway. This annotation should only be used by the operator.
+	ParallelUpdateInProgress = "operator.m3db.io/parallel-update-in-progress"
 	// Rollout is the annotation used by the operator to force rollout update of a StatefulSet.
 	Rollout = "operator.m3db.io/rollout"
 

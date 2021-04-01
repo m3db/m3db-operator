@@ -114,11 +114,11 @@ func (p *placementClient) Get() (m3placement.Placement, error) {
 	return m3placement.NewPlacementFromProto(resp.Placement)
 }
 
-// Add will add an instance to the current placement
-func (p *placementClient) Add(instance placementpb.Instance) error {
+// Add multiple instances to the current placement.
+func (p *placementClient) Add(instances []*placementpb.Instance) error {
 	url := p.url + placementBaseURL
 	req := &admin.PlacementAddRequest{
-		Instances: []*placementpb.Instance{&instance},
+		Instances: instances,
 	}
 
 	err := p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)

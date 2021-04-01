@@ -90,7 +90,7 @@ func TestAdd(t *testing.T) {
 			return
 		}
 
-		const expected = `{"instances":[{"id":"a"}]}`
+		const expected = `{"instances":[{"id":"a"},{"id":"b"}]}`
 		assert.Equal(t, expected, string(bytes))
 
 		w.WriteHeader(200)
@@ -100,7 +100,10 @@ func TestAdd(t *testing.T) {
 	defer s.Close()
 	client := newPlacementClient(t, s.URL)
 
-	err := client.Add(placementpb.Instance{Id: "a"})
+	err := client.Add([]*placementpb.Instance{
+		{Id: "a"},
+		{Id: "b"},
+	})
 	require.Nil(t, err)
 }
 
@@ -113,7 +116,7 @@ func TestAddErr(t *testing.T) {
 	defer s.Close()
 	client := newPlacementClient(t, s.URL)
 
-	err := client.Add(placementpb.Instance{})
+	err := client.Add([]*placementpb.Instance{})
 	require.NotNil(t, err)
 }
 

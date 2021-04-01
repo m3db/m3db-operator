@@ -97,7 +97,7 @@ linters-settings:
       github.com/golang/protobuf/proto: "replace with github.com/gogo/protobuf/proto"
       google.golang.org/protobuf/proto: "replace with github.com/gogo/protobuf/proto"
       github.com/tj/assert: "use github.com/stretchr/testify/assert"
-      github.com/m3db/m3x/instrument: "use github.com/m3db/m3/instrument"
+      github.com/m3db/m3x/instrument: "use github.com/m3db/m3/src/x/instrument"
   misspell:
     # Correct spellings using locale preferences for US or UK.
     # Default is to use a neutral variety of English.
@@ -211,6 +211,8 @@ linters:
     # New line required before return would require a large fraction of the
     # code base to need updating, it's not worth the perceived benefit.
     - nlreturn
+    # Opinionated and sometimes wrong.
+    - paralleltest
   disable-all: false
   presets:
     # bodyclose, errcheck, gosec, govet, scopelint, staticcheck, typecheck

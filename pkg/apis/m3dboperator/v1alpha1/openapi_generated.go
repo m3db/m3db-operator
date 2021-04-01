@@ -650,6 +650,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"onDeleteUpdateStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OnDeleteUpdateStrategy sets StatefulSets created by the operator to have OnDelete as the update strategy instead of RollingUpdate.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},

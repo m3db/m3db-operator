@@ -38,6 +38,7 @@ import (
 	"github.com/m3db/m3db-operator/pkg/m3admin/namespace"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	"github.com/m3db/m3/src/cluster/placement"
 	dbns "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
@@ -100,7 +101,7 @@ func (c *M3DBController) createNamespaces(cluster *myspec.M3DBCluster, registry 
 				zap.String("namespace", ns.Name),
 				zap.Error(err))
 
-			return fmt.Errorf("error creating namespace '%s': %v", ns.Name, err)
+			return fmt.Errorf("error creating namespace '%s': %w", ns.Name, err)
 		}
 
 		c.recorder.NormalEvent(cluster, eventer.ReasonCreating, "created namespace "+ns.Name)
@@ -295,8 +296,8 @@ func (c *M3DBController) setStatusPlacementCreated(cluster *myspec.M3DBCluster) 
 	var err error
 	cluster, err = c.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).UpdateStatus(cluster)
 	if err != nil {
-		err := fmt.Errorf("error updating cluster placement init status: %v", err)
-		c.logger.Error(err.Error())
+		c.logger.Error("error updating cluster placement init status",
+			zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, "failed to update placement status: %v", err)
 		return nil, err
 	}
@@ -306,16 +307,14 @@ func (c *M3DBController) setStatusPlacementCreated(cluster *myspec.M3DBCluster) 
 	return cluster, nil
 }
 
-func (c *M3DBController) setStatusPodBootstrapping(cluster *myspec.M3DBCluster,
+func (c *M3DBController) setStatusPodsBootstrapping(cluster *myspec.M3DBCluster,
 	status corev1.ConditionStatus,
 	reason, message string) (*myspec.M3DBCluster, error) {
-
-	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, status, reason, message)
+	return c.setStatus(cluster, myspec.ClusterConditionPodsBootstrapping, status, reason, message)
 }
 
 func (c *M3DBController) setStatus(cluster *myspec.M3DBCluster, condition myspec.ClusterConditionType,
 	status corev1.ConditionStatus, reason, message string) (*myspec.M3DBCluster, error) {
-
 	cond, ok := cluster.Status.GetCondition(condition)
 	if !ok {
 		cond = myspec.ClusterCondition{
@@ -355,35 +354,44 @@ func (c *M3DBController) reconcileBootstrappingStatus(cluster *myspec.M3DBCluste
 		}
 	}
 
-	return c.setStatus(cluster, myspec.ClusterConditionPodBootstrapping, corev1.ConditionFalse,
+	return c.setStatus(cluster, myspec.ClusterConditionPodsBootstrapping, corev1.ConditionFalse,
 		"BootstrapComplete", "no bootstraps in progress")
 }
 
-func (c *M3DBController) addPodToPlacement(cluster *myspec.M3DBCluster, pod *corev1.Pod) error {
-	c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
-	inst, err := m3db.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
+func (c *M3DBController) addPodsToPlacement(cluster *myspec.M3DBCluster, pods []*corev1.Pod) error {
+	var (
+		instances = make([]*placementpb.Instance, 0, len(pods))
+		podNames  = make([]string, 0, len(pods))
+	)
+	for _, pod := range pods {
+		c.logger.Info("found pod not in placement", zap.String("pod", pod.Name))
+		inst, err := m3db.PlacementInstanceFromPod(cluster, pod, c.podIDProvider)
+		if err != nil {
+			c.logger.Error("error creating instance for pod",
+				zap.String("pod", pod.Name),
+				zap.Error(err))
+			return err
+		}
+		instances = append(instances, inst)
+		podNames = append(podNames, pod.Name)
+	}
+	reason := fmt.Sprintf("adding pods to placement (%s)", strings.Join(podNames, ", "))
+	_, err := c.setStatusPodsBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
 	if err != nil {
-		err := fmt.Errorf("error creating instance for pod %s", pod.Name)
-		c.logger.Error(err.Error())
+		c.logger.Error("error setting pods bootstrapping status",
+			zap.Error(err))
 		return err
 	}
 
-	reason := fmt.Sprintf("adding pod %s to placement", pod.Name)
-	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodAdded", reason)
+	err = c.adminClient.placementClientForCluster(cluster).Add(instances)
 	if err != nil {
-		err := fmt.Errorf("error setting pod bootstrapping status: %v", err)
-		c.logger.Error(err.Error())
+		c.logger.Error("error adding instances to placement",
+			zap.String("reason", reason),
+			zap.Error(err))
 		return err
 	}
 
-	err = c.adminClient.placementClientForCluster(cluster).Add(*inst)
-	if err != nil {
-		err := fmt.Errorf("error adding pod to placement: %s", pod.Name)
-		c.logger.Error(err.Error())
-		return err
-	}
-
-	c.logger.Info("added pod to placement", zap.String("pod", pod.Name))
+	c.logger.Info("added pods to placement", zap.Strings("pods", podNames))
 	return nil
 }
 
@@ -391,7 +399,6 @@ func (c *M3DBController) checkPodsForReplacement(
 	cluster *myspec.M3DBCluster,
 	pods []*corev1.Pod,
 	pl placement.Placement) (string, *corev1.Pod, error) {
-
 	insts := pl.Instances()
 	sort.Sort(placement.ByIDAscending(insts))
 
@@ -429,28 +436,28 @@ func (c *M3DBController) replacePodInPlacement(
 	pl placement.Placement,
 	leavingInstanceID string,
 	newPod *corev1.Pod) error {
-
 	c.logger.Info("replacing pod in placement", zap.String("pod", leavingInstanceID))
 
 	newInst, err := m3db.PlacementInstanceFromPod(cluster, newPod, c.podIDProvider)
 	if err != nil {
-		err := fmt.Errorf("error creating instance from replacement pod %s: %v", newPod.Name, err)
-		c.logger.Error(err.Error())
+		c.logger.Error("error creating instance from replacement pod",
+			zap.String("pod", newPod.Name),
+			zap.Error(err))
 		return err
 	}
 
 	reason := fmt.Sprintf("replacing %s pod in placement", newPod.Name)
-	_, err = c.setStatusPodBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
+	_, err = c.setStatusPodsBootstrapping(cluster, corev1.ConditionTrue, "PodReplaced", reason)
 	if err != nil {
-		err := fmt.Errorf("error setting replacement pod bootstrapping status: %v", err)
-		c.logger.Error(err.Error())
+		c.logger.Error("error setting replacement pod bootstrapping status",
+			zap.Error(err))
 		return err
 	}
 
 	err = c.adminClient.placementClientForCluster(cluster).Replace(leavingInstanceID, *newInst)
 	if err != nil {
-		err := fmt.Errorf("error replacing pod in placement: %s", leavingInstanceID)
-		c.logger.Error(err.Error())
+		c.logger.Error("error replacing pod in placement",
+			zap.Error(err))
 		return err
 	}
 
@@ -461,7 +468,6 @@ func (c *M3DBController) replacePodInPlacement(
 // be added to the placement and chooses a pod to expand to the placement.
 func (c *M3DBController) expandPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet,
 	group myspec.IsolationGroup, placement placement.Placement) error {
-
 	existInsts := instancesInIsoGroup(placement, group.Name)
 	if len(existInsts) >= int(group.NumInstances) {
 		c.logger.Warn("not expanding set, already at desired capacity",
@@ -483,6 +489,7 @@ func (c *M3DBController) expandPlacementForSet(cluster *myspec.M3DBCluster, set 
 		return err
 	}
 
+	podsToAdd := make([]*corev1.Pod, 0, len(pods))
 	for _, pod := range pods {
 		id, err := c.podIDProvider.Identity(pod, cluster)
 		if err != nil {
@@ -494,11 +501,14 @@ func (c *M3DBController) expandPlacementForSet(cluster *myspec.M3DBCluster, set 
 		}
 		_, ok := placement.Instance(idStr)
 		if !ok {
-			return c.addPodToPlacement(cluster, pod)
+			podsToAdd = append(podsToAdd, pod)
 		}
 	}
+	if len(podsToAdd) == 0 {
+		return errors.New("could not find pod absent from placement")
+	}
 
-	return errors.New("could not find pod absent from placement")
+	return c.addPodsToPlacement(cluster, podsToAdd)
 }
 
 // shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and

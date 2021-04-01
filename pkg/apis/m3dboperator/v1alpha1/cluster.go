@@ -41,8 +41,8 @@ const (
 	// been created for the cluster.
 	ClusterConditionPlacementInitialized ClusterConditionType = "PlacementInitialized"
 
-	// ClusterConditionPodBootstrapping indicates there is a pod bootstrapping.
-	ClusterConditionPodBootstrapping ClusterConditionType = "PodBootstrapping"
+	// ClusterConditionPodsBootstrapping indicates there are pods bootstrapping.
+	ClusterConditionPodsBootstrapping ClusterConditionType = "PodsBootstrapping"
 )
 
 // M3DBCluster defines the cluster
@@ -103,10 +103,10 @@ func (s *M3DBStatus) HasInitializedPlacement() bool {
 	return s.hasConditionTrue(ClusterConditionPlacementInitialized)
 }
 
-// HasPodBootstrapping returns true if conditions indicate a pod is currently
+// HasPodsBootstrapping returns true if conditions indicate a pod is currently
 // bootstrapping.
-func (s *M3DBStatus) HasPodBootstrapping() bool {
-	return s.hasConditionTrue(ClusterConditionPodBootstrapping)
+func (s *M3DBStatus) HasPodsBootstrapping() bool {
+	return s.hasConditionTrue(ClusterConditionPodsBootstrapping)
 }
 
 // GetCondition returns the specified cluster condition if it exists with a bool
@@ -319,6 +319,10 @@ type ClusterSpec struct {
 	// SidecarVolumes is used to add any volumes that are required by sidecar
 	// containers.
 	SidecarVolumes []corev1.Volume `json:"sidecarVolumes,omitempty"`
+
+	// OnDeleteUpdateStrategy sets StatefulSets created by the operator to
+	// have OnDelete as the update strategy instead of RollingUpdate.
+	OnDeleteUpdateStrategy bool `json:"onDeleteUpdateStrategy,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external

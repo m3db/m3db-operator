@@ -274,6 +274,9 @@ func TestGenerateStatefulSet(t *testing.T) {
 					ServiceAccountName: "m3db-account1",
 				},
 			},
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
+			},
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 				{
 					ObjectMeta: metav1.ObjectMeta{

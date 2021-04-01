@@ -115,17 +115,17 @@ func (mr *MockClientMockRecorder) Delete() *gomock.Call {
 }
 
 // Add mocks base method
-func (m *MockClient) Add(instance placementpb.Instance) error {
+func (m *MockClient) Add(instances []*placementpb.Instance) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", instance)
+	ret := m.ctrl.Call(m, "Add", instances)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add
-func (mr *MockClientMockRecorder) Add(instance interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Add(instances interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), instance)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), instances)
 }
 
 // Remove mocks base method
