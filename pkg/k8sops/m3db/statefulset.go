@@ -66,22 +66,6 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 
 	objAnnotations := annotations.PodAnnotations(cluster)
 
-	// TODO(schallert): we're currently using the health of the coordinator for
-	// liveness probes until https://github.com/m3db/m3/issues/996 is fixed. Move
-	// to the dbnode's health endpoint once fixed.
-	probeHealth := &v1.Probe{
-		TimeoutSeconds:      _probeTimeoutSeconds,
-		InitialDelaySeconds: _probeInitialDelaySeconds,
-		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(PortM3DBHTTPNode),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
-			},
-		},
-	}
-
 	probeReady := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
@@ -110,7 +94,6 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		Name:            ssName,
 		SecurityContext: specSecurityCtx,
 		ReadinessProbe:  probeReady,
-		LivenessProbe:   probeHealth,
 		Command: []string{
 			"m3dbnode",
 		},
