@@ -85,19 +85,6 @@ func TestGenerateStatefulSet(t *testing.T) {
 
 	ssName := StatefulSetName(clusterName, 0)
 
-	health := &v1.Probe{
-		TimeoutSeconds:      _probeTimeoutSeconds,
-		InitialDelaySeconds: _probeInitialDelaySeconds,
-		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Port:   intstr.FromInt(PortM3DBHTTPNode),
-				Path:   _probePathHealth,
-				Scheme: v1.URISchemeHTTP,
-			},
-		},
-	}
-
 	readiness := &v1.Probe{
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
@@ -172,7 +159,6 @@ func TestGenerateStatefulSet(t *testing.T) {
 					Containers: []v1.Container{
 						{
 							Name:           ssName,
-							LivenessProbe:  health,
 							ReadinessProbe: readiness,
 							SecurityContext: &v1.SecurityContext{
 								RunAsUser: pointer.Int64Ptr(20),

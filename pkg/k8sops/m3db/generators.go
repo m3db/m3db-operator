@@ -44,8 +44,7 @@ const (
 	_probeInitialDelaySeconds = 10
 	_probeFailureThreshold    = 15
 
-	_probePathHealth = "/health"
-	_probePathReady  = "/bootstrappedinplacementornoplacement"
+	_probePathReady = "/bootstrappedinplacementornoplacement"
 
 	_dataDirectory             = "/var/lib/m3db/"
 	_dataVolumeName            = "m3db-data"
