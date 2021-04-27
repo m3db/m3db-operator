@@ -40,6 +40,7 @@ type options struct {
 	logger      *zap.Logger
 	client      *retryhttp.Client
 	environment string
+	zone        string
 }
 
 // WithLogger configures a logger for the client. If not set a noop logger will
@@ -64,6 +65,13 @@ func WithHTTPClient(cl *retryhttp.Client) Option {
 func WithEnvironment(e string) Option {
 	return optionFn(func(o *options) {
 		o.environment = e
+	})
+}
+
+// WithZone controls the Cluster-Zone-Name header to m3coordinator.
+func WithZone(z string) Option {
+	return optionFn(func(o *options) {
+		o.zone = z
 	})
 }
 

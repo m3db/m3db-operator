@@ -38,6 +38,8 @@ import (
 
 const (
 	m3EnvironmentHeader = "Cluster-Environment-Name"
+	// m3HeaderClusterZoneName is the header used to specify the zone name.
+	m3HeaderClusterZoneName = "Cluster-Zone-Name"
 )
 
 var (
@@ -61,6 +63,7 @@ type client struct {
 	client      *retryhttp.Client
 	logger      *zap.Logger
 	environment string
+	zone        string
 }
 
 type nullLogger struct{}
@@ -78,6 +81,7 @@ func NewClient(clientOpts ...Option) Client {
 		client:      opts.client,
 		logger:      opts.logger,
 		environment: opts.environment,
+		zone:        opts.zone,
 	}
 
 	if client.client == nil {
@@ -132,6 +136,9 @@ func (c *client) DoHTTPRequest(
 	request.Header.Add("Content-Type", "application/json")
 	if c.environment != "" {
 		request.Header.Add(m3EnvironmentHeader, c.environment)
+	}
+	if c.zone != "" {
+		request.Header.Add(m3HeaderClusterZoneName, c.zone)
 	}
 
 	if l.Core().Enabled(zapcore.DebugLevel) {

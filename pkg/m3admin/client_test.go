@@ -92,6 +92,10 @@ func TestClient_DoHTTPRequest_Header(t *testing.T) {
 			w.WriteHeader(500)
 			return
 		}
+		if r.Header.Get(m3HeaderClusterZoneName) != "bar-zone" {
+			w.WriteHeader(500)
+			return
+		}
 		w.Write([]byte("hello"))
 	}))
 	defer s.Close()
@@ -102,11 +106,15 @@ func TestClient_DoHTTPRequest_Header(t *testing.T) {
 		return data
 	}
 
-	cl := newTestClient(WithEnvironment("fooz-env"))
+	cl := newTestClient(WithEnvironment("fooz-env"), WithZone("bar-zone"))
 	_, err := cl.DoHTTPRequest("GET", s.URL, nil)
 	assert.Error(t, err)
 
-	cl = newTestClient(WithEnvironment("foo-env"))
+	cl = newTestClient(WithEnvironment("foo-env"), WithZone("barz-zone"))
+	_, err = cl.DoHTTPRequest("GET", s.URL, nil) //nolint:bodyclose
+	assert.Error(t, err)
+
+	cl = newTestClient(WithEnvironment("foo-env"), WithZone("bar-zone"))
 	resp, err := cl.DoHTTPRequest("GET", s.URL, nil)
 	require.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)

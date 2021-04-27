@@ -42,6 +42,7 @@ func (h *Harness) NewPlacementClient(cluster *myspec.M3DBCluster) (placement.Cli
 	env := k8sops.DefaultM3ClusterEnvironmentName(cluster)
 	adminCl := m3admin.NewClient(
 		m3admin.WithEnvironment(env),
+		m3admin.WithZone(cluster.Spec.Zone),
 	)
 	url := fmt.Sprintf(proxyBaseURLFmt, h.Namespace, svc.Name, "7201")
 	h.Logger.Sugar().Infof("calling url '%s' with env '%s'", url, env)
