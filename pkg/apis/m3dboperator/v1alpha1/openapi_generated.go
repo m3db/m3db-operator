@@ -657,6 +657,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"zone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Zone defines the zone that placement instances will be written to if set. If not set, the default zone of \"embedded\" will be used.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},
