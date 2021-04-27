@@ -323,6 +323,11 @@ type ClusterSpec struct {
 	// OnDeleteUpdateStrategy sets StatefulSets created by the operator to
 	// have OnDelete as the update strategy instead of RollingUpdate.
 	OnDeleteUpdateStrategy bool `json:"onDeleteUpdateStrategy,omitempty"`
+
+	// Zone defines the zone that placement instances will be written to if set.
+	// If not set, the default zone of "embedded" will be used.
+	// +optional
+	Zone string `json:"zone,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external

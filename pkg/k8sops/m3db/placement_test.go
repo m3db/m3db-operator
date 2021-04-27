@@ -90,4 +90,20 @@ func TestPlacementInstanceFromPod(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expInst, inst)
 	})
+	t.Run("zone override", func(t *testing.T) {
+		cluster.Spec.Zone = "embedded-override"
+		expInst := &placementpb.Instance{
+			Id:             `{"name":"pod-a"}`,
+			IsolationGroup: "zone-a",
+			Zone:           "embedded-override",
+			Weight:         100,
+			Hostname:       "pod-a.m3dbnode-cluster-a",
+			Endpoint:       "pod-a.m3dbnode-cluster-a.my_ns:9000",
+			Port:           9000,
+		}
+
+		inst, err := PlacementInstanceFromPod(cluster, pod, idProvider)
+		assert.NoError(t, err)
+		assert.Equal(t, expInst, inst)
+	})
 }

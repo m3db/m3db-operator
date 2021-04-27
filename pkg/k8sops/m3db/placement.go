@@ -88,10 +88,15 @@ func PlacementInstanceFromPod(cluster *myspec.M3DBCluster, pod *corev1.Pod, idPr
 		return nil, pkgerrors.WithMessage(err, "cannot execute node endpoint template")
 	}
 
+	zone := cluster.Spec.Zone
+	if zone == "" {
+		zone = _zoneEmbedded
+	}
+
 	instance := &placementpb.Instance{
 		Id:             idStr,
 		IsolationGroup: isoGroup,
-		Zone:           _zoneEmbedded,
+		Zone:           zone,
 		Weight:         100,
 		Hostname:       pod.Name + "." + epCtx.M3DBService,
 		Endpoint:       str.String(),
