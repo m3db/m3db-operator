@@ -55,7 +55,11 @@ func newTestAdminClient(cl m3admin.Client, url string) *multiAdminClient {
 func TestClusterKey(t *testing.T) {
 	cluster := newM3DBCluster("ns", "a")
 	key := clusterKey(cluster, "clustera.local")
-	assert.Equal(t, "ns/a/clustera.local", key)
+	assert.Equal(t, "ns/a//clustera.local", key)
+
+	cluster.Spec.Zone = "m3db"
+	keyWithZone := clusterKey(cluster, "clustera.local")
+	assert.Equal(t, "ns/a/m3db/clustera.local", keyWithZone)
 }
 
 func TestClusterURL(t *testing.T) {

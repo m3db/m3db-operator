@@ -63,7 +63,8 @@ type multiAdminClient struct {
 
 // clusterKey returns a map key for a given cluster.
 func clusterKey(cluster *myspec.M3DBCluster, url string) string {
-	return cluster.Namespace + "/" + cluster.Name + "/" + url
+	// nb: zone can be empty, but we still want to include it in the cache key in case it is set.
+	return cluster.Namespace + "/" + cluster.Name + "/" + cluster.Spec.Zone + "/" + url
 }
 
 // clusterURL returns the URL to hit
