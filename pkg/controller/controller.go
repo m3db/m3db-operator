@@ -357,7 +357,10 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// start and remove unnecessary calls later to optimize if we want.
 	cluster = cluster.DeepCopy()
 
-	clusterLogger := c.logger.With(zap.String("cluster", cluster.Name))
+	clusterLogger := c.logger.With(
+		zap.String("cluster", cluster.Name),
+		zap.String("namespace", cluster.Namespace),
+	)
 
 	if cluster.Spec.Frozen {
 		clusterLogger.Info("cluster is frozen so no changes will be made")
