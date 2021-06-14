@@ -695,6 +695,27 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestShrinkPlacementForSet_PreventScaleDown(t *testing.T) {
+	cluster := getFixture("cluster-3-zones.yaml", t)
+	cluster.Spec.PreventScaleDown = true
+
+	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+	require.NoError(t, err)
+
+	pods := podsForClusterSet(cluster, set, 3)
+	deps := newTestDeps(t, &testOpts{
+		kubeObjects: objectsFromPods(pods...),
+	})
+	controller := deps.newController(t)
+	defer deps.cleanup()
+
+	identifyPods(deps.idProvider, pods, nil)
+	pl := placementFromPods(t, cluster, pods, deps.idProvider)
+
+	err = controller.shrinkPlacementForSet(cluster, set, pl)
+	assert.EqualError(t, err, "cannot remove nodes from fake/cluster-zones, preventScaleDown is true")
+}
+
 func podWithName(name string) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

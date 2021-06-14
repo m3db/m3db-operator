@@ -734,6 +734,9 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		if current < desired {
 			newCount = current + 1
 		} else {
+			if cluster.Spec.PreventScaleDown {
+				return pkgerrors.Errorf("cannot shrink statefulset %s/%s, preventScaleDown is true", set.Namespace, set.Name)
+			}
 			newCount = current - 1
 		}
 		setLogger.Info("resizing set, desired != current", zap.Int32("newSize", newCount))
