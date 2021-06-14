@@ -328,6 +328,11 @@ type ClusterSpec struct {
 	// If not set, the default zone of "embedded" will be used.
 	// +optional
 	Zone string `json:"zone,omitempty"`
+
+	// PreventScaleDown will prevent the operator from removing any nodes from a
+	// cluster if set to true.
+	// +optional
+	PreventScaleDown bool `json:"preventScaleDown,omitempty"`
 }
 
 // ExternalCoordinatorConfig defines parameters for using an external
