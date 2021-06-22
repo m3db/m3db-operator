@@ -664,6 +664,13 @@ func schema_pkg_apis_m3dboperator_v1alpha1_ClusterSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"preventScaleDown": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreventScaleDown will prevent the operator from removing any nodes from a cluster if set to true.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"parallelPodManagement"},
 			},

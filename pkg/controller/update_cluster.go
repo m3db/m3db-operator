@@ -515,6 +515,11 @@ func (c *M3DBController) expandPlacementForSet(cluster *myspec.M3DBCluster, set 
 // removes the last pod in the StatefulSet from the active placement, enabling
 // the StatefulSet size to be decreased once the remove completes.
 func (c *M3DBController) shrinkPlacementForSet(cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement) error {
+	if cluster.Spec.PreventScaleDown {
+		return pkgerrors.Errorf("cannot remove nodes from %s/%s, preventScaleDown is true",
+			cluster.Namespace, cluster.Name)
+	}
+
 	selector := klabels.SelectorFromSet(set.Labels)
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
 	if err != nil {
