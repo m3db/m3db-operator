@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus-server
+  namespace: monitoring
+spec:
+#  containers:
+#    "prometheus":
+#      args: --log.level=debug
+  resources:
+    requests:
+      memory: 400Mi
+  serviceAccountName: prometheus-server
+# commented out in order to manually manage prometheus.yaml (https://github.com/logzio/m3db-poc/blob/master/prometheus-monitoring/prometheus-operator/Documentation/custom-configuration.md)
+# and enable remote_write
+#  serviceMonitorNamespaceSelector: {}
+#  serviceMonitorSelector: {}
+  version: v2.19.2
+  enableAdminAPI: true

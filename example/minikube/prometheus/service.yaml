@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-server
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  type: NodePort
+  ports:
+    - port: 9090
+      targetPort: 9090
+      nodePort: 31000

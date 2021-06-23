@@ -1,0 +1,24 @@
+apiVersion: operator.m3db.io/v1alpha1
+kind: M3DBCluster
+metadata:
+  name: m3db-cluster
+spec:
+  image: quay.io/m3db/m3dbnode:latest
+  labels:
+    app: m3db
+  replicationFactor: 3
+  numberOfShards: 256
+  etcdEndpoints:
+  - http://etcd-0.etcd:2379
+  - http://etcd-1.etcd:2379
+  - http://etcd-2.etcd:2379
+  isolationGroups:
+  - name: group1
+    numInstances: 1
+  - name: group2
+    numInstances: 1
+  - name: group3
+    numInstances: 1
+  namespaces:
+    - name: default
+      preset: 10s:2d
