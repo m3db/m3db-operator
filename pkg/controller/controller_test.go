@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -176,6 +177,7 @@ func waitForStatefulSets(
 		updates     int
 		actualSets  = make(map[string]bool)
 		updatedPods []string
+		ctx         = context.Background()
 	)
 
 	controller.kubeClient.(*kubefake.Clientset).PrependReactor(verb, "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
@@ -237,7 +239,7 @@ func waitForStatefulSets(
 		podUpdateGroups [][]string
 	)
 	for i := 0; i < int(iters); i++ {
-		err := controller.handleClusterUpdate(cluster)
+		err := controller.handleClusterUpdate(ctx, cluster)
 		if opts.expectError != "" {
 			finalErr = err
 		} else {
@@ -367,6 +369,7 @@ func TestGetChildStatefulSets(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		ctx := context.Background()
 		cluster := &myspec.M3DBCluster{
 			ObjectMeta: *test.cluster,
 		}
@@ -402,7 +405,8 @@ func TestGetChildStatefulSets(t *testing.T) {
 					Kind:    "m3dbcluster",
 				}),
 			})
-			_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").Update(set)
+			_, err := deps.kubeClient.AppsV1().StatefulSets("namespace").
+				Update(ctx, set, metav1.UpdateOptions{})
 			assert.NoError(t, err)
 		}
 
@@ -533,10 +537,11 @@ func TestHandlePodUpdate(t *testing.T) {
 
 	deps.idProvider.EXPECT().Identity(pod1, cluster).Return(mockID, nil)
 
-	err := c.handlePodUpdate(pod1)
+	ctx := context.Background()
+	err := c.handlePodUpdate(ctx, pod1)
 	require.NoError(t, err)
 
-	newPod, err := deps.kubeClient.CoreV1().Pods("namespace").Get("pod1", metav1.GetOptions{})
+	newPod, err := deps.kubeClient.CoreV1().Pods("namespace").Get(ctx, "pod1", metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	annotatedID, ok := newPod.Annotations["operator.m3db.io/pod-identity"]
@@ -561,8 +566,9 @@ func TestClusterEventLoop(t *testing.T) {
 	})
 
 	doneC := make(chan struct{})
+	ctx := context.Background()
 	go func() {
-		c.runClusterLoop()
+		c.runClusterLoop(ctx)
 		doneC <- struct{}{}
 	}()
 
@@ -598,8 +604,9 @@ func TestPodEventLoop(t *testing.T) {
 	})
 
 	doneC := make(chan struct{})
+	ctx := context.Background()
 	go func() {
-		c.runPodLoop()
+		c.runPodLoop(ctx)
 		doneC <- struct{}{}
 	}()
 
@@ -1092,8 +1099,9 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 			return false, nil, nil
 		})
 
+	ctx := context.Background()
 	for i := 0; i < 20; i++ {
-		err := controller.handleClusterUpdate(cluster)
+		err := controller.handleClusterUpdate(ctx, cluster)
 		require.NoError(t, err)
 	}
 

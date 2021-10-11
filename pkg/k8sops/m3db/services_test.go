@@ -21,6 +21,7 @@
 package m3db
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,18 +33,19 @@ func TestService(t *testing.T) {
 	svcCfg, err := GenerateM3DBService(fixture)
 	require.NoError(t, err)
 	k := newFakeK8sops(t)
-	svc, err := k.GetService(fixture, svcName)
+	ctx := context.Background()
+	svc, err := k.GetService(ctx, fixture, svcName)
 	require.Nil(t, svc)
 	require.NotNil(t, err)
-	err = k.EnsureService(fixture, svcCfg)
+	err = k.EnsureService(ctx, fixture, svcCfg)
 	require.Nil(t, err)
-	svc, err = k.GetService(fixture, svcName)
+	svc, err = k.GetService(ctx, fixture, svcName)
 	require.NotNil(t, svc)
 	require.Nil(t, err)
-	err = k.EnsureService(fixture, svcCfg)
+	err = k.EnsureService(ctx, fixture, svcCfg)
 	require.Nil(t, err)
-	err = k.DeleteService(fixture, svcName)
+	err = k.DeleteService(ctx, fixture, svcName)
 	require.Nil(t, err)
-	err = k.DeleteService(fixture, svcName)
+	err = k.DeleteService(ctx, fixture, svcName)
 	require.NotNil(t, err)
 }

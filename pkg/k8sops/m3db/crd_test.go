@@ -21,6 +21,7 @@
 package m3db
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -40,24 +41,25 @@ import (
 
 func TestCreateOrUpdateCRD(t *testing.T) {
 	k := newFakeK8sops(t).(*k8sWrapper)
+	ctx := context.Background()
 
-	err := k.CreateOrUpdateCRD("foo", false)
+	err := k.CreateOrUpdateCRD(ctx, "foo", false)
 	assert.Error(t, err)
 
 	ext := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
 	// Ensure CRD didn't exist before but exists after
-	_, err = ext.Get(m3dboperator.M3DBClustersName, metav1.GetOptions{})
+	_, err = ext.Get(ctx, m3dboperator.M3DBClustersName, metav1.GetOptions{})
 	assert.Error(t, err)
 
 	// Create the CRD.
-	err = k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
+	err = k.CreateOrUpdateCRD(ctx, m3dboperator.M3DBClustersName, false)
 	assert.NoError(t, err)
 
-	_, err = ext.Get(m3dboperator.M3DBClustersName, metav1.GetOptions{})
+	_, err = ext.Get(ctx, m3dboperator.M3DBClustersName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	// Update the CRD.
-	err = k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
+	err = k.CreateOrUpdateCRD(ctx, m3dboperator.M3DBClustersName, false)
 	assert.NoError(t, err)
 }
 
@@ -81,6 +83,7 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 	} {
 		t.Run(test.action, func(t *testing.T) {
 			k := newFakeK8sops(t).(*k8sWrapper)
+			ctx := context.Background()
 
 			k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor(test.action, "*", func(action ktesting.Action) (bool, runtime.Object, error) {
 				return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
@@ -88,11 +91,11 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 
 			// Must create CRD first to have an error updating it.
 			if test.action == "update" {
-				err := k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
+				err := k.CreateOrUpdateCRD(ctx, m3dboperator.M3DBClustersName, false)
 				assert.NoError(t, err)
 			}
 
-			err := k.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, false)
+			err := k.CreateOrUpdateCRD(ctx, m3dboperator.M3DBClustersName, false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), test.expErr)
 		})
@@ -101,17 +104,18 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 
 func TestWaitForCRDReady(t *testing.T) {
 	k := newFakeK8sops(t).(*k8sWrapper)
+	ctx := context.Background()
 
-	err := k.waitForCRDReady("foo")
+	err := k.waitForCRDReady(ctx, "foo")
 	assert.Error(t, err)
 
-	err = k.waitForCRDReady(m3dboperator.M3DBClustersName)
+	err = k.waitForCRDReady(ctx, m3dboperator.M3DBClustersName)
 	assert.NoError(t, err)
 
 	k.crdClient.(*clientsetFake.Clientset).Fake.PrependReactor("list", "m3dbclusters", func(action ktesting.Action) (bool, runtime.Object, error) {
 		return true, &myspec.M3DBClusterList{}, errors.New("test")
 	})
 
-	err = k.waitForCRDReady(m3dboperator.M3DBClustersName)
+	err = k.waitForCRDReady(ctx, m3dboperator.M3DBClustersName)
 	assert.Error(t, err)
 }

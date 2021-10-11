@@ -23,6 +23,7 @@
 package harness
 
 import (
+	"context"
 	"fmt"
 
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
@@ -95,11 +96,11 @@ func buildSuite(opts *suiteOpts) (*Harness, error) {
 	return h, nil
 }
 
-func (h *Harness) ensureNamespace() error {
-	ns, err := h.KubeClient.CoreV1().Namespaces().Get(h.Namespace, metav1.GetOptions{})
+func (h *Harness) ensureNamespace(ctx context.Context) error {
+	ns, err := h.KubeClient.CoreV1().Namespaces().Get(ctx, h.Namespace, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return h.createNamespace(defaultNamespace)
+			return h.createNamespace(ctx, defaultNamespace)
 		}
 		return err
 	}
@@ -112,46 +113,51 @@ func (h *Harness) ensureNamespace() error {
 	return nil
 }
 
-func (h *Harness) setupSuite() error {
-	if err := h.ensureNamespace(); err != nil {
+func (h *Harness) setupSuite(ctx context.Context) error {
+	if err := h.ensureNamespace(ctx); err != nil {
 		return err
 	}
 
-	if err := h.installOperator(); err != nil {
+	if err := h.installOperator(ctx); err != nil {
 		return err
 	}
 
-	if err := h.createEtcdCluster(); err != nil {
+	if err := h.createEtcdCluster(ctx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (h *Harness) createNamespace(ns string) error {
+func (h *Harness) createNamespace(ctx context.Context, ns string) error {
 	if h.Flags.SkipCreateNamespace {
 		return nil
 	}
 
 	h.Logger.Info("creating namespace", zap.String("namespace", ns))
-	_, err := h.KubeClient.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
+	_, err := h.KubeClient.CoreV1().Namespaces().Create(
+		ctx,
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: ns,
+			},
 		},
-	})
+		metav1.CreateOptions{},
+	)
 	return err
 }
 
-func (h *Harness) teardownSuite() error {
+func (h *Harness) teardownSuite(ctx context.Context) error {
 	if !h.Flags.SkipDeleteRBAC {
 		h.Logger.Info("deleting clusterrole", zap.String("clusterrole", defaultClusterRoleName))
-		err := h.KubeClient.RbacV1().ClusterRoles().Delete(defaultClusterRoleName, nil)
+		err := h.KubeClient.RbacV1().ClusterRoles().Delete(ctx, defaultClusterRoleName, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
 
 		h.Logger.Info("deleting clusterrolebinding", zap.String("clusterrolebinding", defaultClusterRoleBindingName))
-		err = h.KubeClient.RbacV1().ClusterRoleBindings().Delete(defaultClusterRoleBindingName, nil)
+		err = h.KubeClient.RbacV1().ClusterRoleBindings().
+			Delete(ctx, defaultClusterRoleBindingName, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -162,7 +168,7 @@ func (h *Harness) teardownSuite() error {
 	}
 
 	h.Logger.Info("deleting namespace")
-	err := h.KubeClient.CoreV1().Namespaces().Delete(h.Namespace, nil)
+	err := h.KubeClient.CoreV1().Namespaces().Delete(ctx, h.Namespace, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

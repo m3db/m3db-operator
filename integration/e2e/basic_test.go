@@ -23,6 +23,7 @@
 package e2e
 
 import (
+	"context"
 	"sort"
 	"testing"
 	"time"
@@ -43,8 +44,9 @@ const (
 
 func TestCreateCluster_Regional(t *testing.T) {
 	h := harness.Global
+	ctx := context.Background()
 
-	cluster, err := h.CreateM3DBCluster("cluster-regional.yaml")
+	cluster, err := h.CreateM3DBCluster(ctx, "cluster-regional.yaml")
 	require.NoError(t, err)
 
 	cl, err := h.NewPlacementClient(cluster)
@@ -82,8 +84,9 @@ func TestCreateCluster_Regional(t *testing.T) {
 
 func TestCreateCluster_Zonal(t *testing.T) {
 	h := harness.Global
+	ctx := context.Background()
 
-	cluster, err := h.CreateM3DBCluster("cluster-zonal.yaml")
+	cluster, err := h.CreateM3DBCluster(ctx, "cluster-zonal.yaml")
 	require.NoError(t, err)
 
 	cl, err := h.NewPlacementClient(cluster)

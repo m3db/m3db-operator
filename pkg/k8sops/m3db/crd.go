@@ -21,6 +21,7 @@
 package m3db
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -35,20 +36,22 @@ import (
 	"go.uber.org/zap"
 )
 
-func (k *k8sWrapper) CreateOrUpdateCRD(name string, enableValidation bool) error {
+func (k *k8sWrapper) CreateOrUpdateCRD(
+	ctx context.Context, name string, enableValidation bool,
+) error {
 	if name != myspec.M3DBClustersName {
 		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
 
 	crdClient := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
-	curCRD, err := crdClient.Get(name, metav1.GetOptions{})
+	curCRD, err := crdClient.Get(ctx, name, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return pkgerrors.WithMessagef(err, "could not fetch CRD '%s'", name)
 	}
 
 	newCRD := GenerateCRD(enableValidation)
 	if apierrors.IsNotFound(err) {
-		_, err := crdClient.Create(newCRD)
+		_, err := crdClient.Create(ctx, newCRD, metav1.CreateOptions{})
 		if err != nil {
 			return pkgerrors.WithMessagef(err, "error creating CRD '%s'", name)
 		}
@@ -58,7 +61,7 @@ func (k *k8sWrapper) CreateOrUpdateCRD(name string, enableValidation bool) error
 
 	// CRD exists, update it
 	curCRD.Spec = newCRD.Spec
-	newCRD, err = crdClient.Update(curCRD)
+	newCRD, err = crdClient.Update(ctx, curCRD, metav1.UpdateOptions{})
 	if err != nil {
 		return pkgerrors.WithMessagef(err, "error updating CRD '%s'", name)
 	}
@@ -69,12 +72,12 @@ func (k *k8sWrapper) CreateOrUpdateCRD(name string, enableValidation bool) error
 		zap.String("newRV", newCRD.ResourceVersion),
 	)
 
-	return k.waitForCRDReady(name)
+	return k.waitForCRDReady(ctx, name)
 }
 
 // waitForCRDReady waits until we can list resources of the given type,
 // indicating that the resource is ready.
-func (k *k8sWrapper) waitForCRDReady(name string) error {
+func (k *k8sWrapper) waitForCRDReady(ctx context.Context, name string) error {
 	if name != myspec.M3DBClustersName {
 		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
@@ -82,7 +85,8 @@ func (k *k8sWrapper) waitForCRDReady(name string) error {
 	// wait until we can list resources of our type without getting resource not
 	// found errors.
 	err := wait.Poll(2*time.Second, 5*time.Minute, func() (bool, error) {
-		_, err := k.crdClient.OperatorV1alpha1().M3DBClusters(metav1.NamespaceAll).List(metav1.ListOptions{})
+		_, err := k.crdClient.OperatorV1alpha1().M3DBClusters(metav1.NamespaceAll).
+			List(ctx, metav1.ListOptions{})
 		if err == nil {
 			return true, nil
 		}

@@ -23,6 +23,7 @@
 package harness
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -100,7 +101,8 @@ func RunSuite(m *testing.M) {
 		logger.Fatal("error building suite", zap.Error(err))
 	}
 
-	if err := harness.setupSuite(); err != nil {
+	ctx := context.Background()
+	if err := harness.setupSuite(ctx); err != nil {
 		logger.Fatal("error setting up suite", zap.Error(err))
 	}
 
@@ -108,7 +110,7 @@ func RunSuite(m *testing.M) {
 
 	code := m.Run()
 
-	if err := harness.teardownSuite(); err != nil {
+	if err := harness.teardownSuite(ctx); err != nil {
 		logger.Fatal("error tearing down suite")
 	}
 

@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,7 +44,7 @@ var (
 	errEmptyConfigMap = errors.New("ConfigMapName cannot be empty if non-nil")
 )
 
-func (c *M3DBController) ensureServices(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) ensureServices(ctx context.Context, cluster *myspec.M3DBCluster) error {
 	coordSvc, err := m3db.GenerateCoordinatorService(cluster)
 	if err != nil {
 		return err
@@ -60,7 +61,7 @@ func (c *M3DBController) ensureServices(cluster *myspec.M3DBCluster) error {
 	}
 
 	for _, svc := range services {
-		err = c.k8sclient.EnsureService(cluster, svc)
+		err = c.k8sclient.EnsureService(ctx, cluster, svc)
 		if err != nil {
 			err := fmt.Errorf("error creating service '%s': %v", svc.Name, err)
 			c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, err.Error())
@@ -73,7 +74,7 @@ func (c *M3DBController) ensureServices(cluster *myspec.M3DBCluster) error {
 
 // ensureConfigMap creates the default configmap for the cluster if none is
 // specified in the cluster spec.
-func (c *M3DBController) ensureConfigMap(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) ensureConfigMap(ctx context.Context, cluster *myspec.M3DBCluster) error {
 	if cluster.Spec.ConfigMapName != nil {
 		if *cluster.Spec.ConfigMapName == "" {
 			return errEmptyConfigMap
@@ -91,14 +92,14 @@ func (c *M3DBController) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 
 	// Check if there is a configmap that exists. If so, overwrite it with the
 	// current templated out config. Otherwise, create one.
-	cm, err := cmClient.Get(wantCM.Name, metav1.GetOptions{})
+	cm, err := cmClient.Get(ctx, wantCM.Name, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return err
 		}
 
 		// If the config doesn't exist, create it.
-		_, err := cmClient.Create(wantCM)
+		_, err := cmClient.Create(ctx, wantCM, metav1.CreateOptions{})
 		return err
 	}
 
@@ -131,7 +132,7 @@ func (c *M3DBController) ensureConfigMap(cluster *myspec.M3DBCluster) error {
 		return err
 	}
 
-	_, err = cmClient.Patch(cm.Name, types.MergePatchType, patchBytes)
+	_, err = cmClient.Patch(ctx, cm.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		c.logger.Error("error updating configmap", zap.Error(err))
 	} else {

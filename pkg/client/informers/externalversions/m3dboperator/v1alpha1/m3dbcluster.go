@@ -23,6 +23,7 @@
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	m3dboperatorv1alpha1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
@@ -65,13 +66,13 @@ func NewFilteredM3DBClusterInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OperatorV1alpha1().M3DBClusters(namespace).List(options)
+				return client.OperatorV1alpha1().M3DBClusters(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OperatorV1alpha1().M3DBClusters(namespace).Watch(options)
+				return client.OperatorV1alpha1().M3DBClusters(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&m3dboperatorv1alpha1.M3DBCluster{},

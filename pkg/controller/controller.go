@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -249,8 +250,12 @@ func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer c.clusterWorkQueue.ShutDown()
 
 	c.logger.Info("starting Operator controller")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if c.config.ManageCRD {
-		if err := c.k8sclient.CreateOrUpdateCRD(m3dboperator.M3DBClustersName, c.config.EnableValidation); err != nil {
+		if err := c.k8sclient.CreateOrUpdateCRD(
+			ctx, m3dboperator.M3DBClustersName, c.config.EnableValidation,
+		); err != nil {
 			return pkgerrors.WithMessage(err, "could not create or update CRD")
 		}
 	}
@@ -262,8 +267,8 @@ func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 
 	c.logger.Info("starting workers")
 	for i := 0; i < nWorkers; i++ {
-		go c.runClusterLoop()
-		go c.runPodLoop()
+		go c.runClusterLoop(ctx)
+		go c.runPodLoop(ctx)
 	}
 
 	c.logger.Info("workers started")
@@ -284,12 +289,13 @@ func (c *M3DBController) enqueueCluster(obj interface{}) {
 	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
-func (c *M3DBController) runClusterLoop() {
-	for c.processClusterQueueItem() {
+func (c *M3DBController) runClusterLoop(ctx context.Context) {
+	for c.processClusterQueueItem(ctx) {
 	}
 }
 
-func (c *M3DBController) processClusterQueueItem() bool {
+//nolint:dupl
+func (c *M3DBController) processClusterQueueItem(ctx context.Context) bool {
 	obj, shutdown := c.clusterWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
@@ -308,7 +314,7 @@ func (c *M3DBController) processClusterQueueItem() bool {
 			return nil
 		}
 
-		if err := c.handleClusterEvent(key); err != nil {
+		if err := c.handleClusterEvent(ctx, key); err != nil {
 			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
 		}
 
@@ -324,7 +330,7 @@ func (c *M3DBController) processClusterQueueItem() bool {
 	return true
 }
 
-func (c *M3DBController) handleClusterEvent(key string) error {
+func (c *M3DBController) handleClusterEvent(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
@@ -346,12 +352,14 @@ func (c *M3DBController) handleClusterEvent(key string) error {
 		return errors.New("got nil cluster for " + key)
 	}
 
-	return c.handleClusterUpdate(cluster)
+	return c.handleClusterUpdate(ctx, cluster)
 }
 
 // We are guaranteed by handleClusterEvent that we will never be passed a nil
 // cluster here.
-func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error {
+func (c *M3DBController) handleClusterUpdate(
+	ctx context.Context, cluster *myspec.M3DBCluster,
+) error {
 	// MUST create a deep copy of the cluster or risk corrupting cache! Technically
 	// only need if we modify, but we frequently do that so let's deep copy to
 	// start and remove unnecessary calls later to optimize if we want.
@@ -394,7 +402,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			}
 		}
 
-		if _, err := c.removeEtcdFinalizer(cluster); err != nil {
+		if _, err := c.removeEtcdFinalizer(ctx, cluster); err != nil {
 			clusterLogger.Error("error deleting etcd finalizer", zap.Error(err))
 			return pkgerrors.WithMessage(err, "error removing etcd cluster finalizer")
 		}
@@ -412,13 +420,13 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 	if !cluster.Spec.KeepEtcdDataOnDelete {
 		var err error
-		cluster, err = c.ensureEtcdFinalizer(cluster)
+		cluster, err = c.ensureEtcdFinalizer(ctx, cluster)
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := c.ensureConfigMap(cluster); err != nil {
+	if err := c.ensureConfigMap(ctx, cluster); err != nil {
 		clusterLogger.Error("failed to ensure configmap", zap.Error(err))
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailSync, "failed to ensure configmap: %s", err.Error())
 		return err
@@ -426,7 +434,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 
 	// Per https://v1-10.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.10/#statefulsetspec-v1-apps,
 	// headless service MUST exist before statefulset.
-	if err := c.ensureServices(cluster); err != nil {
+	if err := c.ensureServices(ctx, cluster); err != nil {
 		return err
 	}
 
@@ -460,7 +468,8 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 				return err
 			}
 
-			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(sts)
+			_, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
+				Create(ctx, sts, metav1.CreateOptions{})
 			if err != nil {
 				if kerrors.IsAlreadyExists(err) {
 					// There may be a delay between when a StatefulSet is created and when it is
@@ -577,7 +586,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 
 		if update {
-			_, err = c.applyStatefulSetUpdate(cluster, actual, expected)
+			_, err = c.applyStatefulSetUpdate(ctx, cluster, actual, expected)
 			if err != nil {
 				c.logger.Error(err.Error())
 				return err
@@ -593,7 +602,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		// if pods were updated. If a rollout is finished or there has not
 		// been a change, this call is a no-op.
 		if onDeleteUpdateStrategy {
-			nodesUpdated, err := c.updateStatefulSetPods(cluster, actual)
+			nodesUpdated, err := c.updateStatefulSetPods(ctx, cluster, actual)
 			if err != nil {
 				c.logger.Error("error performing update",
 					zap.Error(err),
@@ -611,7 +620,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	}
 
 	if !cluster.Status.HasInitializedPlacement() {
-		cluster, err = c.validatePlacementWithStatus(cluster)
+		cluster, err = c.validatePlacementWithStatus(ctx, cluster)
 		if err != nil {
 			return err
 		}
@@ -671,7 +680,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	}
 
 	if podToReplace != nil {
-		err = c.replacePodInPlacement(cluster, placement, leavingInstanceID, podToReplace)
+		err = c.replacePodInPlacement(ctx, cluster, placement, leavingInstanceID, podToReplace)
 		if err != nil {
 			c.recorder.WarningEvent(cluster, eventer.ReasonFailedToUpdate, "could not replace instance: "+leavingInstanceID)
 			return err
@@ -719,7 +728,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 			// absent from the placement, add pods to placement.
 			if inPlacement < current {
 				setLogger.Info("expanding placement for set")
-				return c.expandPlacementForSet(cluster, set, group, placement)
+				return c.expandPlacementForSet(ctx, cluster, set, group, placement)
 			}
 		}
 
@@ -742,7 +751,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 		}
 		setLogger.Info("resizing set, desired != current", zap.Int32("newSize", newCount))
 
-		if err = c.patchStatefulSet(set, func(set *appsv1.StatefulSet) {
+		if err = c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
 			set.Spec.Replicas = pointer.Int32Ptr(newCount)
 		}); err != nil {
 			c.logger.Error("error patching statefulset", zap.Error(err))
@@ -760,7 +769,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 	// TODO(celina): possibly do a replacement check here
 
 	// See if we need to clean up the pod bootstrapping status.
-	cluster, err = c.reconcileBootstrappingStatus(cluster, placement)
+	cluster, err = c.reconcileBootstrappingStatus(ctx, cluster, placement)
 	if err != nil {
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
@@ -775,6 +784,7 @@ func (c *M3DBController) handleClusterUpdate(cluster *myspec.M3DBCluster) error 
 }
 
 func (c *M3DBController) patchStatefulSet(
+	ctx context.Context,
 	set *appsv1.StatefulSet,
 	action func(set *appsv1.StatefulSet),
 ) error {
@@ -798,7 +808,7 @@ func (c *M3DBController) patchStatefulSet(
 	set, err = c.kubeClient.
 		AppsV1().
 		StatefulSets(set.Namespace).
-		Patch(set.Name, types.MergePatchType, patchBytes)
+		Patch(ctx, set.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error updating statefulset %s: %w", set.Name, err)
 	}
@@ -807,11 +817,13 @@ func (c *M3DBController) patchStatefulSet(
 }
 
 func (c *M3DBController) applyStatefulSetUpdate(
+	ctx context.Context,
 	cluster *myspec.M3DBCluster,
 	actual *appsv1.StatefulSet,
 	expected *appsv1.StatefulSet,
 ) (*appsv1.StatefulSet, error) {
-	updated, err := c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(expected)
+	updated, err := c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
+		Update(ctx, expected, metav1.UpdateOptions{})
 	if err != nil {
 		c.logger.Error(err.Error())
 		return nil, err
@@ -835,6 +847,7 @@ func (c *M3DBController) applyStatefulSetUpdate(
 
 // updateStatefulSetPods returns true if it updates any pods
 func (c *M3DBController) updateStatefulSetPods(
+	ctx context.Context,
 	cluster *myspec.M3DBCluster,
 	sts *appsv1.StatefulSet,
 ) (bool, error) {
@@ -866,7 +879,7 @@ func (c *M3DBController) updateStatefulSetPods(
 		for _, pod := range pods {
 			if err := c.kubeClient.CoreV1().
 				Pods(pod.Namespace).
-				Delete(pod.Name, &metav1.DeleteOptions{}); err != nil {
+				Delete(ctx, pod.Name, metav1.DeleteOptions{}); err != nil {
 				return false, err
 			}
 			names = append(names, pod.Name)
@@ -884,11 +897,12 @@ func (c *M3DBController) updateStatefulSetPods(
 	sts.Status.CurrentReplicas = sts.Status.UpdatedReplicas
 	sts.Status.CurrentRevision = sts.Status.UpdateRevision
 
-	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).UpdateStatus(sts); err != nil {
+	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
+		UpdateStatus(ctx, sts, metav1.UpdateOptions{}); err != nil {
 		return false, err
 	}
 
-	if err = c.patchStatefulSet(sts, func(set *appsv1.StatefulSet) {
+	if err = c.patchStatefulSet(ctx, sts, func(set *appsv1.StatefulSet) {
 		delete(set.Annotations, annotations.ParallelUpdateInProgress)
 	}); err != nil {
 		return false, err
@@ -1062,12 +1076,13 @@ func (c *M3DBController) enqueuePod(obj interface{}) {
 	c.scope.Counter("enqueued_event").Inc(int64(1))
 }
 
-func (c *M3DBController) runPodLoop() {
-	for c.processPodQueueItem() {
+func (c *M3DBController) runPodLoop(ctx context.Context) {
+	for c.processPodQueueItem(ctx) {
 	}
 }
 
-func (c *M3DBController) processPodQueueItem() bool {
+//nolint:dupl
+func (c *M3DBController) processPodQueueItem(ctx context.Context) bool {
 	obj, shutdown := c.podWorkQueue.Get()
 	c.scope.Counter("dequeued_event").Inc(int64(1))
 	if shutdown {
@@ -1086,7 +1101,7 @@ func (c *M3DBController) processPodQueueItem() bool {
 			return nil
 		}
 
-		if err := c.handlePodEvent(key); err != nil {
+		if err := c.handlePodEvent(ctx, key); err != nil {
 			return fmt.Errorf("error syncing cluster '%s': %v", key, err)
 		}
 
@@ -1102,7 +1117,7 @@ func (c *M3DBController) processPodQueueItem() bool {
 	return true
 }
 
-func (c *M3DBController) handlePodEvent(key string) error {
+func (c *M3DBController) handlePodEvent(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		c.logger.Error("invalid resource key", zap.Error(err))
@@ -1124,10 +1139,10 @@ func (c *M3DBController) handlePodEvent(key string) error {
 		return errors.New("got nil pod for key " + key)
 	}
 
-	return c.handlePodUpdate(pod)
+	return c.handlePodUpdate(ctx, pod)
 }
 
-func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
+func (c *M3DBController) handlePodUpdate(ctx context.Context, pod *corev1.Pod) error {
 	// We only process pods that are members of m3db clusters.
 	if _, err := getClusterValue(pod); err != nil {
 		return nil
@@ -1195,7 +1210,7 @@ func (c *M3DBController) handlePodUpdate(pod *corev1.Pod) error {
 
 	_, err = c.kubeClient.CoreV1().
 		Pods(pod.Namespace).
-		Patch(pod.Name, types.MergePatchType, patchBytes)
+		Patch(ctx, pod.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		podLogger.Error("error updating pod annotation", zap.Error(err))
 		return err

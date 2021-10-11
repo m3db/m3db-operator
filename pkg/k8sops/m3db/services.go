@@ -37,6 +37,8 @@
 package m3db
 
 import (
+	"context"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
@@ -48,8 +50,11 @@ import (
 )
 
 // GetService simply gets a service by name
-func (k *k8sWrapper) GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error) {
-	service, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Get(name, metav1.GetOptions{})
+func (k *k8sWrapper) GetService(
+	ctx context.Context, cluster *myspec.M3DBCluster, name string,
+) (*v1.Service, error) {
+	service, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).
+		Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +62,19 @@ func (k *k8sWrapper) GetService(cluster *myspec.M3DBCluster, name string) (*v1.S
 }
 
 // DeleteService simply deletes a service by name
-func (k *k8sWrapper) DeleteService(cluster *myspec.M3DBCluster, name string) error {
+func (k *k8sWrapper) DeleteService(
+	ctx context.Context, cluster *myspec.M3DBCluster, name string,
+) error {
 	k.logger.Info("deleting service", zap.String("service", name))
-	return k.kclient.CoreV1().Services(cluster.GetNamespace()).Delete(name, &metav1.DeleteOptions{})
+	return k.kclient.CoreV1().Services(cluster.GetNamespace()).
+		Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // EnsureService will create a service by name if it doesn't exist
-func (k *k8sWrapper) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error {
-	_, err := k.GetService(cluster, svc.Name)
+func (k *k8sWrapper) EnsureService(
+	ctx context.Context, cluster *myspec.M3DBCluster, svc *v1.Service,
+) error {
+	_, err := k.GetService(ctx, cluster, svc.Name)
 	if errors.IsNotFound(err) {
 		k.logger.Info("service doesn't exist, creating it", zap.String("service", svc.Name))
 		selfRef := metav1.NewControllerRef(cluster, schema.GroupVersionKind{
@@ -73,7 +83,8 @@ func (k *k8sWrapper) EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service)
 			Kind:    "m3dbcluster",
 		})
 		svc.SetOwnerReferences([]metav1.OwnerReference{*selfRef})
-		if _, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).Create(svc); err != nil {
+		if _, err := k.kclient.CoreV1().Services(cluster.GetNamespace()).
+			Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		k.logger.Info("ensured service is created", zap.String("service", svc.GetName()))
