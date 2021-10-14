@@ -30,7 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"go.uber.org/zap"
@@ -62,7 +62,7 @@ func (h *Harness) installOperator(ctx context.Context) error {
 
 	h.Logger.Info("creating serviceaccount", zap.String("serviceaccount", sa.Name))
 	if _, err := h.KubeClient.CoreV1().ServiceAccounts(h.Namespace).
-		Create(ctx, sa, v1.CreateOptions{}); err != nil {
+		Create(ctx, sa, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -73,7 +73,7 @@ func (h *Harness) installOperator(ctx context.Context) error {
 
 	if !h.Flags.SkipCreateRBAC {
 		h.Logger.Info("creating clusterrole", zap.String("role", role.Name))
-		if _, err := rc.ClusterRoles().Create(ctx, role, v1.CreateOptions{}); err != nil {
+		if _, err := rc.ClusterRoles().Create(ctx, role, metav1.CreateOptions{}); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return err
 			}
@@ -81,7 +81,7 @@ func (h *Harness) installOperator(ctx context.Context) error {
 		}
 
 		h.Logger.Info("creating rolebinding", zap.String("rolebinding", rb.Name))
-		if _, err := rc.ClusterRoleBindings().Create(ctx, rb, v1.CreateOptions{}); err != nil {
+		if _, err := rc.ClusterRoleBindings().Create(ctx, rb, metav1.CreateOptions{}); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return err
 			}
@@ -90,6 +90,6 @@ func (h *Harness) installOperator(ctx context.Context) error {
 	}
 
 	h.Logger.Info("creating statefulset", zap.String("statefulset", sts.Name))
-	_, err = h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(ctx, sts, v1.CreateOptions{})
+	_, err = h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(ctx, sts, metav1.CreateOptions{})
 	return err
 }

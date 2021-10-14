@@ -29,7 +29,7 @@ import (
 
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"go.uber.org/zap"
@@ -59,7 +59,7 @@ func (h *Harness) CreateM3DBCluster(ctx context.Context, filename string) (*mysp
 
 	h.Logger.Info("creating m3dbcluster", zap.String("m3dbcluster", cluster.Name))
 	cluster, err = h.CRDClient.OperatorV1alpha1().M3DBClusters(h.Namespace).
-		Create(ctx, cluster, v1.CreateOptions{})
+		Create(ctx, cluster, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}

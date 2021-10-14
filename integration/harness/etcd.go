@@ -35,7 +35,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -75,14 +75,14 @@ func (h *Harness) createEtcdCluster(ctx context.Context) error {
 		clusterSvc,
 	} {
 		h.Logger.Info("creating etcd service", zap.String("service", svc.Name))
-		_, err := h.KubeClient.CoreV1().Services(h.Namespace).Create(ctx, svc, v1.CreateOptions{})
+		_, err := h.KubeClient.CoreV1().Services(h.Namespace).Create(ctx, svc, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
 	h.Logger.Info("creating etcd statefulset", zap.String("statefulset", statefulSet.Name))
-	_, err = h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(ctx, statefulSet, v1.CreateOptions{})
+	_, err = h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
