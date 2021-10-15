@@ -21,6 +21,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -373,7 +374,10 @@ func TestSetPodBootstrappingStatus(t *testing.T) {
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
-	cluster, err := controller.setStatusPodsBootstrapping(cluster, corev1.ConditionTrue, "foo", "bar")
+	ctx := context.Background()
+	cluster, err := controller.setStatusPodsBootstrapping(
+		ctx, cluster, corev1.ConditionTrue, "foo", "bar",
+	)
 	assert.NoError(t, err)
 
 	assert.True(t, cluster.Status.HasPodsBootstrapping())
@@ -387,11 +391,12 @@ func TestSetStatus(t *testing.T) {
 		crdObjects: []runtime.Object{cluster},
 		clock:      fakeClock,
 	})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	const cond = myspec.ClusterConditionPlacementInitialized
-	cluster, err := controller.setStatus(cluster, cond, corev1.ConditionTrue, "foo", "bar")
+	cluster, err := controller.setStatus(ctx, cluster, cond, corev1.ConditionTrue, "foo", "bar")
 	assert.NoError(t, err)
 
 	c, ok := cluster.Status.GetCondition(cond)
@@ -399,7 +404,7 @@ func TestSetStatus(t *testing.T) {
 
 	transitionTime := c.LastTransitionTime
 
-	cluster, err = controller.setStatus(cluster, cond, corev1.ConditionTrue, "foo", "bar")
+	cluster, err = controller.setStatus(ctx, cluster, cond, corev1.ConditionTrue, "foo", "bar")
 	assert.NoError(t, err)
 
 	c, ok = cluster.Status.GetCondition(cond)
@@ -408,7 +413,7 @@ func TestSetStatus(t *testing.T) {
 
 	fakeClock.Step(10 * time.Second)
 
-	cluster, err = controller.setStatus(cluster, cond, corev1.ConditionFalse, "foo", "bar")
+	cluster, err = controller.setStatus(ctx, cluster, cond, corev1.ConditionFalse, "foo", "bar")
 	assert.NoError(t, err)
 
 	c, ok = cluster.Status.GetCondition(cond)
@@ -423,6 +428,7 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
@@ -438,13 +444,13 @@ func TestReconcileBootstrappingStatus(t *testing.T) {
 
 	pl := newPl(shard.Initializing)
 
-	cluster, err := controller.reconcileBootstrappingStatus(cluster, pl)
+	cluster, err := controller.reconcileBootstrappingStatus(ctx, cluster, pl)
 	assert.NoError(t, err)
 	_, ok := cluster.Status.GetCondition(cond)
 	assert.False(t, ok)
 
 	pl = newPl(shard.Available)
-	cluster, err = controller.reconcileBootstrappingStatus(cluster, pl)
+	cluster, err = controller.reconcileBootstrappingStatus(ctx, cluster, pl)
 	assert.NoError(t, err)
 	c, ok := cluster.Status.GetCondition(cond)
 	assert.True(t, ok)
@@ -459,6 +465,7 @@ func TestAddPodsToPlacement(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
@@ -490,10 +497,11 @@ func TestAddPodsToPlacement(t *testing.T) {
 	}
 	deps.placementClient.EXPECT().Add(placements)
 
-	err := controller.addPodsToPlacement(cluster, pods)
+	err := controller.addPodsToPlacement(ctx, cluster, pods)
 	assert.NoError(t, err)
 
-	cluster, err = controller.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = controller.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).
+		Get(ctx, cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.True(t, cluster.Status.HasPodsBootstrapping())
@@ -598,6 +606,7 @@ func TestExpandPlacementForSet(t *testing.T) {
 		kubeObjects: objectsFromPods(pods...),
 		crdObjects:  []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 	placementMock := deps.placementClient
 	idProvider := deps.idProvider
 	controller := deps.newController(t)
@@ -616,16 +625,18 @@ func TestExpandPlacementForSet(t *testing.T) {
 	}
 
 	placementMock.EXPECT().Add(placements)
-	err = controller.expandPlacementForSet(cluster, set, group, pl)
+	err = controller.expandPlacementForSet(ctx, cluster, set, group, pl)
 	assert.NoError(t, err)
 
-	cluster, err = deps.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = deps.crdClient.OperatorV1alpha1().M3DBClusters(cluster.Namespace).
+		Get(ctx, cluster.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.True(t, cluster.Status.HasPodsBootstrapping())
 }
 
 func TestExpandPlacementForSet_Nop(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	idProvider := deps.idProvider
 	defer deps.cleanup()
@@ -640,13 +651,14 @@ func TestExpandPlacementForSet_Nop(t *testing.T) {
 	pl := placementFromPods(t, cluster, pods, idProvider)
 	group := cluster.Spec.IsolationGroups[0]
 
-	err = controller.expandPlacementForSet(cluster, set, group, pl)
+	err = controller.expandPlacementForSet(ctx, cluster, set, group, pl)
 	// We know this was a noop because the mock expects no calls.
 	assert.NoError(t, err)
 }
 
 func TestExpandPlacementForSet_Err(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{})
+	ctx := context.Background()
 	idProvider := deps.idProvider
 	controller := deps.newController(t)
 	defer deps.cleanup()
@@ -661,7 +673,7 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 
 	pl := placementFromPods(t, cluster, pods, idProvider)
 	const expErr = "cannot expand set 'cluster-zones-rep0', not yet ready"
-	err = controller.expandPlacementForSet(cluster, set, group, pl)
+	err = controller.expandPlacementForSet(ctx, cluster, set, group, pl)
 	assert.Equal(t, expErr, err.Error())
 }
 
@@ -729,6 +741,7 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 
 	placementMock := deps.placementClient
 	defer deps.cleanup()
@@ -737,7 +750,7 @@ func TestValidatePlacementWithStatus(t *testing.T) {
 
 	placementMock.EXPECT().Get().AnyTimes()
 
-	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
+	clusterReturn, err := controller.validatePlacementWithStatus(ctx, cluster)
 
 	require.NoError(t, err)
 	require.NotNil(t, clusterReturn)
@@ -775,6 +788,7 @@ func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 		kubeObjects: objectsFromPods(pods...),
 		crdObjects:  []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 
 	placementMock := deps.placementClient
 	defer deps.cleanup()
@@ -794,7 +808,7 @@ func TestValidatePlacementWithStatus_ErrNotFound(t *testing.T) {
 	placementMock.EXPECT().Get().Return(nil, pkgerrors.Wrap(m3admin.ErrNotFound, "foo"))
 	placementMock.EXPECT().Init(matcher)
 
-	clusterReturn, err := controller.validatePlacementWithStatus(cluster)
+	clusterReturn, err := controller.validatePlacementWithStatus(ctx, cluster)
 
 	require.NoError(t, err)
 	require.NotNil(t, clusterReturn)
@@ -935,6 +949,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 
 	controller := deps.newController(t)
 	idProvider := deps.idProvider
@@ -979,7 +994,7 @@ func TestReplacePodInPlacement(t *testing.T) {
 
 	deps.placementClient.EXPECT().Replace(testLeavingInstanceID, expInstance)
 
-	err = controller.replacePodInPlacement(cluster, pl, testLeavingInstanceID, testNewPod)
+	err = controller.replacePodInPlacement(ctx, cluster, pl, testLeavingInstanceID, testNewPod)
 	require.NoError(t, err)
 }
 
@@ -988,6 +1003,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 
 	controller := deps.newController(t)
 	idProvider := deps.idProvider
@@ -1012,7 +1028,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 		},
 	}
 
-	err = controller.replacePodInPlacement(cluster, pl, "dummy-id", badPod)
+	err = controller.replacePodInPlacement(ctx, cluster, pl, "dummy-id", badPod)
 	require.Error(t, err)
 
 	// error setting bootstrapping
@@ -1028,7 +1044,7 @@ func TestReplacePodInPlacementWithError(t *testing.T) {
 
 	idProvider.EXPECT().Identity(newPodNameMatcher(okPod.Name, okPod.UID), gomock.Any()).Return(identityForPod(okPod), nil).MaxTimes(2)
 
-	err = controller.replacePodInPlacement(badCluster, pl, "dummy-id", okPod)
+	err = controller.replacePodInPlacement(ctx, badCluster, pl, "dummy-id", okPod)
 	require.Error(t, err)
 }
 
@@ -1138,6 +1154,7 @@ func TestEtcdFinalizer(t *testing.T) {
 	deps := newTestDeps(t, &testOpts{
 		crdObjects: []runtime.Object{cluster},
 	})
+	ctx := context.Background()
 
 	controller := deps.newController(t)
 	defer deps.cleanup()
@@ -1159,40 +1176,40 @@ func TestEtcdFinalizer(t *testing.T) {
 		controller.crdClient.(*crdfake.Clientset).Fake.ReactionChain = reactorChain
 	}
 
-	cluster2, err := controller.ensureEtcdFinalizer(cluster.DeepCopy())
+	cluster2, err := controller.ensureEtcdFinalizer(ctx, cluster.DeepCopy())
 	assert.NoError(t, err)
 	assert.True(t, stringArrayContains(cluster2.ObjectMeta.Finalizers, labels.EtcdDeletionFinalizer))
 
 	// Flip the API to return errors so we know we don't hit Update() once there's
 	// already a finalizer on the cluster.
 	returnError()
-	_, err = controller.ensureEtcdFinalizer(cluster2.DeepCopy())
+	_, err = controller.ensureEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.NoError(t, err)
-	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	_, err = controller.removeEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.EqualError(t, pkgerrors.Cause(err), "test")
 	noError()
 
-	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	cluster2, err = controller.removeEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.NoError(t, err)
 	assert.Empty(t, cluster2.Finalizers)
 
 	// API returns errors again and we know we don't hit it once the finalizer is
 	// removed.
 	returnError()
-	_, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	_, err = controller.removeEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.NoError(t, err)
 	noError()
 
 	// Ensure we only remove the finalizer we care about.
 	cluster2 = cluster.DeepCopy()
 	cluster2.Finalizers = []string{"foo"}
-	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	cluster2, err = controller.removeEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
 
 	cluster2 = cluster.DeepCopy()
 	cluster2.Finalizers = []string{"foo", labels.EtcdDeletionFinalizer}
-	cluster2, err = controller.removeEtcdFinalizer(cluster2.DeepCopy())
+	cluster2, err = controller.removeEtcdFinalizer(ctx, cluster2.DeepCopy())
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"foo"}, cluster2.Finalizers)
 }

@@ -21,6 +21,8 @@
 package m3db
 
 import (
+	"context"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
@@ -31,16 +33,16 @@ import (
 type K8sops interface {
 	// CreateOrUpdateCRD creates the CRD if it does not exist, or updates it to
 	// contain the latest spec if it does exist.
-	CreateOrUpdateCRD(name string, enableValidation bool) error
+	CreateOrUpdateCRD(ctx context.Context, name string, enableValidation bool) error
 
 	// GetService simply gets a service by name
-	GetService(cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
+	GetService(ctx context.Context, cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
 
 	// DeleteService simply deletes a service by name
-	DeleteService(cluster *myspec.M3DBCluster, name string) error
+	DeleteService(ctx context.Context, cluster *myspec.M3DBCluster, name string) error
 
 	// EnsureService will create a service by name if it doesn't exist
-	EnsureService(cluster *myspec.M3DBCluster, svc *v1.Service) error
+	EnsureService(ctx context.Context, cluster *myspec.M3DBCluster, svc *v1.Service) error
 
 	// Events returns an Event interface for a given namespace.
 	Events(namespace string) typedcorev1.EventInterface

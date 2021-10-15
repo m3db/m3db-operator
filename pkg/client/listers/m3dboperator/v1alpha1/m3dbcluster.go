@@ -30,8 +30,10 @@ import (
 )
 
 // M3DBClusterLister helps list M3DBClusters.
+// All objects returned here must be treated as read-only.
 type M3DBClusterLister interface {
 	// List lists all M3DBClusters in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.M3DBCluster, err error)
 	// M3DBClusters returns an object that can list and get M3DBClusters.
 	M3DBClusters(namespace string) M3DBClusterNamespaceLister
@@ -62,10 +64,13 @@ func (s *m3DBClusterLister) M3DBClusters(namespace string) M3DBClusterNamespaceL
 }
 
 // M3DBClusterNamespaceLister helps list and get M3DBClusters.
+// All objects returned here must be treated as read-only.
 type M3DBClusterNamespaceLister interface {
 	// List lists all M3DBClusters in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.M3DBCluster, err error)
 	// Get retrieves the M3DBCluster from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.M3DBCluster, error)
 	M3DBClusterNamespaceListerExpansion
 }

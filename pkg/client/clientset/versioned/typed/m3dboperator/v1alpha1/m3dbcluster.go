@@ -23,6 +23,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
@@ -41,15 +42,15 @@ type M3DBClustersGetter interface {
 
 // M3DBClusterInterface has methods to work with M3DBCluster resources.
 type M3DBClusterInterface interface {
-	Create(*v1alpha1.M3DBCluster) (*v1alpha1.M3DBCluster, error)
-	Update(*v1alpha1.M3DBCluster) (*v1alpha1.M3DBCluster, error)
-	UpdateStatus(*v1alpha1.M3DBCluster) (*v1alpha1.M3DBCluster, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.M3DBCluster, error)
-	List(opts v1.ListOptions) (*v1alpha1.M3DBClusterList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.M3DBCluster, err error)
+	Create(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.CreateOptions) (*v1alpha1.M3DBCluster, error)
+	Update(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.UpdateOptions) (*v1alpha1.M3DBCluster, error)
+	UpdateStatus(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.UpdateOptions) (*v1alpha1.M3DBCluster, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.M3DBCluster, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.M3DBClusterList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.M3DBCluster, err error)
 	M3DBClusterExpansion
 }
 
@@ -68,20 +69,20 @@ func newM3DBClusters(c *OperatorV1alpha1Client, namespace string) *m3DBClusters 
 }
 
 // Get takes name of the m3DBCluster, and returns the corresponding m3DBCluster object, and an error if there is any.
-func (c *m3DBClusters) Get(name string, options v1.GetOptions) (result *v1alpha1.M3DBCluster, err error) {
+func (c *m3DBClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.M3DBCluster, err error) {
 	result = &v1alpha1.M3DBCluster{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of M3DBClusters that match those selectors.
-func (c *m3DBClusters) List(opts v1.ListOptions) (result *v1alpha1.M3DBClusterList, err error) {
+func (c *m3DBClusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.M3DBClusterList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -92,13 +93,13 @@ func (c *m3DBClusters) List(opts v1.ListOptions) (result *v1alpha1.M3DBClusterLi
 		Resource("m3dbclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested m3DBClusters.
-func (c *m3DBClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *m3DBClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -109,87 +110,90 @@ func (c *m3DBClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Resource("m3dbclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a m3DBCluster and creates it.  Returns the server's representation of the m3DBCluster, and an error, if there is any.
-func (c *m3DBClusters) Create(m3DBCluster *v1alpha1.M3DBCluster) (result *v1alpha1.M3DBCluster, err error) {
+func (c *m3DBClusters) Create(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.CreateOptions) (result *v1alpha1.M3DBCluster, err error) {
 	result = &v1alpha1.M3DBCluster{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(m3DBCluster).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a m3DBCluster and updates it. Returns the server's representation of the m3DBCluster, and an error, if there is any.
-func (c *m3DBClusters) Update(m3DBCluster *v1alpha1.M3DBCluster) (result *v1alpha1.M3DBCluster, err error) {
+func (c *m3DBClusters) Update(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.UpdateOptions) (result *v1alpha1.M3DBCluster, err error) {
 	result = &v1alpha1.M3DBCluster{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
 		Name(m3DBCluster.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(m3DBCluster).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *m3DBClusters) UpdateStatus(m3DBCluster *v1alpha1.M3DBCluster) (result *v1alpha1.M3DBCluster, err error) {
+func (c *m3DBClusters) UpdateStatus(ctx context.Context, m3DBCluster *v1alpha1.M3DBCluster, opts v1.UpdateOptions) (result *v1alpha1.M3DBCluster, err error) {
 	result = &v1alpha1.M3DBCluster{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
 		Name(m3DBCluster.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(m3DBCluster).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the m3DBCluster and deletes it. Returns an error if one occurs.
-func (c *m3DBClusters) Delete(name string, options *v1.DeleteOptions) error {
+func (c *m3DBClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *m3DBClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *m3DBClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("m3dbclusters").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched m3DBCluster.
-func (c *m3DBClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.M3DBCluster, err error) {
+func (c *m3DBClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.M3DBCluster, err error) {
 	result = &v1alpha1.M3DBCluster{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("m3dbclusters").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

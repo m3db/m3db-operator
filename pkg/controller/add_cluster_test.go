@@ -22,6 +22,7 @@ package controller
 
 import (
 	"archive/zip"
+	"context"
 	"strings"
 	"testing"
 
@@ -58,16 +59,17 @@ func registerValidConfigMap(content string) error {
 func TestEnsureService_Base(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	k8sops := newFakeK8sops(t)
+	ctx := context.Background()
 
 	c := &M3DBController{
 		k8sclient: k8sops,
 	}
 
-	err := c.ensureServices(cluster)
+	err := c.ensureServices(ctx, cluster)
 	assert.NoError(t, err)
 
 	for _, svcName := range []string{"m3dbnode-cluster-simple", "m3coordinator-cluster-simple"} {
-		svc, err := k8sops.GetService(cluster, svcName)
+		svc, err := k8sops.GetService(ctx, cluster, svcName)
 		assert.NoError(t, err)
 		assert.NotNil(t, svc)
 	}
@@ -76,44 +78,48 @@ func TestEnsureService_Base(t *testing.T) {
 func TestEnsureConfigMap(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	deps := newTestDeps(t, &testOpts{})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	require.NoError(t, registerValidConfigMap("my_config_data"))
 
-	err := controller.ensureConfigMap(cluster)
+	err := controller.ensureConfigMap(ctx, cluster)
 	assert.NoError(t, err)
 
-	cms, err := controller.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(metav1.ListOptions{})
+	cms, err := controller.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).
+		List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, cluster.Name, cms.Items[0].OwnerReferences[0].Name)
 
-	err = controller.ensureConfigMap(cluster)
+	err = controller.ensureConfigMap(ctx, cluster)
 	assert.NoError(t, err)
 
 	cluster.Spec.ConfigMapName = pointer.StringPtr("")
-	err = controller.ensureConfigMap(cluster)
+	err = controller.ensureConfigMap(ctx, cluster)
 	assert.Equal(t, errEmptyConfigMap, err)
 }
 
 func TestEnsureConfigMap_Update(t *testing.T) {
 	cluster := getFixture("cluster-simple.yaml", t)
 	deps := newTestDeps(t, &testOpts{})
+	ctx := context.Background()
 	controller := deps.newController(t)
 	defer deps.cleanup()
 
 	require.NoError(t, registerValidConfigMap("my_config_data"))
 
-	err := controller.ensureConfigMap(cluster)
+	err := controller.ensureConfigMap(ctx, cluster)
 	assert.NoError(t, err)
 
 	// Change configmap data, expect to see changes reflected.
 	require.NoError(t, registerValidConfigMap("new_config_data"))
 
-	err = controller.ensureConfigMap(cluster)
+	err = controller.ensureConfigMap(ctx, cluster)
 	assert.NoError(t, err)
 
-	cm, err := deps.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get("m3db-config-map-cluster-simple", metav1.GetOptions{})
+	cm, err := deps.kubeClient.CoreV1().ConfigMaps(cluster.Namespace).
+		Get(ctx, "m3db-config-map-cluster-simple", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "new_config_data", cm.Data["m3.yml"])
 }

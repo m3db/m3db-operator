@@ -25,6 +25,7 @@
 package m3db
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
@@ -58,60 +59,60 @@ func (m *MockK8sops) EXPECT() *MockK8sopsMockRecorder {
 }
 
 // CreateOrUpdateCRD mocks base method
-func (m *MockK8sops) CreateOrUpdateCRD(name string, enableValidation bool) error {
+func (m *MockK8sops) CreateOrUpdateCRD(ctx context.Context, name string, enableValidation bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateOrUpdateCRD", name, enableValidation)
+	ret := m.ctrl.Call(m, "CreateOrUpdateCRD", ctx, name, enableValidation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateOrUpdateCRD indicates an expected call of CreateOrUpdateCRD
-func (mr *MockK8sopsMockRecorder) CreateOrUpdateCRD(name, enableValidation interface{}) *gomock.Call {
+func (mr *MockK8sopsMockRecorder) CreateOrUpdateCRD(ctx, name, enableValidation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateOrUpdateCRD), name, enableValidation)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateOrUpdateCRD), ctx, name, enableValidation)
 }
 
 // GetService mocks base method
-func (m *MockK8sops) GetService(cluster *v1alpha1.M3DBCluster, name string) (*v1.Service, error) {
+func (m *MockK8sops) GetService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) (*v1.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetService", cluster, name)
+	ret := m.ctrl.Call(m, "GetService", ctx, cluster, name)
 	ret0, _ := ret[0].(*v1.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetService indicates an expected call of GetService
-func (mr *MockK8sopsMockRecorder) GetService(cluster, name interface{}) *gomock.Call {
+func (mr *MockK8sopsMockRecorder) GetService(ctx, cluster, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetService", reflect.TypeOf((*MockK8sops)(nil).GetService), cluster, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetService", reflect.TypeOf((*MockK8sops)(nil).GetService), ctx, cluster, name)
 }
 
 // DeleteService mocks base method
-func (m *MockK8sops) DeleteService(cluster *v1alpha1.M3DBCluster, name string) error {
+func (m *MockK8sops) DeleteService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteService", cluster, name)
+	ret := m.ctrl.Call(m, "DeleteService", ctx, cluster, name)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteService indicates an expected call of DeleteService
-func (mr *MockK8sopsMockRecorder) DeleteService(cluster, name interface{}) *gomock.Call {
+func (mr *MockK8sopsMockRecorder) DeleteService(ctx, cluster, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockK8sops)(nil).DeleteService), cluster, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockK8sops)(nil).DeleteService), ctx, cluster, name)
 }
 
 // EnsureService mocks base method
-func (m *MockK8sops) EnsureService(cluster *v1alpha1.M3DBCluster, svc *v1.Service) error {
+func (m *MockK8sops) EnsureService(ctx context.Context, cluster *v1alpha1.M3DBCluster, svc *v1.Service) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EnsureService", cluster, svc)
+	ret := m.ctrl.Call(m, "EnsureService", ctx, cluster, svc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // EnsureService indicates an expected call of EnsureService
-func (mr *MockK8sopsMockRecorder) EnsureService(cluster, svc interface{}) *gomock.Call {
+func (mr *MockK8sopsMockRecorder) EnsureService(ctx, cluster, svc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureService", reflect.TypeOf((*MockK8sops)(nil).EnsureService), cluster, svc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureService", reflect.TypeOf((*MockK8sops)(nil).EnsureService), ctx, cluster, svc)
 }
 
 // Events mocks base method

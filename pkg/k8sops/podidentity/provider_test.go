@@ -21,6 +21,7 @@
 package podidentity
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -224,7 +225,7 @@ func TestNodeForPod(t *testing.T) {
 
 	testNode := newTestNode("node-1")
 
-	_, err = kubeClient.CoreV1().Nodes().Create(testNode)
+	_, err = kubeClient.CoreV1().Nodes().Create(context.Background(), testNode, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// Might need to wait for informer to sync.

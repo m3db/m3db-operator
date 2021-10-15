@@ -23,6 +23,7 @@
 package harness
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -45,7 +47,7 @@ const (
 	etcdHealthTimeout  = 5 * time.Minute
 )
 
-func (h *Harness) createEtcdCluster() error {
+func (h *Harness) createEtcdCluster(ctx context.Context) error {
 	f, err := os.Open("../manifests/etcd.yaml")
 	if err != nil {
 		return err
@@ -73,13 +75,15 @@ func (h *Harness) createEtcdCluster() error {
 		clusterSvc,
 	} {
 		h.Logger.Info("creating etcd service", zap.String("service", svc.Name))
-		if _, err := h.KubeClient.CoreV1().Services(h.Namespace).Create(svc); err != nil {
+		_, err := h.KubeClient.CoreV1().Services(h.Namespace).Create(ctx, svc, metav1.CreateOptions{})
+		if err != nil {
 			return err
 		}
 	}
 
 	h.Logger.Info("creating etcd statefulset", zap.String("statefulset", statefulSet.Name))
-	if _, err := h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(statefulSet); err != nil {
+	_, err = h.KubeClient.AppsV1().StatefulSets(h.Namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
+	if err != nil {
 		return err
 	}
 
