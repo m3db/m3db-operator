@@ -31,7 +31,7 @@ rules:
   resources: ["pods"]
   verbs: ["list", "get", "watch", "update", "patch"]
 - apiGroups: ["apps"]
-  resources: ["statefulsets", "deployments"]
+  resources: ["statefulsets", "statefulsets/status", "deployments"]
   verbs: ["*"]
 - apiGroups: ["operator.m3db.io"]
   resources: ["*"]
