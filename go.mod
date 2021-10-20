@@ -38,8 +38,8 @@ require (
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v0.21.1
 	k8s.io/code-generator v0.21.1
-	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/kube-openapi v0.0.0-20211020163157-7327e2aaee2b
+	k8s.io/utils v0.0.0-20210802155522-efc7438f0176
 )
 
 replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628-53dd39833a08
