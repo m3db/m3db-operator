@@ -1,5 +1,5 @@
 # stage 1: build
-FROM golang:1.16-alpine AS builder
+FROM golang:1.16-alpine3.13 AS builder
 LABEL maintainer="The m3db-operator Authors <m3db@googlegroups.com>"
 
 # Install CA certs for curl
