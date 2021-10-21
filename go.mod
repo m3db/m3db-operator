@@ -1,6 +1,6 @@
 module github.com/m3db/m3db-operator
 
-go 1.13
+go 1.16
 
 require (
 	github.com/ant31/crd-validation v0.0.0-20180801212718-38f6a293f140
