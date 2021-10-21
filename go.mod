@@ -8,13 +8,13 @@ require (
 	github.com/cirocosta/grafana-sync v0.0.0-20181123215626-6cbb4a9501c1
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
-	github.com/evanphx/json-patch v4.9.0+incompatible
+	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/fossas/fossa-cli v1.0.30
 	github.com/garethr/kubeval v0.0.0-20180821130434-c44f5193dc94
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-openapi/runtime v0.19.5 // indirect
-	github.com/go-openapi/spec v0.19.5
+	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-swagger/go-swagger v0.19.0
 	github.com/go-swagger/scan-repo-boundary v0.0.0-20180623220736-973b3573c013 // indirect
 	github.com/gogo/protobuf v1.3.2
@@ -30,18 +30,21 @@ require (
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	github.com/uber-go/tally v3.3.17+incompatible
 	github.com/urfave/cli v1.22.2 // indirect
-	go.uber.org/atomic v1.6.0
-	go.uber.org/zap v1.13.0
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
-	k8s.io/api v0.21.1
-	k8s.io/apiextensions-apiserver v0.21.1
-	k8s.io/apimachinery v0.21.1
-	k8s.io/client-go v0.21.1
-	k8s.io/code-generator v0.21.1
-	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	go.uber.org/atomic v1.7.0
+	go.uber.org/zap v1.17.0
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
+	k8s.io/api v0.22.2
+	k8s.io/apiextensions-apiserver v0.22.2
+	k8s.io/apimachinery v0.22.2
+	k8s.io/client-go v0.22.2
+	k8s.io/code-generator v0.22.2
+	k8s.io/kube-openapi v0.0.0-20211020163157-7327e2aaee2b
+	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
 )
 
 replace github.com/apache/thrift => github.com/m3db/thrift v0.0.0-20151001171628-53dd39833a08
 
 replace github.com/couchbase/vellum => github.com/m3db/vellum v0.0.0-20180830064305-51c732079c88
+
+// Use a replace until we can upstream fixes.
+replace github.com/ant31/crd-validation => github.com/jeromefroe/crd-validation v0.0.0-20211020211201-e17083648306
