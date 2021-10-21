@@ -3,7 +3,7 @@ steps:
     command: make clean test-e2e
     env:
       CGO_ENABLED: 0
-      GIMME_GO_VERSION: 1.13.x
+      GIMME_GO_VERSION: 1.16.x
     plugins:
       gopath-checkout#v1.0.1:
         import: github.com/m3db/m3db-operator
