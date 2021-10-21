@@ -7,7 +7,7 @@ metadata:
   namespace: default
 ---
 # Source: m3db-operator/templates/cluster_role.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: m3db-operator
@@ -44,7 +44,7 @@ rules:
   verbs: ["get", "list", "watch"]
 ---
 # Source: m3db-operator/templates/cluster_role_binding.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: m3db-operator
