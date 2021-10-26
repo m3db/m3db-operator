@@ -4,6 +4,7 @@ steps:
     command: ".ci/docker/build.sh"
     env:
       M3_DOCKER_REPO: quay.io/m3db
+      PUSH_SHA_TAG: true
     agents:
       queue: builders
     timeout_in_minutes: 60
@@ -20,6 +21,7 @@ steps:
     command: ".ci/docker/build.sh"
     env:
       M3_DOCKER_REPO: quay.io/m3
+      PUSH_SHA_TAG: true
     agents:
       queue: builders
     timeout_in_minutes: 60
