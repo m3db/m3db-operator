@@ -34,12 +34,12 @@ type Client interface {
 	Set(request *admin.PlacementSetRequest) error
 	// Get will provide the current placement
 	Get() (placement m3placement.Placement, err error)
-	// Delete will delete the current placment
+	// Delete will delete the current placement
 	Delete() error
 	// Add will add an instance to the placement
 	Add(instances []*placementpb.Instance) error
-	// Remove removes a given instance with the given ID from the placement.
-	Remove(id string) error
+	// Remove removes given instances with the given IDs from the placement.
+	Remove(ids []string) error
 	// Replace replaces one instance with another.
 	Replace(leavingInstanceID string, newInstance placementpb.Instance) error
 }
