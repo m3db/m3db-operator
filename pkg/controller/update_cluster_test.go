@@ -695,14 +695,14 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	pl := placementFromPods(t, cluster, pods, deps.idProvider)
 
 	// Expect the last pod to be removed.
-	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-2","uid":"2"}`)
+	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-2","uid":"2"}`})
 	err = controller.shrinkPlacementForSet(cluster, set, pl)
 	assert.NoError(t, err)
 
 	// If there are more pods in the set then in the placement, we expect the last
 	// in the set to be removed.
 	pl = placementFromPods(t, cluster, pods[:2], deps.idProvider)
-	placementMock.EXPECT().Remove(`{"name":"cluster-zones-rep0-1","uid":"1"}`)
+	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-1","uid":"1"}`})
 	err = controller.shrinkPlacementForSet(cluster, set, pl)
 	assert.NoError(t, err)
 }
