@@ -696,14 +696,14 @@ func TestShrinkPlacementForSet(t *testing.T) {
 
 	// Expect the last pod to be removed.
 	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-2","uid":"2"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
+	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
 	assert.NoError(t, err)
 
 	// If there are more pods in the set then in the placement, we expect the last
 	// in the set to be removed.
 	pl = placementFromPods(t, cluster, pods[:2], deps.idProvider)
 	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-1","uid":"1"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
+	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
 	assert.NoError(t, err)
 }
 
@@ -724,7 +724,7 @@ func TestShrinkPlacementForSet_PreventScaleDown(t *testing.T) {
 	identifyPods(deps.idProvider, pods, nil)
 	pl := placementFromPods(t, cluster, pods, deps.idProvider)
 
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
+	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
 	assert.EqualError(t, err, "cannot remove nodes from fake/cluster-zones, preventScaleDown is true")
 }
 
@@ -1125,28 +1125,28 @@ func TestFindPodToRemove(t *testing.T) {
 	assert.Equal(t, pl.Instances()[0], inst)
 
 	// Can't remove from no pods.
-	_, _, err = controller.findPodInstanceToRemove(cluster, pl, nil)
+	_, _, err = controller.findPodInstancesToRemove(cluster, pl, nil, 1)
 	assert.Equal(t, errEmptyPodList, err)
 
 	// Can't remove from malformed pod names.
-	_, _, err = controller.findPodInstanceToRemove(cluster, pl, []*corev1.Pod{
+	_, _, err = controller.findPodInstancesToRemove(cluster, pl, []*corev1.Pod{
 		podWithName("foo"),
-	})
+	}, 1)
 	assert.Contains(t, err.Error(), "cannot sort pods")
 
 	// Removing from a placement w/ all pods removes the last.
-	pod, inst, err := controller.findPodInstanceToRemove(cluster, pl, pods)
+	podsToRemove, insts, err := controller.findPodInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, pods[2], pod)
-	assert.Equal(t, pl.Instances()[2], inst)
+	assert.Equal(t, pods[2], podsToRemove[0])
+	assert.Equal(t, pl.Instances()[2], insts[0])
 
 	// Removing from a placement w/ 2 insts and 3 pods removes the last pod that's
 	// still in the placement.
 	pl = placementFromPods(t, cluster, pods[:2], idProvider)
-	pod, inst, err = controller.findPodInstanceToRemove(cluster, pl, pods)
+	podsToRemove, insts, err = controller.findPodInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, pods[1], pod)
-	assert.Equal(t, pl.Instances()[1], inst)
+	assert.Equal(t, pods[1], podsToRemove[0])
+	assert.Equal(t, pl.Instances()[1], insts[0])
 }
 
 func TestEtcdFinalizer(t *testing.T) {

@@ -542,7 +542,7 @@ func (c *M3DBController) expandPlacementForSet(
 // removes the last pod in the StatefulSet from the active placement, enabling
 // the StatefulSet size to be decreased once the remove completes.
 func (c *M3DBController) shrinkPlacementForSet(
-	cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement,
+	cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement, removeCount int,
 ) error {
 	if cluster.Spec.PreventScaleDown {
 		return pkgerrors.Errorf("cannot remove nodes from %s/%s, preventScaleDown is true",
@@ -556,25 +556,30 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return err
 	}
 
-	_, removeInst, err := c.findPodInstanceToRemove(cluster, pl, pods)
+	_, removeInst, err := c.findPodInstancesToRemove(cluster, pl, pods, removeCount)
 	if err != nil {
 		c.logger.Error("error finding pod to remove", zap.Error(err))
 		return err
 	}
 
-	c.logger.Info("removing pod from placement", zap.String("instance", removeInst.ID()))
-	return c.adminClient.placementClientForCluster(cluster).Remove([]string{removeInst.ID()})
+	var removeIds []string
+	for _, inst := range removeInst {
+		removeIds = append(removeIds, inst.ID())
+	}
+	c.logger.Info("removing pods from placement", zap.String("instances", strings.Join(removeIds, ",")))
+	return c.adminClient.placementClientForCluster(cluster).Remove(removeIds)
 }
 
-// findPodInstanceToRemove returns the pod (and associated placement instace)
+// findPodInstancesToRemove returns the pod (and associated placement instace)
 // with the highest ordinal number in the stateful set AND in the placement, so
 // that we remove from the placement the pod that will be deleted when the set
 // size is scaled down.
-func (c *M3DBController) findPodInstanceToRemove(
+func (c *M3DBController) findPodInstancesToRemove(
 	cluster *myspec.M3DBCluster,
 	pl placement.Placement,
 	pods []*corev1.Pod,
-) (*corev1.Pod, placement.Instance, error) {
+	removeCount int,
+) ([]*corev1.Pod, []placement.Instance, error) {
 	if len(pods) == 0 {
 		return nil, nil, errEmptyPodList
 	}
@@ -584,9 +589,16 @@ func (c *M3DBController) findPodInstanceToRemove(
 		return nil, nil, pkgerrors.WithMessage(err, "cannot sort pods")
 	}
 
-	for i := len(podIDs) - 1; i >= 0; i-- {
+	var (
+		podsToRemove      []*corev1.Pod
+		instancesToRemove []placement.Instance
+		currPodCount      = len(podIDs)
+	)
+	found := false
+	for i := currPodCount - 1; i >= 0 && len(instancesToRemove) < removeCount; i-- {
 		pod := podIDs[i].pod
 		inst, err := c.findPodInPlacement(cluster, pl, pod)
+		found = true
 		if pkgerrors.Cause(err) == errPodNotInPlacement {
 			// If the instance is already out of the placement, continue to the next
 			// one.
@@ -595,10 +607,13 @@ func (c *M3DBController) findPodInstanceToRemove(
 		if err != nil {
 			return nil, nil, pkgerrors.WithMessage(err, "error finding pod in placement")
 		}
-		return pod, inst, nil
+		podsToRemove = append(podsToRemove, pod)
+		instancesToRemove = append(instancesToRemove, inst)
 	}
-
-	return nil, nil, errNoPodsInPlacement
+	if !found {
+		return nil, nil, errNoPodsInPlacement
+	}
+	return podsToRemove, instancesToRemove, nil
 }
 
 // findPodInPlacement looks up a pod in the placement. Equality is based on

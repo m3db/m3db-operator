@@ -736,7 +736,7 @@ func (c *M3DBController) handleClusterUpdate(
 		// trigger a remove so that we can shrink the set.
 		if inPlacement > desired {
 			setLogger.Info("remove instance from placement for set")
-			return c.shrinkPlacementForSet(cluster, set, placement)
+			return c.shrinkPlacementForSet(cluster, set, placement, int(inPlacement - desired))
 		}
 
 		var newCount int32
