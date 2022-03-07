@@ -597,9 +597,9 @@ func (c *M3DBController) findPodInstancesToRemove(
 	var (
 		podsToRemove      []*corev1.Pod
 		instancesToRemove []placement.Instance
-		currPodCount      = len(podIDs)
+		leftToRemove      = removeCount
 	)
-	for i := currPodCount - 1; i >= 0 && len(instancesToRemove) < removeCount; i-- {
+	for i := len(podIDs) - 1; i >= 0 && leftToRemove > 0; i-- {
 		pod := podIDs[i].pod
 		inst, err := c.findPodInPlacement(cluster, pl, pod)
 		if pkgerrors.Cause(err) == errPodNotInPlacement {
@@ -610,6 +610,7 @@ func (c *M3DBController) findPodInstancesToRemove(
 		if err != nil {
 			return nil, nil, pkgerrors.WithMessage(err, "error finding pod in placement")
 		}
+		leftToRemove -= 1
 		podsToRemove = append(podsToRemove, pod)
 		instancesToRemove = append(instancesToRemove, inst)
 	}
