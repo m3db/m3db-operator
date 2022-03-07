@@ -562,6 +562,11 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return err
 	}
 
+	if len(removeInst) == 0 {
+		c.logger.Info("nothing to remove, skipping remove call")
+		return nil
+	}
+
 	var removeIds []string
 	for _, inst := range removeInst {
 		removeIds = append(removeIds, inst.ID())

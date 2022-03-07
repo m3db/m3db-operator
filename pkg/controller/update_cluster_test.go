@@ -681,7 +681,7 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	tests := []struct {
 		name               string
 		removeCount        int
-		podsCount          int
+		placementPodsCount int
 		preventScaleDown   bool
 		expectedRemovedIds []string
 		expectedErr        string
@@ -689,40 +689,34 @@ func TestShrinkPlacementForSet(t *testing.T) {
 		{
 			name:               "remove single pod",
 			removeCount:        1,
-			podsCount:          3,
+			placementPodsCount: 3,
 			expectedRemovedIds: []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
 		},
 		{
-			name:        "remove multiple pods",
-			removeCount: 2,
-			podsCount:   3,
+			name:               "empty placement",
+			removeCount:        1,
+			placementPodsCount: 0,
+			expectedRemovedIds: nil,
+		},
+		{
+			name:               "remove multiple pods",
+			removeCount:        2,
+			placementPodsCount: 3,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
 			},
 		},
 		{
-			name:        "remove last when placement contains less instances than pods",
-			removeCount: 1,
-			podsCount:   2,
-			expectedRemovedIds: []string{
-				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
-			},
+			name:               "remove last when placement contains less instances than pods",
+			removeCount:        1,
+			placementPodsCount: 2,
+			expectedRemovedIds: []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
 		},
 		{
-			name:        "remove more pods than exists",
-			removeCount: 4,
-			podsCount:   3,
-			expectedRemovedIds: []string{
-				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
-				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
-				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
-			},
-		},
-		{
-			name:        "remove all pods",
-			removeCount: 3,
-			podsCount:   3,
+			name:               "remove more pods than exists",
+			removeCount:        4,
+			placementPodsCount: 3,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
@@ -730,16 +724,28 @@ func TestShrinkPlacementForSet(t *testing.T) {
 			},
 		},
 		{
-			name:             "prevent scale down",
-			preventScaleDown: true,
-			expectedErr:      "cannot remove nodes from fake/cluster-zones, preventScaleDown is true",
+			name:               "remove all pods",
+			removeCount:        3,
+			placementPodsCount: 3,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
+			},
+		},
+		{
+			name:               "prevent scale down",
+			preventScaleDown:   true,
+			expectedErr:        "cannot remove nodes from fake/cluster-zones, preventScaleDown is true",
+			expectedRemovedIds: nil,
 		},
 	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			cluster := getFixture("cluster-3-zones.yaml", t)
-			cluster.Spec.PreventScaleDown = test.preventScaleDown
+			cluster.Spec.PreventScaleDown = tc.preventScaleDown
 
 			set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
 			require.NoError(t, err)
@@ -753,13 +759,15 @@ func TestShrinkPlacementForSet(t *testing.T) {
 			defer deps.cleanup()
 
 			identifyPods(deps.idProvider, pods, nil)
-			pl := placementFromPods(t, cluster, pods[:test.podsCount], deps.idProvider)
+			pl := placementFromPods(t, cluster, pods[:tc.placementPodsCount], deps.idProvider)
 
-			placementMock.EXPECT().Remove(test.expectedRemovedIds).AnyTimes()
-			err = controller.shrinkPlacementForSet(cluster, set, pl, test.removeCount)
-			if test.expectedErr != "" {
+			if len(tc.expectedRemovedIds) > 0 {
+				placementMock.EXPECT().Remove(tc.expectedRemovedIds)
+			}
+			err = controller.shrinkPlacementForSet(cluster, set, pl, tc.removeCount)
+			if tc.expectedErr != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.expectedErr)
+				assert.Contains(t, err.Error(), tc.expectedErr)
 			} else {
 				assert.NoError(t, err)
 			}
