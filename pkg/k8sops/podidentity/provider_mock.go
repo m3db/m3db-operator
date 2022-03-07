@@ -33,30 +33,30 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-// MockProvider is a mock of Provider interface
+// MockProvider is a mock of Provider interface.
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
 }
 
-// MockProviderMockRecorder is the mock recorder for MockProvider
+// MockProviderMockRecorder is the mock recorder for MockProvider.
 type MockProviderMockRecorder struct {
 	mock *MockProvider
 }
 
-// NewMockProvider creates a new mock instance
+// NewMockProvider creates a new mock instance.
 func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
 	mock := &MockProvider{ctrl: ctrl}
 	mock.recorder = &MockProviderMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
-// Identity mocks base method
+// Identity mocks base method.
 func (m *MockProvider) Identity(pod *v1.Pod, cluster *v1alpha1.M3DBCluster) (*v1alpha1.PodIdentity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Identity", pod, cluster)
@@ -65,7 +65,7 @@ func (m *MockProvider) Identity(pod *v1.Pod, cluster *v1alpha1.M3DBCluster) (*v1
 	return ret0, ret1
 }
 
-// Identity indicates an expected call of Identity
+// Identity indicates an expected call of Identity.
 func (mr *MockProviderMockRecorder) Identity(pod, cluster interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Identity", reflect.TypeOf((*MockProvider)(nil).Identity), pod, cluster)

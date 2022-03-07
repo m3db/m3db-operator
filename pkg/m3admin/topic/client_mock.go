@@ -34,44 +34,58 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-// MockClient is a mock of Client interface
+// MockClient is a mock of Client interface.
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
 }
 
-// MockClientMockRecorder is the mock recorder for MockClient
+// MockClientMockRecorder is the mock recorder for MockClient.
 type MockClientMockRecorder struct {
 	mock *MockClient
 }
 
-// NewMockClient creates a new mock instance
+// NewMockClient creates a new mock instance.
 func NewMockClient(ctrl *gomock.Controller) *MockClient {
 	mock := &MockClient{ctrl: ctrl}
 	mock.recorder = &MockClientMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
-// Init mocks base method
-func (m *MockClient) Init(name string, req *admin.TopicInitRequest) error {
+// Add mocks base method.
+func (m *MockClient) Add(topicName string, consumerSvc *topicpb.ConsumerService) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Init", name, req)
+	ret := m.ctrl.Call(m, "Add", topicName, consumerSvc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Init indicates an expected call of Init
-func (mr *MockClientMockRecorder) Init(name, req interface{}) *gomock.Call {
+// Add indicates an expected call of Add.
+func (mr *MockClientMockRecorder) Add(topicName, consumerSvc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockClient)(nil).Init), name, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), topicName, consumerSvc)
 }
 
-// Get mocks base method
+// Delete mocks base method.
+func (m *MockClient) Delete(topicName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", topicName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockClientMockRecorder) Delete(topicName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), topicName)
+}
+
+// Get mocks base method.
 func (m *MockClient) Get(topicName string) (topic.Topic, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", topicName)
@@ -80,36 +94,22 @@ func (m *MockClient) Get(topicName string) (topic.Topic, error) {
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockClientMockRecorder) Get(topicName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockClient)(nil).Get), topicName)
 }
 
-// Delete mocks base method
-func (m *MockClient) Delete(topicName string) error {
+// Init mocks base method.
+func (m *MockClient) Init(name string, req *admin.TopicInitRequest) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", topicName)
+	ret := m.ctrl.Call(m, "Init", name, req)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Delete indicates an expected call of Delete
-func (mr *MockClientMockRecorder) Delete(topicName interface{}) *gomock.Call {
+// Init indicates an expected call of Init.
+func (mr *MockClientMockRecorder) Init(name, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), topicName)
-}
-
-// Add mocks base method
-func (m *MockClient) Add(topicName string, consumerSvc *topicpb.ConsumerService) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", topicName, consumerSvc)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Add indicates an expected call of Add
-func (mr *MockClientMockRecorder) Add(topicName, consumerSvc interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockClient)(nil).Add), topicName, consumerSvc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockClient)(nil).Init), name, req)
 }

@@ -215,6 +215,12 @@ linters:
     # This linter isn't that helpful since it's not immediately obvious how to
     # address its lints (for cyclomatic complexity).
     - gocyclo
+    # There are some cases where a single letter variable name is totally fine.
+    - varnamelen
+    # Allow replace directives in go.mod files.
+    - gomoddirectives
+    # Returning an interface should not be a crime.
+    - ireturn
   disable-all: false
   presets:
     # bodyclose, errcheck, gosec, govet, scopelint, staticcheck, typecheck

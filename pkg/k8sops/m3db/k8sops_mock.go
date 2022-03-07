@@ -35,30 +35,30 @@ import (
 	v10 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-// MockK8sops is a mock of K8sops interface
+// MockK8sops is a mock of K8sops interface.
 type MockK8sops struct {
 	ctrl     *gomock.Controller
 	recorder *MockK8sopsMockRecorder
 }
 
-// MockK8sopsMockRecorder is the mock recorder for MockK8sops
+// MockK8sopsMockRecorder is the mock recorder for MockK8sops.
 type MockK8sopsMockRecorder struct {
 	mock *MockK8sops
 }
 
-// NewMockK8sops creates a new mock instance
+// NewMockK8sops creates a new mock instance.
 func NewMockK8sops(ctrl *gomock.Controller) *MockK8sops {
 	mock := &MockK8sops{ctrl: ctrl}
 	mock.recorder = &MockK8sopsMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockK8sops) EXPECT() *MockK8sopsMockRecorder {
 	return m.recorder
 }
 
-// CreateOrUpdateCRD mocks base method
+// CreateOrUpdateCRD mocks base method.
 func (m *MockK8sops) CreateOrUpdateCRD(ctx context.Context, name string, enableValidation bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrUpdateCRD", ctx, name, enableValidation)
@@ -66,13 +66,55 @@ func (m *MockK8sops) CreateOrUpdateCRD(ctx context.Context, name string, enableV
 	return ret0
 }
 
-// CreateOrUpdateCRD indicates an expected call of CreateOrUpdateCRD
+// CreateOrUpdateCRD indicates an expected call of CreateOrUpdateCRD.
 func (mr *MockK8sopsMockRecorder) CreateOrUpdateCRD(ctx, name, enableValidation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateOrUpdateCRD), ctx, name, enableValidation)
 }
 
-// GetService mocks base method
+// DeleteService mocks base method.
+func (m *MockK8sops) DeleteService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteService", ctx, cluster, name)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteService indicates an expected call of DeleteService.
+func (mr *MockK8sopsMockRecorder) DeleteService(ctx, cluster, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockK8sops)(nil).DeleteService), ctx, cluster, name)
+}
+
+// EnsureService mocks base method.
+func (m *MockK8sops) EnsureService(ctx context.Context, cluster *v1alpha1.M3DBCluster, svc *v1.Service) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureService", ctx, cluster, svc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureService indicates an expected call of EnsureService.
+func (mr *MockK8sopsMockRecorder) EnsureService(ctx, cluster, svc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureService", reflect.TypeOf((*MockK8sops)(nil).EnsureService), ctx, cluster, svc)
+}
+
+// Events mocks base method.
+func (m *MockK8sops) Events(namespace string) v10.EventInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Events", namespace)
+	ret0, _ := ret[0].(v10.EventInterface)
+	return ret0
+}
+
+// Events indicates an expected call of Events.
+func (mr *MockK8sopsMockRecorder) Events(namespace interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Events", reflect.TypeOf((*MockK8sops)(nil).Events), namespace)
+}
+
+// GetService mocks base method.
 func (m *MockK8sops) GetService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) (*v1.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetService", ctx, cluster, name)
@@ -81,50 +123,8 @@ func (m *MockK8sops) GetService(ctx context.Context, cluster *v1alpha1.M3DBClust
 	return ret0, ret1
 }
 
-// GetService indicates an expected call of GetService
+// GetService indicates an expected call of GetService.
 func (mr *MockK8sopsMockRecorder) GetService(ctx, cluster, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetService", reflect.TypeOf((*MockK8sops)(nil).GetService), ctx, cluster, name)
-}
-
-// DeleteService mocks base method
-func (m *MockK8sops) DeleteService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteService", ctx, cluster, name)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteService indicates an expected call of DeleteService
-func (mr *MockK8sopsMockRecorder) DeleteService(ctx, cluster, name interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockK8sops)(nil).DeleteService), ctx, cluster, name)
-}
-
-// EnsureService mocks base method
-func (m *MockK8sops) EnsureService(ctx context.Context, cluster *v1alpha1.M3DBCluster, svc *v1.Service) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EnsureService", ctx, cluster, svc)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// EnsureService indicates an expected call of EnsureService
-func (mr *MockK8sopsMockRecorder) EnsureService(ctx, cluster, svc interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureService", reflect.TypeOf((*MockK8sops)(nil).EnsureService), ctx, cluster, svc)
-}
-
-// Events mocks base method
-func (m *MockK8sops) Events(namespace string) v10.EventInterface {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Events", namespace)
-	ret0, _ := ret[0].(v10.EventInterface)
-	return ret0
-}
-
-// Events indicates an expected call of Events
-func (mr *MockK8sopsMockRecorder) Events(namespace interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Events", reflect.TypeOf((*MockK8sops)(nil).Events), namespace)
 }
