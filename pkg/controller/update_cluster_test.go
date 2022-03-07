@@ -678,54 +678,93 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 }
 
 func TestShrinkPlacementForSet(t *testing.T) {
-	cluster := getFixture("cluster-3-zones.yaml", t)
+	tests := []struct {
+		name               string
+		removeCount        int
+		podsCount          int
+		preventScaleDown   bool
+		expectedRemovedIds []string
+		expectedErr        string
+	}{
+		{
+			name:               "remove single pod",
+			removeCount:        1,
+			podsCount:          3,
+			expectedRemovedIds: []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
+		},
+		{
+			name:        "remove multiple pods",
+			removeCount: 2,
+			podsCount:   3,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+			},
+		},
+		{
+			name:        "remove last when placement contains less instances than pods",
+			removeCount: 1,
+			podsCount:   2,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+			},
+		},
+		{
+			name:        "remove more pods than exists",
+			removeCount: 4,
+			podsCount:   3,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
+			},
+		},
+		{
+			name:        "remove all pods",
+			removeCount: 3,
+			podsCount:   3,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
+			},
+		},
+		{
+			name:             "prevent scale down",
+			preventScaleDown: true,
+			expectedErr:      "cannot remove nodes from fake/cluster-zones, preventScaleDown is true",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			cluster := getFixture("cluster-3-zones.yaml", t)
+			cluster.Spec.PreventScaleDown = test.preventScaleDown
 
-	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
-	require.NoError(t, err)
+			set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+			require.NoError(t, err)
 
-	pods := podsForClusterSet(cluster, set, 3)
-	deps := newTestDeps(t, &testOpts{
-		kubeObjects: objectsFromPods(pods...),
-	})
-	placementMock := deps.placementClient
-	controller := deps.newController(t)
-	defer deps.cleanup()
+			pods := podsForClusterSet(cluster, set, 3)
+			deps := newTestDeps(t, &testOpts{
+				kubeObjects: objectsFromPods(pods...),
+			})
+			placementMock := deps.placementClient
+			controller := deps.newController(t)
+			defer deps.cleanup()
 
-	identifyPods(deps.idProvider, pods, nil)
-	pl := placementFromPods(t, cluster, pods, deps.idProvider)
+			identifyPods(deps.idProvider, pods, nil)
+			pl := placementFromPods(t, cluster, pods[:test.podsCount], deps.idProvider)
 
-	// Expect the last pod to be removed.
-	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-2","uid":"2"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
-	assert.NoError(t, err)
-
-	// If there are more pods in the set then in the placement, we expect the last
-	// in the set to be removed.
-	pl = placementFromPods(t, cluster, pods[:2], deps.idProvider)
-	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-1","uid":"1"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
-	assert.NoError(t, err)
-}
-
-func TestShrinkPlacementForSet_PreventScaleDown(t *testing.T) {
-	cluster := getFixture("cluster-3-zones.yaml", t)
-	cluster.Spec.PreventScaleDown = true
-
-	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
-	require.NoError(t, err)
-
-	pods := podsForClusterSet(cluster, set, 3)
-	deps := newTestDeps(t, &testOpts{
-		kubeObjects: objectsFromPods(pods...),
-	})
-	controller := deps.newController(t)
-	defer deps.cleanup()
-
-	identifyPods(deps.idProvider, pods, nil)
-	pl := placementFromPods(t, cluster, pods, deps.idProvider)
-
-	err = controller.shrinkPlacementForSet(cluster, set, pl, 1)
-	assert.EqualError(t, err, "cannot remove nodes from fake/cluster-zones, preventScaleDown is true")
+			placementMock.EXPECT().Remove(test.expectedRemovedIds).AnyTimes()
+			err = controller.shrinkPlacementForSet(cluster, set, pl, test.removeCount)
+			if test.expectedErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func podWithName(name string) *corev1.Pod {
