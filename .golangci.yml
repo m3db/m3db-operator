@@ -217,10 +217,10 @@ linters:
     - gocyclo
     # There are some cases where a single letter variable name is totally fine.
     - varnamelen
-    # Returning an interface should not be a crime.
-    - ireturn
     # Allow replace directives in go.mod files.
     - gomoddirectives
+    # Returning an interface should not be a crime.
+    - ireturn
   disable-all: false
   presets:
     # bodyclose, errcheck, gosec, govet, scopelint, staticcheck, typecheck
