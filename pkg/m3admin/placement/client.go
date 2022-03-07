@@ -37,7 +37,7 @@ const (
 	placementBaseURL    = "/api/v1/services/m3db/placement"
 	placementInitURL    = placementBaseURL + "/init"
 	placementReplaceURL = placementBaseURL + "/replace"
-	placementRemoveURL = placementBaseURL + "/remove"
+	placementRemoveURL  = placementBaseURL + "/remove"
 	placementSetURL     = placementBaseURL + "/set"
 )
 
