@@ -201,7 +201,7 @@ func TestGetErr(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() != "/api/v1/services/m3db/placement/instFoo" || r.Method != http.MethodDelete {
+		if r.URL.String() != "/api/v1/services/m3db/placement/remove" || r.Method != http.MethodPost {
 			w.WriteHeader(404)
 			return
 		}
@@ -211,7 +211,7 @@ func TestRemove(t *testing.T) {
 	defer s.Close()
 
 	client := newPlacementClient(t, s.URL)
-	err := client.Remove("instFoo")
+	err := client.Remove([]string{"instFoo"})
 	assert.NoError(t, err)
 }
 

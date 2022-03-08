@@ -22,7 +22,6 @@ package placement
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/m3db/m3db-operator/pkg/m3admin"
@@ -38,7 +37,7 @@ const (
 	placementBaseURL    = "/api/v1/services/m3db/placement"
 	placementInitURL    = placementBaseURL + "/init"
 	placementReplaceURL = placementBaseURL + "/replace"
-	placementRemoveFmt  = placementBaseURL + "/%s"
+	placementRemoveURL  = placementBaseURL + "/remove"
 	placementSetURL     = placementBaseURL + "/set"
 )
 
@@ -129,9 +128,12 @@ func (p *placementClient) Add(instances []*placementpb.Instance) error {
 	return nil
 }
 
-func (p *placementClient) Remove(id string) error {
-	url := fmt.Sprintf(p.url+placementRemoveFmt, id)
-	return p.client.DoHTTPJSONPBRequest(http.MethodDelete, url, nil, nil)
+func (p *placementClient) Remove(instanceIds []string) error {
+	url := p.url + placementRemoveURL
+	req := &admin.PlacementRemoveRequest{
+		InstanceIds: instanceIds,
+	}
+	return p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 }
 
 func (p *placementClient) Replace(leavingInstanceID string, newInst placementpb.Instance) error {

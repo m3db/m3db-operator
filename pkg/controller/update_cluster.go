@@ -563,7 +563,7 @@ func (c *M3DBController) shrinkPlacementForSet(
 	}
 
 	c.logger.Info("removing pod from placement", zap.String("instance", removeInst.ID()))
-	return c.adminClient.placementClientForCluster(cluster).Remove(removeInst.ID())
+	return c.adminClient.placementClientForCluster(cluster).Remove([]string{removeInst.ID()})
 }
 
 // findPodInstanceToRemove returns the pod (and associated placement instace)

@@ -115,17 +115,17 @@ func (mr *MockClientMockRecorder) Init(request interface{}) *gomock.Call {
 }
 
 // Remove mocks base method.
-func (m *MockClient) Remove(id string) error {
+func (m *MockClient) Remove(instanceIds []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Remove", id)
+	ret := m.ctrl.Call(m, "Remove", instanceIds)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Remove indicates an expected call of Remove.
-func (mr *MockClientMockRecorder) Remove(id interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Remove(instanceIds interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockClient)(nil).Remove), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockClient)(nil).Remove), instanceIds)
 }
 
 // Replace mocks base method.
