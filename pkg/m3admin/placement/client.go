@@ -37,7 +37,7 @@ const (
 	placementBaseURL    = "/api/v1/services/m3db/placement"
 	placementInitURL    = placementBaseURL + "/init"
 	placementReplaceURL = placementBaseURL + "/replace"
-	placementRemoveURL = placementBaseURL + "/remove"
+	placementRemoveURL  = placementBaseURL + "/remove"
 	placementSetURL     = placementBaseURL + "/set"
 )
 
@@ -128,10 +128,10 @@ func (p *placementClient) Add(instances []*placementpb.Instance) error {
 	return nil
 }
 
-func (p *placementClient) Remove(id []string) error {
+func (p *placementClient) Remove(instanceIds []string) error {
 	url := p.url + placementRemoveURL
 	req := &admin.PlacementRemoveRequest{
-		InstanceIds: id,
+		InstanceIds: instanceIds,
 	}
 	return p.client.DoHTTPJSONPBRequest(http.MethodPost, url, req, nil)
 }

@@ -205,7 +205,7 @@ func m3dbAggregationOptsFromSpec(opts myspec.AggregationOptions) (*m3ns.Aggregat
 
 func m3dbExtendedOptsFromSpec(opts *myspec.ExtendedOptions) (*m3ns.ExtendedOptions, error) {
 	if opts == nil {
-		return nil, nil
+		return nil, nil //nolint: nilnil
 	}
 
 	pbStruct, err := pbStructFromSpec(opts.Options)
