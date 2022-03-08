@@ -567,11 +567,12 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return nil
 	}
 
-	var removeIds []string
-	for _, inst := range removeInst {
-		removeIds = append(removeIds, inst.ID())
+	removeIds := make([]string, len(removeInst))
+	for idx, inst := range removeInst {
+		removeIds[idx] = inst.ID()
 	}
-	c.logger.Info("removing pods from placement", zap.String("instances", strings.Join(removeIds, ",")))
+	c.logger.Info("removing instances from placement",
+		zap.String("instances", strings.Join(removeIds, ",")))
 	return c.adminClient.placementClientForCluster(cluster).Remove(removeIds)
 }
 
@@ -610,7 +611,7 @@ func (c *M3DBController) findPodInstancesToRemove(
 		if err != nil {
 			return nil, nil, pkgerrors.WithMessage(err, "error finding pod in placement")
 		}
-		leftToRemove -= 1
+		leftToRemove--
 		podsToRemove = append(podsToRemove, pod)
 		instancesToRemove = append(instancesToRemove, inst)
 	}
