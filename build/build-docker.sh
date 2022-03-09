@@ -11,7 +11,7 @@ fi
 
 : ${IMAGE:?"Need to set IMAGE, e.g. gcr.io/<repo>/<your>-operator"}
 
-GITSHA="$(git rev-parse --short HEAD)"
+GITSHA="$(git rev-parse --short=8 HEAD)"
 
 echo "building container ${IMAGE}:${GITSHA}..."
 docker build -t "${IMAGE}:${GITSHA}" -f Dockerfile .
