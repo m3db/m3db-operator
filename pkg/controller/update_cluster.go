@@ -556,9 +556,9 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return err
 	}
 
-	_, removeInst, err := c.findPodInstancesToRemove(cluster, pl, pods, removeCount)
+	_, removeInst, err := c.findPodsAndInstancesToRemove(cluster, pl, pods, removeCount)
 	if err != nil {
-		c.logger.Error("error finding pod to remove", zap.Error(err))
+		c.logger.Error("error finding pods to remove", zap.Error(err))
 		return err
 	}
 
@@ -576,11 +576,11 @@ func (c *M3DBController) shrinkPlacementForSet(
 	return c.adminClient.placementClientForCluster(cluster).Remove(removeIds)
 }
 
-// findPodInstancesToRemove returns the pod (and associated placement instace)
+// findPodsAndInstancesToRemove returns pods (and associated placement instances)
 // with the highest ordinal number in the stateful set AND in the placement, so
-// that we remove from the placement the pod that will be deleted when the set
+// that we remove from the placement pods that will be deleted when the set
 // size is scaled down.
-func (c *M3DBController) findPodInstancesToRemove(
+func (c *M3DBController) findPodsAndInstancesToRemove(
 	cluster *myspec.M3DBCluster,
 	pl placement.Placement,
 	pods []*corev1.Pod,

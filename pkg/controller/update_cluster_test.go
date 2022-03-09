@@ -1172,17 +1172,17 @@ func TestFindPodToRemove(t *testing.T) {
 	assert.Equal(t, pl.Instances()[0], inst)
 
 	// Can't remove from no pods.
-	_, _, err = controller.findPodInstancesToRemove(cluster, pl, nil, 1)
+	_, _, err = controller.findPodsAndInstancesToRemove(cluster, pl, nil, 1)
 	assert.Equal(t, errEmptyPodList, err)
 
 	// Can't remove from malformed pod names.
-	_, _, err = controller.findPodInstancesToRemove(cluster, pl, []*corev1.Pod{
+	_, _, err = controller.findPodsAndInstancesToRemove(cluster, pl, []*corev1.Pod{
 		podWithName("foo"),
 	}, 1)
 	assert.Contains(t, err.Error(), "cannot sort pods")
 
 	// Removing from a placement w/ all pods removes the last.
-	podsToRemove, insts, err := controller.findPodInstancesToRemove(cluster, pl, pods, 1)
+	podsToRemove, insts, err := controller.findPodsAndInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, pods[2], podsToRemove[0])
 	assert.Equal(t, pl.Instances()[2], insts[0])
@@ -1190,7 +1190,7 @@ func TestFindPodToRemove(t *testing.T) {
 	// Removing from a placement w/ 2 insts and 3 pods removes the last pod that's
 	// still in the placement.
 	pl = placementFromPods(t, cluster, pods[:2], idProvider)
-	podsToRemove, insts, err = controller.findPodInstancesToRemove(cluster, pl, pods, 1)
+	podsToRemove, insts, err = controller.findPodsAndInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, pods[1], podsToRemove[0])
 	assert.Equal(t, pl.Instances()[1], insts[0])
