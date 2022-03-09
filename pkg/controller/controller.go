@@ -735,8 +735,8 @@ func (c *M3DBController) handleClusterUpdate(
 		// If there are more pods in the placement than we want in the group,
 		// trigger a remove so that we can shrink the set.
 		if inPlacement > desired {
-			setLogger.Info("remove instance from placement for set")
-			return c.shrinkPlacementForSet(cluster, set, placement, int(inPlacement-desired))
+			setLogger.Info("shrinking placement for set")
+			return c.shrinkPlacementForSet(cluster, set, placement, int(desired))
 		}
 
 		var newCount int32

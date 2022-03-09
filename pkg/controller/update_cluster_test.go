@@ -678,55 +678,52 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 }
 
 func TestShrinkPlacementForSet(t *testing.T) {
+	const instancePerGroup = 3
 	tests := []struct {
-		name               string
-		removeCount        int
-		placementPodsCount int
-		preventScaleDown   bool
-		expectedRemovedIds []string
-		expectedErr        string
+		name                   string
+		desiredInstanceCount   int
+		placementInstanceCount int
+		preventScaleDown       bool
+		expectedRemovedIds     []string
+		expectedErr            string
 	}{
 		{
-			name:               "remove single pod",
-			removeCount:        1,
-			placementPodsCount: 3,
-			expectedRemovedIds: []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
+			name:                   "remove single pod",
+			desiredInstanceCount:   instancePerGroup - 1,
+			placementInstanceCount: instancePerGroup,
+			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
 		},
 		{
-			name:               "empty placement",
-			removeCount:        1,
-			placementPodsCount: 0,
-			expectedRemovedIds: nil,
+			name:                   "empty placement",
+			desiredInstanceCount:   instancePerGroup - 1,
+			placementInstanceCount: 0,
+			expectedRemovedIds:     nil,
 		},
 		{
-			name:               "remove multiple pods",
-			removeCount:        2,
-			placementPodsCount: 3,
+			name:                   "remove multiple pods",
+			desiredInstanceCount:   instancePerGroup - 2,
+			placementInstanceCount: instancePerGroup,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
 			},
 		},
 		{
-			name:               "remove last when placement contains less instances than pods",
-			removeCount:        1,
-			placementPodsCount: 2,
-			expectedRemovedIds: []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
+			name:                   "remove last when placement contains less instances than pods",
+			desiredInstanceCount:   instancePerGroup - 2,
+			placementInstanceCount: instancePerGroup - 1,
+			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
 		},
 		{
-			name:               "remove more pods than exists",
-			removeCount:        4,
-			placementPodsCount: 3,
-			expectedRemovedIds: []string{
-				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
-				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
-				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
-			},
+			name:                   "remove more pods than exists",
+			desiredInstanceCount:   -42,
+			placementInstanceCount: instancePerGroup,
+			expectedErr:            "desired instance count is negative: -42",
 		},
 		{
-			name:               "remove all pods",
-			removeCount:        3,
-			placementPodsCount: 3,
+			name:                   "remove all pods",
+			desiredInstanceCount:   0,
+			placementInstanceCount: instancePerGroup,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
@@ -759,12 +756,12 @@ func TestShrinkPlacementForSet(t *testing.T) {
 			defer deps.cleanup()
 
 			identifyPods(deps.idProvider, pods, nil)
-			pl := placementFromPods(t, cluster, pods[:tc.placementPodsCount], deps.idProvider)
+			pl := placementFromPods(t, cluster, pods[:tc.placementInstanceCount], deps.idProvider)
 
 			if len(tc.expectedRemovedIds) > 0 {
 				placementMock.EXPECT().Remove(tc.expectedRemovedIds)
 			}
-			err = controller.shrinkPlacementForSet(cluster, set, pl, tc.removeCount)
+			err = controller.shrinkPlacementForSet(cluster, set, pl, tc.desiredInstanceCount)
 			if tc.expectedErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErr)

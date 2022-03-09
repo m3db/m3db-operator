@@ -538,15 +538,19 @@ func (c *M3DBController) expandPlacementForSet(
 	return c.addPodsToPlacement(ctx, cluster, podsToAdd)
 }
 
-// shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and
-// removes the last pod in the StatefulSet from the active placement, enabling
+// shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and removes any pods
+// that are above desired instance count in the StatefulSet from the active placement, enabling
 // the StatefulSet size to be decreased once the remove completes.
 func (c *M3DBController) shrinkPlacementForSet(
-	cluster *myspec.M3DBCluster, set *appsv1.StatefulSet, pl placement.Placement, removeCount int,
+	cluster *myspec.M3DBCluster, set *appsv1.StatefulSet,
+	pl placement.Placement, desiredInstanceCount int,
 ) error {
 	if cluster.Spec.PreventScaleDown {
 		return pkgerrors.Errorf("cannot remove nodes from %s/%s, preventScaleDown is true",
 			cluster.Namespace, cluster.Name)
+	}
+	if desiredInstanceCount < 0 {
+		return pkgerrors.New(fmt.Sprintf("desired instance count is negative: %d", desiredInstanceCount))
 	}
 
 	selector := klabels.SelectorFromSet(set.Labels)
@@ -556,7 +560,7 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return err
 	}
 
-	_, removeInst, err := c.findPodsAndInstancesToRemove(cluster, pl, pods, removeCount)
+	_, removeInst, err := c.findPodsAndInstancesToRemove(cluster, pl, pods, desiredInstanceCount)
 	if err != nil {
 		c.logger.Error("error finding pods to remove", zap.Error(err))
 		return err
@@ -584,7 +588,7 @@ func (c *M3DBController) findPodsAndInstancesToRemove(
 	cluster *myspec.M3DBCluster,
 	pl placement.Placement,
 	pods []*corev1.Pod,
-	removeCount int,
+	desiredInstanceCount int,
 ) ([]*corev1.Pod, []placement.Instance, error) {
 	if len(pods) == 0 {
 		return nil, nil, errEmptyPodList
@@ -598,20 +602,18 @@ func (c *M3DBController) findPodsAndInstancesToRemove(
 	var (
 		podsToRemove      []*corev1.Pod
 		instancesToRemove []placement.Instance
-		leftToRemove      = removeCount
 	)
-	for i := len(podIDs) - 1; i >= 0 && leftToRemove > 0; i-- {
+	for i := len(podIDs) - 1; i >= desiredInstanceCount; i-- {
 		pod := podIDs[i].pod
 		inst, err := c.findPodInPlacement(cluster, pl, pod)
 		if pkgerrors.Cause(err) == errPodNotInPlacement {
-			// If the instance is already out of the placement, continue to the next
+			// If the pod is already out of the placement, continue to the next
 			// one.
 			continue
 		}
 		if err != nil {
 			return nil, nil, pkgerrors.WithMessage(err, "error finding pod in placement")
 		}
-		leftToRemove--
 		podsToRemove = append(podsToRemove, pod)
 		instancesToRemove = append(instancesToRemove, inst)
 	}
