@@ -678,7 +678,7 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 }
 
 func TestShrinkPlacementForSet(t *testing.T) {
-	const instancePerGroup = 3
+	const instanceCountPerGroup = 3
 	tests := []struct {
 		name                   string
 		desiredInstanceCount   int
@@ -689,20 +689,20 @@ func TestShrinkPlacementForSet(t *testing.T) {
 	}{
 		{
 			name:                   "remove single pod",
-			desiredInstanceCount:   instancePerGroup - 1,
-			placementInstanceCount: instancePerGroup,
+			desiredInstanceCount:   instanceCountPerGroup - 1,
+			placementInstanceCount: instanceCountPerGroup,
 			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
 		},
 		{
 			name:                   "empty placement",
-			desiredInstanceCount:   instancePerGroup - 1,
+			desiredInstanceCount:   instanceCountPerGroup - 1,
 			placementInstanceCount: 0,
 			expectedRemovedIds:     nil,
 		},
 		{
 			name:                   "remove multiple pods",
-			desiredInstanceCount:   instancePerGroup - 2,
-			placementInstanceCount: instancePerGroup,
+			desiredInstanceCount:   instanceCountPerGroup - 2,
+			placementInstanceCount: instanceCountPerGroup,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
@@ -710,20 +710,20 @@ func TestShrinkPlacementForSet(t *testing.T) {
 		},
 		{
 			name:                   "remove last when placement contains less instances than pods",
-			desiredInstanceCount:   instancePerGroup - 2,
-			placementInstanceCount: instancePerGroup - 1,
+			desiredInstanceCount:   instanceCountPerGroup - 2,
+			placementInstanceCount: instanceCountPerGroup - 1,
 			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
 		},
 		{
 			name:                   "remove more pods than exists",
 			desiredInstanceCount:   -42,
-			placementInstanceCount: instancePerGroup,
+			placementInstanceCount: instanceCountPerGroup,
 			expectedErr:            "desired instance count is negative: -42",
 		},
 		{
 			name:                   "remove all pods",
 			desiredInstanceCount:   0,
-			placementInstanceCount: instancePerGroup,
+			placementInstanceCount: instanceCountPerGroup,
 			expectedRemovedIds: []string{
 				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
 				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
