@@ -678,54 +678,98 @@ func TestExpandPlacementForSet_Err(t *testing.T) {
 }
 
 func TestShrinkPlacementForSet(t *testing.T) {
-	cluster := getFixture("cluster-3-zones.yaml", t)
+	const instanceCountPerGroup = 3
+	tests := []struct {
+		name                   string
+		desiredInstanceCount   int
+		placementInstanceCount int
+		preventScaleDown       bool
+		expectedRemovedIds     []string
+		expectedErr            string
+	}{
+		{
+			name:                   "remove single pod",
+			desiredInstanceCount:   instanceCountPerGroup - 1,
+			placementInstanceCount: instanceCountPerGroup,
+			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-2","uid":"2"}`},
+		},
+		{
+			name:                   "empty placement",
+			desiredInstanceCount:   instanceCountPerGroup - 1,
+			placementInstanceCount: 0,
+			expectedRemovedIds:     nil,
+		},
+		{
+			name:                   "remove multiple pods",
+			desiredInstanceCount:   instanceCountPerGroup - 2,
+			placementInstanceCount: instanceCountPerGroup,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+			},
+		},
+		{
+			name:                   "remove last when placement contains less instances than pods",
+			desiredInstanceCount:   instanceCountPerGroup - 2,
+			placementInstanceCount: instanceCountPerGroup - 1,
+			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
+		},
+		{
+			name:                   "remove more pods than exists",
+			desiredInstanceCount:   -42,
+			placementInstanceCount: instanceCountPerGroup,
+			expectedErr:            "desired instance count is negative: -42",
+		},
+		{
+			name:                   "remove all pods",
+			desiredInstanceCount:   0,
+			placementInstanceCount: instanceCountPerGroup,
+			expectedRemovedIds: []string{
+				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
+				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
+				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
+			},
+		},
+		{
+			name:               "prevent scale down",
+			preventScaleDown:   true,
+			expectedErr:        "cannot remove nodes from fake/cluster-zones, preventScaleDown is true",
+			expectedRemovedIds: nil,
+		},
+	}
 
-	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
-	require.NoError(t, err)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			cluster := getFixture("cluster-3-zones.yaml", t)
+			cluster.Spec.PreventScaleDown = tc.preventScaleDown
 
-	pods := podsForClusterSet(cluster, set, 3)
-	deps := newTestDeps(t, &testOpts{
-		kubeObjects: objectsFromPods(pods...),
-	})
-	placementMock := deps.placementClient
-	controller := deps.newController(t)
-	defer deps.cleanup()
+			set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
+			require.NoError(t, err)
 
-	identifyPods(deps.idProvider, pods, nil)
-	pl := placementFromPods(t, cluster, pods, deps.idProvider)
+			pods := podsForClusterSet(cluster, set, 3)
+			deps := newTestDeps(t, &testOpts{
+				kubeObjects: objectsFromPods(pods...),
+			})
+			placementMock := deps.placementClient
+			controller := deps.newController(t)
+			defer deps.cleanup()
 
-	// Expect the last pod to be removed.
-	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-2","uid":"2"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
-	assert.NoError(t, err)
+			identifyPods(deps.idProvider, pods, nil)
+			pl := placementFromPods(t, cluster, pods[:tc.placementInstanceCount], deps.idProvider)
 
-	// If there are more pods in the set then in the placement, we expect the last
-	// in the set to be removed.
-	pl = placementFromPods(t, cluster, pods[:2], deps.idProvider)
-	placementMock.EXPECT().Remove([]string{`{"name":"cluster-zones-rep0-1","uid":"1"}`})
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
-	assert.NoError(t, err)
-}
-
-func TestShrinkPlacementForSet_PreventScaleDown(t *testing.T) {
-	cluster := getFixture("cluster-3-zones.yaml", t)
-	cluster.Spec.PreventScaleDown = true
-
-	set, err := m3db.GenerateStatefulSet(cluster, "us-fake1-a", 3)
-	require.NoError(t, err)
-
-	pods := podsForClusterSet(cluster, set, 3)
-	deps := newTestDeps(t, &testOpts{
-		kubeObjects: objectsFromPods(pods...),
-	})
-	controller := deps.newController(t)
-	defer deps.cleanup()
-
-	identifyPods(deps.idProvider, pods, nil)
-	pl := placementFromPods(t, cluster, pods, deps.idProvider)
-
-	err = controller.shrinkPlacementForSet(cluster, set, pl)
-	assert.EqualError(t, err, "cannot remove nodes from fake/cluster-zones, preventScaleDown is true")
+			if len(tc.expectedRemovedIds) > 0 {
+				placementMock.EXPECT().Remove(tc.expectedRemovedIds)
+			}
+			err = controller.shrinkPlacementForSet(cluster, set, pl, tc.desiredInstanceCount)
+			if tc.expectedErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func podWithName(name string) *corev1.Pod {
@@ -1125,28 +1169,28 @@ func TestFindPodToRemove(t *testing.T) {
 	assert.Equal(t, pl.Instances()[0], inst)
 
 	// Can't remove from no pods.
-	_, _, err = controller.findPodInstanceToRemove(cluster, pl, nil)
+	_, _, err = controller.findPodsAndInstancesToRemove(cluster, pl, nil, 1)
 	assert.Equal(t, errEmptyPodList, err)
 
 	// Can't remove from malformed pod names.
-	_, _, err = controller.findPodInstanceToRemove(cluster, pl, []*corev1.Pod{
+	_, _, err = controller.findPodsAndInstancesToRemove(cluster, pl, []*corev1.Pod{
 		podWithName("foo"),
-	})
+	}, 1)
 	assert.Contains(t, err.Error(), "cannot sort pods")
 
 	// Removing from a placement w/ all pods removes the last.
-	pod, inst, err := controller.findPodInstanceToRemove(cluster, pl, pods)
+	podsToRemove, insts, err := controller.findPodsAndInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, pods[2], pod)
-	assert.Equal(t, pl.Instances()[2], inst)
+	assert.Equal(t, pods[2], podsToRemove[0])
+	assert.Equal(t, pl.Instances()[2], insts[0])
 
 	// Removing from a placement w/ 2 insts and 3 pods removes the last pod that's
 	// still in the placement.
 	pl = placementFromPods(t, cluster, pods[:2], idProvider)
-	pod, inst, err = controller.findPodInstanceToRemove(cluster, pl, pods)
+	podsToRemove, insts, err = controller.findPodsAndInstancesToRemove(cluster, pl, pods, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, pods[1], pod)
-	assert.Equal(t, pl.Instances()[1], inst)
+	assert.Equal(t, pods[1], podsToRemove[0])
+	assert.Equal(t, pl.Instances()[1], insts[0])
 }
 
 func TestEtcdFinalizer(t *testing.T) {
