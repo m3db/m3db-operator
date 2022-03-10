@@ -549,9 +549,6 @@ func (c *M3DBController) shrinkPlacementForSet(
 		return pkgerrors.Errorf("cannot remove nodes from %s/%s, preventScaleDown is true",
 			cluster.Namespace, cluster.Name)
 	}
-	if desiredInstanceCount < 0 {
-		return pkgerrors.New(fmt.Sprintf("desired instance count is negative: %d", desiredInstanceCount))
-	}
 
 	selector := klabels.SelectorFromSet(set.Labels)
 	pods, err := c.podLister.Pods(cluster.Namespace).List(selector)
@@ -592,6 +589,10 @@ func (c *M3DBController) findPodsAndInstancesToRemove(
 ) ([]*corev1.Pod, []placement.Instance, error) {
 	if len(pods) == 0 {
 		return nil, nil, errEmptyPodList
+	}
+	if desiredInstanceCount < 0 {
+		msg := fmt.Sprintf("desired instance count is negative: %d", desiredInstanceCount)
+		return nil, nil, pkgerrors.New(msg)
 	}
 
 	podIDs, err := sortPods(pods)
