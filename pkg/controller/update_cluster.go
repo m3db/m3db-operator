@@ -590,8 +590,8 @@ func (c *M3DBController) findPodsAndInstancesToRemove(
 	if len(pods) == 0 {
 		return nil, nil, errEmptyPodList
 	}
-	if desiredInstanceCount < 0 {
-		msg := fmt.Sprintf("desired instance count is negative: %d", desiredInstanceCount)
+	if desiredInstanceCount <= 0 {
+		msg := fmt.Sprintf("desired instance count should be positive, but is: %d", desiredInstanceCount)
 		return nil, nil, pkgerrors.New(msg)
 	}
 

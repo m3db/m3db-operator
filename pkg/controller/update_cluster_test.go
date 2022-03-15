@@ -715,20 +715,16 @@ func TestShrinkPlacementForSet(t *testing.T) {
 			expectedRemovedIds:     []string{`{"name":"cluster-zones-rep0-1","uid":"1"}`},
 		},
 		{
-			name:                   "remove more pods than exists",
+			name:                   "negative desired instance count",
 			desiredInstanceCount:   -42,
 			placementInstanceCount: instanceCountPerGroup,
-			expectedErr:            "desired instance count is negative: -42",
+			expectedErr:            "desired instance count should be positive, but is: -42",
 		},
 		{
-			name:                   "remove all pods",
+			name:                   "0 desired instances",
 			desiredInstanceCount:   0,
 			placementInstanceCount: instanceCountPerGroup,
-			expectedRemovedIds: []string{
-				`{"name":"cluster-zones-rep0-2","uid":"2"}`,
-				`{"name":"cluster-zones-rep0-1","uid":"1"}`,
-				`{"name":"cluster-zones-rep0-0","uid":"0"}`,
-			},
+			expectedErr:            "desired instance count should be positive, but is: 0",
 		},
 		{
 			name:               "prevent scale down",
