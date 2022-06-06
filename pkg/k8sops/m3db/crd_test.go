@@ -28,7 +28,7 @@ import (
 	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientsetFake "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/fake"
-	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kubeExtFake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ func TestCreateOrUpdateCRD(t *testing.T) {
 	err := k.CreateOrUpdateCRD(ctx, "foo", false)
 	assert.Error(t, err)
 
-	ext := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
+	ext := k.kubeExt.ApiextensionsV1().CustomResourceDefinitions()
 	// Ensure CRD didn't exist before but exists after
 	_, err = ext.Get(ctx, m3dboperator.M3DBClustersName, metav1.GetOptions{})
 	assert.Error(t, err)
@@ -86,7 +86,7 @@ func TestCreateOrUpdateCRD_Err(t *testing.T) {
 			ctx := context.Background()
 
 			k.kubeExt.(*kubeExtFake.Clientset).Fake.PrependReactor(test.action, "*", func(action ktesting.Action) (bool, runtime.Object, error) {
-				return true, &extv1beta1.CustomResourceDefinition{}, errors.New("test")
+				return true, &extv1.CustomResourceDefinition{}, errors.New("test")
 			})
 
 			// Must create CRD first to have an error updating it.

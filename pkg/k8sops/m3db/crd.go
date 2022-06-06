@@ -43,7 +43,7 @@ func (k *k8sWrapper) CreateOrUpdateCRD(
 		return fmt.Errorf("unrecognized CRD name '%s'", name)
 	}
 
-	crdClient := k.kubeExt.ApiextensionsV1beta1().CustomResourceDefinitions()
+	crdClient := k.kubeExt.ApiextensionsV1().CustomResourceDefinitions()
 	curCRD, err := crdClient.Get(ctx, name, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return pkgerrors.WithMessagef(err, "could not fetch CRD '%s'", name)

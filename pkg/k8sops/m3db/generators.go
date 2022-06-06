@@ -31,7 +31,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdutils "github.com/ant31/crd-validation/pkg"
@@ -84,27 +84,27 @@ var baseCoordinatorPorts = [...]m3dbPort{
 var carbonListenerPort = m3dbPort{"coord-carbon", PortM3CoordinatorCarbon, v1.ProtocolTCP}
 
 // GenerateCRD generates the crd object needed for the M3DBCluster
-func GenerateCRD(enableValidation bool) *apiextensionsv1beta1.CustomResourceDefinition {
-	crd := &apiextensionsv1beta1.CustomResourceDefinition{
+func GenerateCRD(enableValidation bool) *apiextensionsv1.CustomResourceDefinition {
+	crd := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: m3dboperator.M3DBClustersName,
 		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
 			Group: m3dboperator.GroupName,
-			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
 				{
 					Name:    m3dboperator.Version,
 					Served:  true,
 					Storage: true,
+					Subresources: &apiextensionsv1.CustomResourceSubresources{
+						Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
+					},
 				},
 			},
-			Scope: apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
 				Plural: m3dboperator.M3DBClusterResourcePlural,
 				Kind:   m3dboperator.M3DBClusterResourceKind,
-			},
-			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
-				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
 			},
 		},
 	}
