@@ -162,18 +162,16 @@ linters:
     - goconst
     - gocritic
     - goimports
-    - golint
     - gosimple
     - govet
     - ineffassign
     - lll
-    - maligned
     - megacheck
     - misspell
     - prealloc
     - staticcheck
     - structcheck
-    - typecheck
+#    - typecheck
     - unconvert
     - unparam
     - varcheck
@@ -221,6 +219,10 @@ linters:
     - gomoddirectives
     # Returning an interface should not be a crime.
     - ireturn
+    - typecheck
+    - gofumpt
+    - forcetypeassert
+    - exhaustruct
   disable-all: false
   presets:
     # bodyclose, errcheck, gosec, govet, scopelint, staticcheck, typecheck
