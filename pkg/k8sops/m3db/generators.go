@@ -109,9 +109,11 @@ func GenerateCRD(enableValidation bool) *apiextensionsv1.CustomResourceDefinitio
 		},
 	}
 
-	// if enableValidation {
-	// 	crd.Spec.Versions[0].Schema.openAPIV3Schema = crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
-	// }
+	if enableValidation {
+		crd.Spec.Versions[0].Schema = &apiextensionsv1.CustomResourceValidation{
+			OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{Description: "hello world"},
+		}
+	}
 
 	return crd
 }
