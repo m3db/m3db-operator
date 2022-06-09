@@ -34,7 +34,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	// crdutils "github.com/ant31/crd-validation/pkg"
+	crdutils "github.com/abdulmi/crd-validation/pkg"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/utils/pointer"
 )
@@ -99,6 +99,7 @@ func GenerateCRD(enableValidation bool) *apiextensionsv1.CustomResourceDefinitio
 					Subresources: &apiextensionsv1.CustomResourceSubresources{
 						Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
 					},
+					Schema: crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions),
 				},
 			},
 			Scope: apiextensionsv1.NamespaceScoped,
@@ -107,12 +108,6 @@ func GenerateCRD(enableValidation bool) *apiextensionsv1.CustomResourceDefinitio
 				Kind:   m3dboperator.M3DBClusterResourceKind,
 			},
 		},
-	}
-
-	if enableValidation {
-		crd.Spec.Versions[0].Schema = &apiextensionsv1.CustomResourceValidation{
-			OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{Description: "hello world"},
-		}
 	}
 
 	return crd

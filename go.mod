@@ -3,7 +3,8 @@ module github.com/m3db/m3db-operator
 go 1.16
 
 require (
-	github.com/ant31/crd-validation v0.0.0-20180801212718-38f6a293f140
+	github.com/abdulmi/crd-validation v0.0.0-20220609021037-be9bd8047a8d
+	github.com/ant31/crd-validation v0.0.0-20180801212718-38f6a293f140 // indirect
 	github.com/apex/log v1.3.0 // indirect
 	github.com/axw/gocov v1.0.0
 	github.com/bmatcuk/doublestar v1.3.1 // indirect

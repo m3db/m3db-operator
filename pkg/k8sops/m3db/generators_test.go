@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	crdutils "github.com/ant31/crd-validation/pkg"
+	crdutils "github.com/abdulmi/crd-validation/pkg"
 	"github.com/d4l3k/messagediff"
 	"github.com/stretchr/testify/assert"
 )
