@@ -171,7 +171,7 @@ linters:
     - prealloc
     - staticcheck
     - structcheck
-#    - typecheck
+    - typecheck
     - unconvert
     - unparam
     - varcheck
@@ -219,9 +219,7 @@ linters:
     - gomoddirectives
     # Returning an interface should not be a crime.
     - ireturn
-    - typecheck
-    - gofumpt
-    - forcetypeassert
+    # Allow structs to be not completely specified.
     - exhaustruct
   disable-all: false
   presets:

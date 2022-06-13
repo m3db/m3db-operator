@@ -579,8 +579,9 @@ func (c *M3DBController) handleClusterUpdate(
 		// strategy, then move to the next statefulset. When using the OnDelete update
 		// strategy, we still may want to restart nodes for this particular statefulset,
 		// so don't continue yet.
-		onDeleteUpdateStrategy :=
-			actual.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType
+		onDeleteUpdateStrategy := actual.Spec.UpdateStrategy.Type ==
+			appsv1.OnDeleteStatefulSetStrategyType
+
 		if !update && !onDeleteUpdateStrategy {
 			continue
 		}
