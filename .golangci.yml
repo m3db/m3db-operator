@@ -162,10 +162,12 @@ linters:
     - goconst
     - gocritic
     - goimports
+    - golint
     - gosimple
     - govet
     - ineffassign
     - lll
+    - maligned
     - megacheck
     - misspell
     - prealloc
