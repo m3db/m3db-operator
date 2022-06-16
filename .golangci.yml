@@ -221,6 +221,8 @@ linters:
     - gomoddirectives
     # Returning an interface should not be a crime.
     - ireturn
+    # Allow structs to be not completely specified.
+    - exhaustruct
   disable-all: false
   presets:
     # bodyclose, errcheck, gosec, govet, scopelint, staticcheck, typecheck

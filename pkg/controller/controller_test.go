@@ -180,6 +180,7 @@ func waitForStatefulSets(
 		ctx         = context.Background()
 	)
 
+	//nolint:forcetypeassert
 	controller.kubeClient.(*kubefake.Clientset).PrependReactor(verb, "statefulsets", func(action ktesting.Action) (bool, runtime.Object, error) {
 		var sts *appsv1.StatefulSet
 		switch verb {
@@ -220,6 +221,7 @@ func waitForStatefulSets(
 		return false, nil, nil
 	})
 
+	//nolint:forcetypeassert
 	controller.kubeClient.(*kubefake.Clientset).PrependReactor(
 		"delete", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
 			podName := action.(kubetesting.DeleteActionImpl).GetName()
