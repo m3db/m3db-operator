@@ -775,6 +775,22 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
+	for _, set := range childrenSets {
+		if set.Spec.UpdateStrategy.Type != appsv1.OnDeleteStatefulSetStrategyType {
+			continue
+		}
+
+		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
+			continue
+		}
+
+		if err = c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
+			delete(set.Annotations, annotations.ParallelUpdateInProgress)
+		}); err != nil {
+			return err
+		}
+	}
+
 	c.logger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
 		zap.Int("zones", len(isoGroups)),
@@ -903,12 +919,7 @@ func (c *M3DBController) updateStatefulSetPods(
 		return false, err
 	}
 
-	if err = c.patchStatefulSet(ctx, sts, func(set *appsv1.StatefulSet) {
-		delete(set.Annotations, annotations.ParallelUpdateInProgress)
-	}); err != nil {
-		return false, err
-	}
-	logger.Info("update complete")
+	logger.Info("update of existing pods complete")
 
 	return false, nil
 }
