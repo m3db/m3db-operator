@@ -914,7 +914,7 @@ func (c *M3DBController) updateStatefulSetPods(
 	sts.Status.CurrentReplicas = sts.Status.UpdatedReplicas
 	sts.Status.CurrentRevision = sts.Status.UpdateRevision
 
-	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
+	if _, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
 		UpdateStatus(ctx, sts, metav1.UpdateOptions{}); err != nil {
 		return false, err
 	}
