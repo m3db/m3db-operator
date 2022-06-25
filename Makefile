@@ -138,7 +138,6 @@ test-ci-unit: install-tools test-base verify-gen
 install-tools:
 	@echo "--- $@"
 	GOBIN=$(tools_bin_path) go install github.com/axw/gocov/gocov
-	GOBIN=$(tools_bin_path) go install github.com/garethr/kubeval
 	GOBIN=$(tools_bin_path) go install github.com/golang/mock/mockgen
 	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/badtime
 	GOBIN=$(tools_bin_path) go install github.com/m3db/build-tools/linters/importorder
@@ -148,6 +147,7 @@ install-tools:
 	GOBIN=$(tools_bin_path) go install github.com/rakyll/statik
 	GOBIN=$(tools_bin_path) go install golang.org/x/lint/golint
 	GOBIN=$(tools_bin_path) go install k8s.io/kube-openapi/cmd/openapi-gen
+	GOBIN=$(tools_bin_path) go install sigs.k8s.io/controller-tools/cmd/controller-gen
 
 .PHONY: mock-gen
 mock-gen: install-tools mock-gen-no-deps
@@ -220,7 +220,6 @@ build-docker: ## Build m3db-operator docker image with go binary
 helm-bundle-no-deps:
 	@echo "--- $@"
 	@helm template --namespace default helm/m3db-operator > bundle.yaml
-	@PATH=$(tools_bin_path):$(PATH) kubeval -v=1.12.0 bundle.yaml
 
 .PHONY: helm-bundle
 helm-bundle: install-tools helm-bundle-no-deps

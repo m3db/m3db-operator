@@ -30,8 +30,11 @@ chmod +x "$GEN_GROUPS"
   --go-header-file "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt" \
   "$@"
 
-echo "Generating OpenAPI Schema definition"
-openapi-gen --v=1 --logtostderr \
-  -h "${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt" \
-  -i github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1 \
-  -p github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1
+# Generate CRD spec and schema.
+controller-gen crd paths=./pkg/apis/m3dboperator/v1alpha1/ +output:dir=helm/m3db-operator/templates
+
+# Ensure helm bundles the CRD first.
+(
+  cd helm/m3db-operator/templates
+  mv operator.m3db.io_m3dbclusters.yaml 00_operator.m3db.io_m3dbclusters.yaml
+)

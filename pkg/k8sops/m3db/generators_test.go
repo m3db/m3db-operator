@@ -23,58 +23,21 @@ package m3db
 import (
 	"testing"
 
-	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	crdutils "github.com/ant31/crd-validation/pkg"
 	"github.com/d4l3k/messagediff"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestGenerateCRD(t *testing.T) {
-	crd := &apiextensionsv1beta1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: m3dboperator.M3DBClustersName,
-		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group: m3dboperator.GroupName,
-			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
-				{
-					Name:    m3dboperator.Version,
-					Served:  true,
-					Storage: true,
-				},
-			},
-			Scope: apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural: m3dboperator.M3DBClusterResourcePlural,
-				Kind:   m3dboperator.M3DBClusterResourceKind,
-			},
-			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
-				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
-			},
-		},
-	}
-
-	newCRD := GenerateCRD(false)
-	assert.Equal(t, crd, newCRD)
-	assert.Nil(t, newCRD.Spec.Validation)
-
-	newCRD = GenerateCRD(true)
-	expValidation := crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
-	assert.Equal(t, expValidation, newCRD.Spec.Validation)
-}
 
 func TestGenerateStatefulSet(t *testing.T) {
 	fixture := getFixture("testM3DBCluster.yaml", t)
@@ -89,7 +52,7 @@ func TestGenerateStatefulSet(t *testing.T) {
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(PortM3DBHTTPNode),
 				Path:   _probePathReady,

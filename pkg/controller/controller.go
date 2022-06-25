@@ -30,7 +30,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
@@ -80,22 +79,11 @@ var (
 	errNonUniqueIsoGroups  = errors.New("isolation group names are not unique")
 )
 
-// Configuration contains parameters for the controller.
-type Configuration struct {
-	// ManageCRD indicates whether the controller should create and update specs
-	// of the CRDs it controls.
-	ManageCRD bool
-
-	// EnableValidation controls whether OpenAPI validation is enabled on the CRD.
-	EnableValidation bool
-}
-
 type controllerBase struct {
 	lock   *sync.Mutex
 	logger *zap.Logger
 	clock  clock.Clock
 	scope  tally.Scope
-	config Configuration
 	doneCh chan struct{}
 
 	adminClient *multiAdminClient
@@ -173,7 +161,6 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 			lock:   &sync.Mutex{},
 			logger: logger,
 			scope:  scope,
-			config: options.config,
 			clock:  clock.RealClock{},
 
 			adminClient: multiClient,
@@ -252,13 +239,6 @@ func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 	c.logger.Info("starting Operator controller")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if c.config.ManageCRD {
-		if err := c.k8sclient.CreateOrUpdateCRD(
-			ctx, m3dboperator.M3DBClustersName, c.config.EnableValidation,
-		); err != nil {
-			return pkgerrors.WithMessage(err, "could not create or update CRD")
-		}
-	}
 
 	c.logger.Info("waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced); !ok {

@@ -49,11 +49,11 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 type M3DBCluster struct {
 	metav1.TypeMeta `json:",inline"`
 	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Type              string      `json:"type"`
 	Spec              ClusterSpec `json:"spec"`
 	Status            M3DBStatus  `json:"status,omitempty"`
 }
@@ -191,39 +191,39 @@ type ClusterSpec struct {
 	// EtcdEndpoints defines the etcd endpoints to use for service discovery. Must
 	// be set if no custom configmap is defined. If set, etcd endpoints will be
 	// templated in to the default configmap template.
-	// +optional
+	// +kubebuilder:validation:Optional
 	EtcdEndpoints []string `json:"etcdEndpoints,omitempty"`
 
 	// KeepEtcdDataOnDelete determines whether the operator will remove cluster
 	// metadata (placement + namespaces) in etcd when the cluster is deleted.
 	// Unless true, etcd data will be cleared when the cluster is deleted.
-	// +optional
+	// +kubebuilder:validation:Optional
 	KeepEtcdDataOnDelete bool `json:"keepEtcdDataOnDelete,omitempty"`
 
 	// EnableCarbonIngester enables the listener port for the carbon ingester
-	// +optional
+	// +kubebuilder:validation:Optional
 	EnableCarbonIngester bool `json:"enableCarbonIngester,omitempty"`
 
 	// ConfigMapName specifies the ConfigMap to use for this cluster. If unset a
 	// default configmap with template variables for etcd endpoints will be used.
 	// See "Configuring M3DB" in the docs for more.
-	// +optional
+	// +kubebuilder:validation:Optional
 	ConfigMapName *string `json:"configMapName,omitempty"`
 
 	// PodIdentityConfig sets the configuration for pod identity. If unset only
 	// pod name and UID will be used.
-	// +optional
+	// +kubebuilder:validation:Optional
 	PodIdentityConfig *PodIdentityConfig `json:"podIdentityConfig,omitempty"`
 
 	// Resources defines memory / cpu constraints for each container in the
 	// cluster.
-	// +optional
+	// +kubebuilder:validation:Optional
 	ContainerResources corev1.ResourceRequirements `json:"containerResources,omitempty"`
 
 	// DataDirVolumeClaimTemplate is the volume claim template for an M3DB
 	// instance's data. It claims PersistentVolumes for cluster storage, volumes
 	// are dynamically provisioned by when the StorageClass is defined.
-	// +optional
+	// +kubebuilder:validation:Optional
 	DataDirVolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"dataDirVolumeClaimTemplate,omitempty"`
 
 	// PodSecurityContext allows the user to specify an optional security context
@@ -240,7 +240,7 @@ type ClusterSpec struct {
 	// EnvVars defines custom environment variables to be passed to M3DB
 	// containers.
 	//
-	// +optional
+	// +kubebuilder:validation:Optional
 	EnvVars []corev1.EnvVar `json:"envVars,omitempty"`
 
 	// Labels sets the base labels that will be applied to resources created by
@@ -252,33 +252,34 @@ type ClusterSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations"`
 
 	// Tolerations sets the tolerations that will be applied to all M3DB pods.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// PriorityClassName sets the priority class for all M3DB pods.
-	// +optional
+	// +kubebuilder:validation:Optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// NodeEndpointFormat allows overriding of the endpoint used for a node in the
-	// M3DB placement. Defaults to "{{ .PodName }}.{{ .M3DBService }}:{{ .Port }}".
+	// M3DB placement. Defaults to "\{\{ .PodName \}\}.\{\{ .M3DBService \}\}:\{\{ .Port \}\}".
 	// Useful if access to the cluster from other namespaces is desired. See "Node
 	// Endpoint" docs for full variables available.
-	// +optional
+	// +kubebuilder:validation:Optional
 	NodeEndpointFormat string `json:"nodeEndpointFormat,omitempty"`
 
 	// HostNetwork indicates whether M3DB pods should run in the same network
 	// namespace as the node its on. This option should be used sparingly due to
 	// security concerns outlined in the linked documentation.
 	// https://kubernetes.io/docs/concepts/policy/pod-security-policy/#host-namespaces
-	// +optional
+	// +kubebuilder:validation:Optional
 	HostNetwork bool `json:"hostNetwork,omitEmpty"`
 
 	// DNSPolicy allows the user to set the pod's DNSPolicy. This is often used in
-	// conjunction with HostNetwork.+optional
-	// +optional
+	// conjunction with HostNetwork.
+	// +kubebuilder:validation:Optional
 	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitEmpty"`
 
 	// Specify a "controlling" coordinator for the cluster.
+	// +kubebuilder:validation:Optional
 	ExternalCoordinator *ExternalCoordinatorConfig `json:"externalCoordinator,omitempty"`
 
 	// Custom setup for db nodes can be done via initContainers
@@ -297,6 +298,7 @@ type ClusterSpec struct {
 	// ParallelPodManagement sets StatefulSets created by the operator to have
 	// Parallel pod management instead of OrderedReady. If nil, this will default
 	// to true.
+	// +kubebuilder:validation:Optional
 	ParallelPodManagement *bool `json:"parallelPodManagement,omitEmpty"`
 
 	// To use a non-default service account, specify the name here otherwise the
@@ -308,7 +310,7 @@ type ClusterSpec struct {
 	// Frozen is used to stop the operator from taking any further actions on a
 	// cluster. This is useful when troubleshooting as it guarantees the operator
 	// won't make any changes to the cluster.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Frozen bool `json:"frozen,omitempty"`
 
 	// SidecarContainers is used to add sidecar containers to the pods that run
@@ -326,12 +328,12 @@ type ClusterSpec struct {
 
 	// Zone defines the zone that placement instances will be written to if set.
 	// If not set, the default zone of "embedded" will be used.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Zone string `json:"zone,omitempty"`
 
 	// PreventScaleDown will prevent the operator from removing any nodes from a
 	// cluster if set to true.
-	// +optional
+	// +kubebuilder:validation:Optional
 	PreventScaleDown bool `json:"preventScaleDown,omitempty"`
 }
 
@@ -345,8 +347,10 @@ type ClusterSpec struct {
 // Setup this db cluster, but do not assume a co-located coordinator. Instead
 // provide a selector here so we can point to a separate coordinator service.
 type ExternalCoordinatorConfig struct {
-	Selector        map[string]string `json:"selector,omityempty"`
-	ServiceEndpoint string            `json:"serviceEndpoint,omitempty"`
+	// +kubebuilder:validation:Optional
+	Selector map[string]string `json:"selector,omityempty"`
+	// +kubebuilder:validation:Optional
+	ServiceEndpoint string `json:"serviceEndpoint,omitempty"`
 }
 
 // NodeAffinityTerm represents a node label and a set of label values, any of
@@ -392,7 +396,7 @@ type IsolationGroup struct {
 	// `dataDirVolumeClaimTemplate` is non-nil. If set, the volume claim template
 	// will have its storageClassName field overridden per-isolationgroup. If
 	// unset the storageClassName of the volumeClaimTemplate will be used.
-	// +optional
+	// +kubebuilder:validation:Optional
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
