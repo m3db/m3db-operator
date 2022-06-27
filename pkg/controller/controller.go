@@ -775,20 +775,9 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
-	for _, set := range childrenSets {
-		if set.Spec.UpdateStrategy.Type != appsv1.OnDeleteStatefulSetStrategyType {
-			continue
-		}
-
-		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
-			continue
-		}
-
-		if err = c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
-			delete(set.Annotations, annotations.ParallelUpdateInProgress)
-		}); err != nil {
-			return err
-		}
+	err = c.cleanupAnnotationsForOnDeleteStrategy(ctx, childrenSets)
+	if err != nil {
+		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
 	}
 
 	c.logger.Info("nothing to do",
@@ -797,6 +786,39 @@ func (c *M3DBController) handleClusterUpdate(
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
+	return nil
+}
+
+func (c *M3DBController) cleanupAnnotationsForOnDeleteStrategy(
+	ctx context.Context, childrenSets []*appsv1.StatefulSet,
+) error {
+	c.logger.Debug("cleaning up annotations for on delete strategy")
+	for _, set := range childrenSets {
+		if set.Spec.UpdateStrategy.Type != appsv1.OnDeleteStatefulSetStrategyType {
+			c.logger.Debug("skipping set because strategy is not on delete",
+				zap.String("sts", set.Name))
+			continue
+		}
+
+		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
+			c.logger.Debug("skipping set because it does not have update in progress annotation",
+				zap.String("sts", set.Name))
+			continue
+		}
+
+		c.logger.Info("removing update annotation for sts",
+			zap.String("sts", set.Name))
+
+		if err := c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
+			delete(set.Annotations, annotations.ParallelUpdateInProgress)
+		}); err != nil {
+			c.logger.Error("failed to remove annotation",
+				zap.String("sts", set.Name),
+				zap.Error(err))
+			return err
+		}
+	}
+	c.logger.Info("cleaned up annotations for on delete strategy")
 	return nil
 }
 
