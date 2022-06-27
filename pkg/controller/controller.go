@@ -704,6 +704,17 @@ func (c *M3DBController) handleClusterUpdate(
 			return fmt.Errorf("set %s has unset spec replica", set.Name)
 		}
 
+		// NB(cerkauskas): if statefulset is managed using on delete strategy, then operator
+		// should not expand nor shrink the cluster without the annotation
+		if set.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+			_, parallelUpdateAnnotationExists := set.Annotations[annotations.ParallelUpdate]
+			_, inProgressAnnotationExists := set.Annotations[annotations.ParallelUpdateInProgress]
+			if !parallelUpdateAnnotationExists && !inProgressAnnotationExists {
+				c.logger.Warn("skipping statefulset resize", zap.String("sts", set.Name))
+				continue
+			}
+		}
+
 		// Number of pods we want in the group.
 		desired := group.NumInstances
 		// Number of pods currently in the group.
