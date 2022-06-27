@@ -775,7 +775,7 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
-	err = c.cleanupAnnotationsForOnDeleteStrategy(ctx, childrenSets)
+	err = c.cleanupAnnotations(ctx, childrenSets)
 	if err != nil {
 		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
 	}
@@ -789,24 +789,21 @@ func (c *M3DBController) handleClusterUpdate(
 	return nil
 }
 
-func (c *M3DBController) cleanupAnnotationsForOnDeleteStrategy(
+func (c *M3DBController) cleanupAnnotations(
 	ctx context.Context, childrenSets []*appsv1.StatefulSet,
 ) error {
-	c.logger.Debug("cleaning up annotations for on delete strategy")
+	c.logger.Debug("cleaning up progress annotations")
 	for _, set := range childrenSets {
-		if set.Spec.UpdateStrategy.Type != appsv1.OnDeleteStatefulSetStrategyType {
-			c.logger.Debug("skipping set because strategy is not on delete",
-				zap.String("sts", set.Name))
-			continue
-		}
-
+		// NB(cerkauskas): we want to delete annotation no matter the strategy of cluster.
+		// Strategy could be changed while update is happening and we still want to remove
+		// the annotation since there is nothing more to do for operator.
 		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
-			c.logger.Debug("skipping set because it does not have update in progress annotation",
+			c.logger.Debug("skipping set because it does not have progress annotation",
 				zap.String("sts", set.Name))
 			continue
 		}
 
-		c.logger.Info("removing update annotation for sts",
+		c.logger.Info("removing update annotation for statefulset",
 			zap.String("sts", set.Name))
 
 		if err := c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
@@ -818,7 +815,7 @@ func (c *M3DBController) cleanupAnnotationsForOnDeleteStrategy(
 			return err
 		}
 	}
-	c.logger.Info("cleaned up annotations for on delete strategy")
+	c.logger.Info("cleaned up progress annotations")
 	return nil
 }
 
