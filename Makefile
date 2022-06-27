@@ -146,7 +146,6 @@ install-tools:
 	GOBIN=$(tools_bin_path) go install github.com/golangci/golangci-lint/cmd/golangci-lint
 	GOBIN=$(tools_bin_path) go install github.com/rakyll/statik
 	GOBIN=$(tools_bin_path) go install golang.org/x/lint/golint
-	GOBIN=$(tools_bin_path) go install k8s.io/kube-openapi/cmd/openapi-gen
 	GOBIN=$(tools_bin_path) go install sigs.k8s.io/controller-tools/cmd/controller-gen
 
 .PHONY: mock-gen
