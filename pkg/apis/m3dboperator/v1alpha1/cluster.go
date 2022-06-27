@@ -342,7 +342,7 @@ type ClusterSpec struct {
 // provide a selector here so we can point to a separate coordinator service.
 type ExternalCoordinatorConfig struct {
 	// +kubebuilder:validation:Optional
-	Selector map[string]string `json:"selector,omityempty"`
+	Selector map[string]string `json:"selector,omitempty"`
 	// +kubebuilder:validation:Optional
 	ServiceEndpoint string `json:"serviceEndpoint,omitempty"`
 }
