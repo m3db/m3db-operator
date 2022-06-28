@@ -121,7 +121,7 @@ func (c *FakeM3DBClusters) UpdateStatus(ctx context.Context, m3DBCluster *v1alph
 // Delete takes name of the m3DBCluster and deletes it. Returns an error if one occurs.
 func (c *FakeM3DBClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(m3dbclustersResource, c.ns, name), &v1alpha1.M3DBCluster{})
+		Invokes(testing.NewDeleteActionWithOptions(m3dbclustersResource, c.ns, name, opts), &v1alpha1.M3DBCluster{})
 
 	return err
 }

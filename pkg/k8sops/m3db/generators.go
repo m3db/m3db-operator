@@ -24,17 +24,14 @@ import (
 	"errors"
 	"fmt"
 
-	m3dboperator "github.com/m3db/m3db-operator/pkg/apis/m3dboperator"
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
 	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	crdutils "github.com/ant31/crd-validation/pkg"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/utils/pointer"
 )
@@ -82,39 +79,6 @@ var baseCoordinatorPorts = [...]m3dbPort{
 }
 
 var carbonListenerPort = m3dbPort{"coord-carbon", PortM3CoordinatorCarbon, v1.ProtocolTCP}
-
-// GenerateCRD generates the crd object needed for the M3DBCluster
-func GenerateCRD(enableValidation bool) *apiextensionsv1beta1.CustomResourceDefinition {
-	crd := &apiextensionsv1beta1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: m3dboperator.M3DBClustersName,
-		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group: m3dboperator.GroupName,
-			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
-				{
-					Name:    m3dboperator.Version,
-					Served:  true,
-					Storage: true,
-				},
-			},
-			Scope: apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural: m3dboperator.M3DBClusterResourcePlural,
-				Kind:   m3dboperator.M3DBClusterResourceKind,
-			},
-			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
-				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
-			},
-		},
-	}
-
-	if enableValidation {
-		crd.Spec.Validation = crdutils.GetCustomResourceValidation(_openAPISpecName, myspec.GetOpenAPIDefinitions)
-	}
-
-	return crd
-}
 
 // GenerateStatefulSet provides a statefulset object for a m3db cluster
 func GenerateStatefulSet(

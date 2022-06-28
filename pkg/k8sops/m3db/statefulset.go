@@ -70,7 +70,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		TimeoutSeconds:      _probeTimeoutSeconds,
 		InitialDelaySeconds: _probeInitialDelaySeconds,
 		FailureThreshold:    _probeFailureThreshold,
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port:   intstr.FromInt(PortM3DBHTTPNode),
 				Path:   _probePathReady,

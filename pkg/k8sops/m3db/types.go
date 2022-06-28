@@ -31,10 +31,6 @@ import (
 
 // K8sops provides an interface for various Kubernetes API calls
 type K8sops interface {
-	// CreateOrUpdateCRD creates the CRD if it does not exist, or updates it to
-	// contain the latest spec if it does exist.
-	CreateOrUpdateCRD(ctx context.Context, name string, enableValidation bool) error
-
 	// GetService simply gets a service by name
 	GetService(ctx context.Context, cluster *myspec.M3DBCluster, name string) (*v1.Service, error)
 
