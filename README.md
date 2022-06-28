@@ -43,9 +43,9 @@ Members of the M3 team hold office hours on the third Thursday of every month fr
 
 ### Dependencies
 
-The M3 operator targets Kubernetes **1.11** and **1.12**. We aim to target the latest two minor versions supported by GKE but welcome community contributions to support more versions
+The M3 operator targets Kubernetes **1.21** and higher. We aim to target the latest two minor versions supported by GKE but welcome community contributions to support more versions.
 
-The M3 operator is intended for creating highly available clusters across distinct failure domains. For this reason it only support Kubernetes clusters with nodes **in at least 3 zones**, but [support][https://github.com/m3db/m3db-operator/issues/68] for zonal clusters is coming soon.
+The M3 operator is intended for creating highly available clusters across distinct failure domains. For this reason it only support Kubernetes clusters with nodes **in at least 3 zones**.
 
 ## Usage
 
