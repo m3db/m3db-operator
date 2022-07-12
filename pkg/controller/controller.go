@@ -689,7 +689,8 @@ func (c *M3DBController) handleClusterUpdate(
 		if set.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
 			_, inProgressAnnotationExists := set.Annotations[annotations.ParallelUpdateInProgress]
 			if !inProgressAnnotationExists {
-				c.logger.Warn("skipping statefulset resize because it does not have progress annotation", zap.String("sts", set.Name))
+				c.logger.Warn("skipping statefulset resize because it does not have progress annotation",
+					zap.String("sts", set.Name))
 				continue
 			}
 		}
