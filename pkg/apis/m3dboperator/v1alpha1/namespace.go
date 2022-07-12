@@ -102,7 +102,10 @@ type DownsampleOptions struct {
 
 // ExtendedOptions stores the extended namespace options.
 type ExtendedOptions struct {
-	Type    string                     `json:"type,omitempty"`
+	Type string `json:"type,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:Type=object
 	Options map[string]json.RawMessage `json:"options,omitempty"`
 }
 
