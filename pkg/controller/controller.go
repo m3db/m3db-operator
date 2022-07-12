@@ -707,10 +707,9 @@ func (c *M3DBController) handleClusterUpdate(
 		// NB(cerkauskas): if statefulset is managed using on delete strategy, then operator
 		// should not expand nor shrink the cluster without the annotation
 		if set.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
-			_, parallelUpdateAnnotationExists := set.Annotations[annotations.ParallelUpdate]
 			_, inProgressAnnotationExists := set.Annotations[annotations.ParallelUpdateInProgress]
-			if !parallelUpdateAnnotationExists && !inProgressAnnotationExists {
-				c.logger.Warn("skipping statefulset resize", zap.String("sts", set.Name))
+			if !inProgressAnnotationExists {
+				c.logger.Warn("skipping statefulset resize because it does not have progress annotation", zap.String("sts", set.Name))
 				continue
 			}
 		}
