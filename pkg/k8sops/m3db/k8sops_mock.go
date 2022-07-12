@@ -58,20 +58,6 @@ func (m *MockK8sops) EXPECT() *MockK8sopsMockRecorder {
 	return m.recorder
 }
 
-// CreateOrUpdateCRD mocks base method.
-func (m *MockK8sops) CreateOrUpdateCRD(ctx context.Context, name string, enableValidation bool) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateOrUpdateCRD", ctx, name, enableValidation)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CreateOrUpdateCRD indicates an expected call of CreateOrUpdateCRD.
-func (mr *MockK8sopsMockRecorder) CreateOrUpdateCRD(ctx, name, enableValidation interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateCRD", reflect.TypeOf((*MockK8sops)(nil).CreateOrUpdateCRD), ctx, name, enableValidation)
-}
-
 // DeleteService mocks base method.
 func (m *MockK8sops) DeleteService(ctx context.Context, cluster *v1alpha1.M3DBCluster, name string) error {
 	m.ctrl.T.Helper()

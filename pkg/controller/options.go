@@ -43,7 +43,6 @@ type Option interface {
 type options struct {
 	logger                     *zap.Logger
 	scope                      tally.Scope
-	config                     Configuration
 	kclient                    m3db.K8sops
 	podIDProvider              podidentity.Provider
 	crdClient                  clientset.Interface
@@ -128,13 +127,6 @@ func WithKubectlProxy(use bool) Option {
 func WithPodIdentityProvider(p podidentity.Provider) Option {
 	return optionFn(func(o *options) {
 		o.podIDProvider = p
-	})
-}
-
-// WithConfig sets configuration for the controller.
-func WithConfig(c Configuration) Option {
-	return optionFn(func(o *options) {
-		o.config = c
 	})
 }
 

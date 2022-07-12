@@ -56,7 +56,6 @@ func TestOptions(t *testing.T) {
 		WithPodIdentityProvider(provider),
 		WithKubeInformerFactory(kubeinformers.NewSharedInformerFactory(kubeClient, 0)),
 		WithM3DBClusterInformerFactory(m3dbinformers.NewSharedInformerFactory(crdClient, 0)),
-		WithConfig(Configuration{}),
 	} {
 		assert.NotNil(t, o)
 		o.execute(opts)

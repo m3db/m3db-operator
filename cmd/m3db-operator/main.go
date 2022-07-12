@@ -61,18 +61,16 @@ const (
 )
 
 var (
-	_kubeCfgFile         string
-	_masterURL           string
-	_operatorName        = "m3db_operator"
-	_metricsPath         = "/metrics"
-	_metricsPort         = ":8080"
-	_useProxy            bool
-	_debugLog            bool
-	_develLog            bool
-	_humanTime           bool
-	_manageCRD           bool
-	_enableCRDValidation bool
-	_namespace           string
+	_kubeCfgFile  string
+	_masterURL    string
+	_operatorName = "m3db_operator"
+	_metricsPath  = "/metrics"
+	_metricsPort  = ":8080"
+	_useProxy     bool
+	_debugLog     bool
+	_develLog     bool
+	_humanTime    bool
+	_namespace    string
 )
 
 func init() {
@@ -82,9 +80,6 @@ func init() {
 	flag.BoolVar(&_develLog, "devel", false, "enable development logging mode")
 	flag.BoolVar(&_humanTime, "human-time", false, "print human-friendly timestamps")
 	flag.BoolVar(&_useProxy, "proxy", false, "use kubectl proxy for cluster communication")
-	flag.BoolVar(&_manageCRD, "manage-crd", true, "create and update the operator's CRD specs")
-	// Disabled by default until openAPI validation is more tested.
-	flag.BoolVar(&_enableCRDValidation, "enable-crd-validation", false, "enable openAPI validation of the CR")
 	flag.StringVar(&_namespace, "namespace", "all", "specify a specific namespace to watch. Or specify all to watch all namespaces")
 	flag.Parse()
 }
@@ -218,13 +213,7 @@ func main() {
 		logger.Fatal("failed to create ID provider", zap.Error(err))
 	}
 
-	config := controller.Configuration{
-		ManageCRD:        _manageCRD,
-		EnableValidation: _enableCRDValidation,
-	}
-
 	opts := []controller.Option{
-		controller.WithConfig(config),
 		controller.WithKubeInformerFactory(kubeInformerFactory),
 		controller.WithFilteredInformerFactory(filteredInformerFactory),
 		controller.WithM3DBClusterInformerFactory(m3dbClusterInformerFactory),
