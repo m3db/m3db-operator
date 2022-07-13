@@ -915,7 +915,7 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			mockPlacement(deps, replicas, false)
+			mockPlacement(deps, replicas)
 
 			if test.newImage != "" {
 				cluster.Spec.Image = test.newImage
@@ -1071,7 +1071,7 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			mockPlacement(deps, replicas, false)
+			mockPlacement(deps, replicas)
 
 			cluster.Spec.Image = newImage
 
@@ -1319,7 +1319,7 @@ func generatePodForStatefulSet(
 	}
 }
 
-func mockPlacement(deps *testDeps, replicas int32, isAvailable bool) {
+func mockPlacement(deps *testDeps, replicas int32) {
 	deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
 		Registry: &namespacepb.Registry{},
 	}, nil)
@@ -1332,7 +1332,7 @@ func mockPlacement(deps *testDeps, replicas int32, isAvailable bool) {
 		// checking and performing any updates, and we're only concerned with the latter
 		// in this test, configure the mock instances to be unavailable to reduce the
 		// amount of mocks we need to set up.
-		inst.EXPECT().IsAvailable().AnyTimes().Return(isAvailable)
+		inst.EXPECT().IsAvailable().AnyTimes().Return(false)
 		inst.EXPECT().ID().AnyTimes().Return(strconv.Itoa(i))
 		mockInstances = append(mockInstances, inst)
 	}
