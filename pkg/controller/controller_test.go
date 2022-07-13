@@ -22,6 +22,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -84,6 +85,7 @@ func setupTestCluster(
 	replicationFactor int,
 	numInstances int32,
 	onDeleteUpdateStrategy bool,
+	addRevision bool,
 ) (*myspec.M3DBCluster, *testDeps) {
 	cfgMapName := defaultConfigMapName
 	cluster := &myspec.M3DBCluster{
@@ -120,6 +122,11 @@ func setupTestCluster(
 		}
 		for k, v := range meta.Annotations {
 			set.Annotations[k] = v
+		}
+
+		if addRevision {
+			set.Status.CurrentRevision = "current-revision"
+			set.Status.UpdateRevision = "current-revision"
 		}
 
 		statefulSets[i] = set
@@ -725,7 +732,7 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cluster, deps := setupTestCluster(
-				t, *test.cluster, test.sets, nil, test.replicationFactor, 1, false,
+				t, *test.cluster, test.sets, nil, test.replicationFactor, 1, false, false,
 			)
 			defer deps.cleanup()
 			c := deps.newController(t)
@@ -902,11 +909,11 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			const replicas = 3
-			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, nil, replicas, 1, false)
+			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, nil, replicas, 1, false, false)
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			mockPlacement(deps, replicas)
+			mockPlacement(deps, replicas, false)
 
 			if test.newImage != "" {
 				cluster.Spec.Image = test.newImage
@@ -1057,12 +1064,12 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			nodes := int32(len(test.pods) / len(test.sets))
 			cluster, deps := setupTestCluster(
-				t, *rawCluster, test.sets, test.pods, int(replicas), nodes, true,
+				t, *rawCluster, test.sets, test.pods, int(replicas), nodes, true, false,
 			)
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			mockPlacement(deps, replicas)
+			mockPlacement(deps, replicas, false)
 
 			cluster.Spec.Image = newImage
 
@@ -1077,6 +1084,105 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 	}
 }
 
+func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
+	var (
+		clusterMeta = newMeta("cluster1", map[string]string{
+			"operator.m3db.io/app":     "m3db",
+			"operator.m3db.io/cluster": "cluster1",
+		}, nil)
+		sets = []*metav1.ObjectMeta{
+			newMeta("cluster1-rep0", nil, nil),
+			newMeta("cluster1-rep1", nil, map[string]string{
+				annotations.ParallelUpdateInProgress: "1",
+			}),
+			newMeta("cluster1-rep2", nil, nil),
+		}
+
+		pods = generatePods("cluster1", 3, 1, "current-revision")
+	)
+	cluster, deps := setupTestCluster(t, *clusterMeta, sets, pods, 3, 1, true, true)
+	defer deps.cleanup()
+	c := deps.newController(t)
+
+	deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
+		Registry: &namespacepb.Registry{},
+	}, nil)
+	deps.placementClient.EXPECT().Get().AnyTimes().Return(placement.NewPlacement(), nil)
+	deps.placementClient.EXPECT().Add(gomock.Any()).AnyTimes().Return(nil)
+
+	for _, pod := range pods {
+		deps.idProvider.EXPECT().
+			Identity(pod, gomock.Any()).
+			AnyTimes().
+			Return(&myspec.PodIdentity{Name: pod.Name}, nil)
+	}
+	// Scale up all isolation groups
+	for i := 0; i < len(cluster.Spec.IsolationGroups); i++ {
+		cluster.Spec.IsolationGroups[i].NumInstances = 3
+	}
+
+	//nolint:forcetypeassert
+	c.kubeClient.(*kubefake.Clientset).
+		PrependReactor("patch", "statefulsets",
+			func(action ktesting.Action) (bool, runtime.Object, error) {
+				// We are expecting patch only for Spec.Replicas as this test tests scaling
+				patchAction := action.(kubetesting.PatchActionImpl)
+				var patched appsv1.StatefulSet
+				require.NoError(t, json.Unmarshal(patchAction.Patch, &patched))
+				require.NotNil(t, patched.Spec.Replicas)
+
+				numReplicas := *patched.Spec.Replicas
+
+				// Pretending to be stateful set controller. We want to simulate creation of pod because
+				// scaling is happening one pod at a time.
+				sts, err := deps.statefulSetLister.StatefulSets("namespace").Get(patchAction.Name)
+				require.NoError(t, err)
+				sts.Spec.Replicas = &numReplicas
+				sts.Status.UpdatedReplicas = numReplicas
+				sts.Status.ReadyReplicas = numReplicas
+
+				pod := generatePodForStatefulSet("cluster1", sts.Name, int(numReplicas), "current-revision")
+				// Need to copy labels for pod to be found in placement update
+				for k, v := range sts.Labels {
+					pod.Labels[k] = v
+				}
+				require.NoError(t, deps.kubeClient.Tracker().Add(pod))
+				deps.idProvider.EXPECT().
+					Identity(pod, gomock.Any()).
+					AnyTimes().
+					Return(&myspec.PodIdentity{Name: pod.Name}, nil)
+
+				return true, sts, nil
+			})
+
+	for i := 0; i < 10; i++ {
+		require.NoError(t, c.handleClusterUpdate(context.Background(), cluster))
+	}
+
+	requireStatefulSetReplicas(t, deps, "cluster1-rep0", 1)
+	requireStatefulSetReplicas(t, deps, "cluster1-rep1", 3)
+	requireStatefulSetReplicas(t, deps, "cluster1-rep2", 1)
+
+	// Should check here for removal of progress annotation from stateful set.
+	// However, in this test version adds to placement instances are not stored
+	// therefore operator will try adding instances to placement, which will not
+	// result in removal of annotation.
+}
+
+func requireStatefulSetReplicas(
+	t *testing.T,
+	deps *testDeps,
+	statefulSetName string,
+	expectedReplicas int32,
+) {
+	t.Helper()
+
+	sts, err := deps.statefulSetLister.StatefulSets("namespace").Get(statefulSetName)
+	require.NoError(t, err)
+	require.NotNil(t, t, sts.Spec.Replicas)
+	require.Equal(t, expectedReplicas, *sts.Spec.Replicas)
+}
+
 func TestHandleUpdateClusterFrozen(t *testing.T) {
 	var (
 		clusterMeta = newMeta("cluster1", map[string]string{
@@ -1088,7 +1194,7 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 			newMeta("cluster1-rep0", nil, nil),
 		}
 	)
-	cluster, deps := setupTestCluster(t, *clusterMeta, sets, nil, 3, 1, false)
+	cluster, deps := setupTestCluster(t, *clusterMeta, sets, nil, 3, 1, false, false)
 	defer deps.cleanup()
 	controller := deps.newController(t)
 
@@ -1137,19 +1243,38 @@ func generatePods(clusterName string, rf int32, nodes int32, revision string) []
 	var pods []*corev1.Pod
 	for i := 0; i < int(rf); i++ {
 		for j := 0; j < int(nodes); j++ {
-			pods = append(pods, &corev1.Pod{
-				ObjectMeta: *newMeta(fmt.Sprintf("%s-rep%d-%d", clusterName, i, j), map[string]string{
-					"controller-revision-hash":      fmt.Sprintf("%s-rep%d-%s", clusterName, i, revision),
-					"operator.m3db.io/stateful-set": fmt.Sprintf("%s-rep%d", clusterName, i),
-				}, nil),
-			})
+			pods = append(pods, generatePod(clusterName, i, j, revision))
 		}
 	}
 
 	return pods
 }
 
-func mockPlacement(deps *testDeps, replicas int32) {
+func generatePod(clusterName string, rep, node int, revision string) *corev1.Pod {
+	statefulSetName := fmt.Sprintf("%s-rep%d", clusterName, rep)
+
+	return generatePodForStatefulSet(clusterName, statefulSetName, node, revision)
+}
+
+func generatePodForStatefulSet(
+	clusterName string,
+	statefulSetName string,
+	node int,
+	revision string,
+) *corev1.Pod {
+	l := labels.BaseLabels(&myspec.M3DBCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterName,
+		},
+	})
+	l["controller-revision-hash"] = fmt.Sprintf("%s-%s", statefulSetName, revision)
+	l["operator.m3db.io/stateful-set"] = statefulSetName
+	return &corev1.Pod{
+		ObjectMeta: *newMeta(fmt.Sprintf("%s-%d", statefulSetName, node), l, nil),
+	}
+}
+
+func mockPlacement(deps *testDeps, replicas int32, isAvailable bool) {
 	deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
 		Registry: &namespacepb.Registry{},
 	}, nil)
@@ -1162,7 +1287,7 @@ func mockPlacement(deps *testDeps, replicas int32) {
 		// checking and performing any updates, and we're only concerned with the latter
 		// in this test, configure the mock instances to be unavailable to reduce the
 		// amount of mocks we need to set up.
-		inst.EXPECT().IsAvailable().AnyTimes().Return(false)
+		inst.EXPECT().IsAvailable().AnyTimes().Return(isAvailable)
 		inst.EXPECT().ID().AnyTimes().Return(strconv.Itoa(i))
 		mockInstances = append(mockInstances, inst)
 	}
