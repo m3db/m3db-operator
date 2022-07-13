@@ -39,7 +39,9 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 
+	"github.com/m3db/m3/src/cluster/generated/proto/placementpb"
 	"github.com/m3db/m3/src/cluster/placement"
+	"github.com/m3db/m3/src/cluster/shard"
 	namespacepb "github.com/m3db/m3/src/dbnode/generated/proto/namespace"
 	"github.com/m3db/m3/src/query/generated/proto/admin"
 
@@ -1104,18 +1106,55 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 	defer deps.cleanup()
 	c := deps.newController(t)
 
-	deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
-		Registry: &namespacepb.Registry{},
-	}, nil)
-	deps.placementClient.EXPECT().Get().AnyTimes().Return(placement.NewPlacement(), nil)
-	deps.placementClient.EXPECT().Add(gomock.Any()).AnyTimes().Return(nil)
-
+	pl := placement.NewPlacement()
+	insts := []placement.Instance{}
 	for _, pod := range pods {
+		podIdentity := &myspec.PodIdentity{Name: pod.Name}
 		deps.idProvider.EXPECT().
 			Identity(pod, gomock.Any()).
 			AnyTimes().
-			Return(&myspec.PodIdentity{Name: pod.Name}, nil)
+			Return(podIdentity, nil)
+
+		podID, err := podidentity.IdentityJSON(podIdentity)
+		require.NoError(t, err)
+
+		statefulSetName, ok := pod.Labels[labels.StatefulSet]
+		require.True(t, ok)
+		sts, err := deps.statefulSetLister.StatefulSets("namespace").Get(statefulSetName)
+		require.NoError(t, err)
+
+		instMock := placement.NewMockInstance(deps.mockController)
+		instMock.EXPECT().IsAvailable().AnyTimes().Return(true)
+		instMock.EXPECT().ID().AnyTimes().Return(podID)
+		instMock.EXPECT().Shards().AnyTimes().Return(shard.NewShards(nil))
+		instMock.EXPECT().Hostname().AnyTimes().Return(pod.Name)
+		instMock.EXPECT().IsolationGroup().AnyTimes().Return(sts.Labels[labels.IsolationGroup])
+		insts = append(insts, instMock)
 	}
+	pl.SetInstances(insts)
+
+	deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
+		Registry: &namespacepb.Registry{},
+	}, nil)
+	deps.placementClient.EXPECT().Get().AnyTimes().Return(pl, nil)
+	deps.placementClient.EXPECT().Add(gomock.Any()).AnyTimes().Do(
+		func(instsToAdd []*placementpb.Instance) {
+			insts := pl.Instances()
+			for _, instProto := range instsToAdd {
+				inst, err := placement.NewInstanceFromProto(instProto)
+				require.NoError(t, err)
+				instMock := placement.NewMockInstance(deps.mockController)
+				instMock.EXPECT().IsAvailable().AnyTimes().Return(true)
+				instMock.EXPECT().ID().AnyTimes().Return(inst.ID())
+				instMock.EXPECT().Shards().AnyTimes().Return(inst.Shards())
+				instMock.EXPECT().Hostname().AnyTimes().Return(inst.Hostname())
+				instMock.EXPECT().IsolationGroup().AnyTimes().Return(inst.IsolationGroup())
+				insts = append(insts, instMock)
+			}
+
+			pl.SetInstances(insts)
+		}).Return(nil)
+
 	// Scale up all isolation groups
 	for i := 0; i < len(cluster.Spec.IsolationGroups); i++ {
 		cluster.Spec.IsolationGroups[i].NumInstances = 3
@@ -1129,7 +1168,11 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 				patchAction := action.(kubetesting.PatchActionImpl)
 				var patched appsv1.StatefulSet
 				require.NoError(t, json.Unmarshal(patchAction.Patch, &patched))
-				require.NotNil(t, patched.Spec.Replicas)
+
+				// If replicas are nil, then it must be deletion of annotations
+				if patched.Spec.Replicas == nil {
+					return false, nil, nil
+				}
 
 				numReplicas := *patched.Spec.Replicas
 
@@ -1163,10 +1206,12 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 	requireStatefulSetReplicas(t, deps, "cluster1-rep1", 3)
 	requireStatefulSetReplicas(t, deps, "cluster1-rep2", 1)
 
-	// Should check here for removal of progress annotation from stateful set.
-	// However, in this test version adds to placement instances are not stored
-	// therefore operator will try adding instances to placement, which will not
-	// result in removal of annotation.
+	sts, err := deps.statefulSetLister.StatefulSets("namespace").Get("cluster1-rep1")
+	require.NoError(t, err)
+
+	// Let's make sure that annotation is removed when everything is done
+	_, ok := sts.Annotations[annotations.ParallelUpdateInProgress]
+	require.False(t, ok)
 }
 
 func requireStatefulSetReplicas(
