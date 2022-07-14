@@ -684,6 +684,17 @@ func (c *M3DBController) handleClusterUpdate(
 			return fmt.Errorf("set %s has unset spec replica", set.Name)
 		}
 
+		// NB(cerkauskas): if statefulset is managed using on delete strategy, then operator
+		// should not expand nor shrink the cluster without the annotation
+		if set.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
+			_, inProgressAnnotationExists := set.Annotations[annotations.ParallelUpdateInProgress]
+			if !inProgressAnnotationExists {
+				c.logger.Warn("skipping statefulset resize because it does not have progress annotation",
+					zap.String("sts", set.Name))
+				continue
+			}
+		}
+
 		// Number of pods we want in the group.
 		desired := group.NumInstances
 		// Number of pods currently in the group.
@@ -755,12 +766,47 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
+	err = c.cleanupAnnotations(ctx, childrenSets)
+	if err != nil {
+		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
+	}
+
 	c.logger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
 		zap.Int("zones", len(isoGroups)),
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
 		zap.String("rv", cluster.ObjectMeta.ResourceVersion))
 
+	return nil
+}
+
+func (c *M3DBController) cleanupAnnotations(
+	ctx context.Context, childrenSets []*appsv1.StatefulSet,
+) error {
+	c.logger.Debug("cleaning up progress annotations")
+	for _, set := range childrenSets {
+		// NB(cerkauskas): we want to delete annotation no matter the strategy of cluster.
+		// Strategy could be changed while update is happening and we still want to remove
+		// the annotation since there is nothing more to do for operator.
+		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
+			c.logger.Debug("skipping set because it does not have progress annotation",
+				zap.String("sts", set.Name))
+			continue
+		}
+
+		c.logger.Info("removing update annotation for statefulset",
+			zap.String("sts", set.Name))
+
+		if err := c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
+			delete(set.Annotations, annotations.ParallelUpdateInProgress)
+		}); err != nil {
+			c.logger.Error("failed to remove annotation",
+				zap.String("sts", set.Name),
+				zap.Error(err))
+			return err
+		}
+	}
+	c.logger.Info("cleaned up progress annotations")
 	return nil
 }
 
@@ -878,17 +924,12 @@ func (c *M3DBController) updateStatefulSetPods(
 	sts.Status.CurrentReplicas = sts.Status.UpdatedReplicas
 	sts.Status.CurrentRevision = sts.Status.UpdateRevision
 
-	if sts, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
+	if _, err = c.kubeClient.AppsV1().StatefulSets(cluster.Namespace).
 		UpdateStatus(ctx, sts, metav1.UpdateOptions{}); err != nil {
 		return false, err
 	}
 
-	if err = c.patchStatefulSet(ctx, sts, func(set *appsv1.StatefulSet) {
-		delete(set.Annotations, annotations.ParallelUpdateInProgress)
-	}); err != nil {
-		return false, err
-	}
-	logger.Info("update complete")
+	logger.Info("update of existing pods complete")
 
 	return false, nil
 }
