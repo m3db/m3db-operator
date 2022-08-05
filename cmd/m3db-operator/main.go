@@ -84,6 +84,9 @@ func init() {
 	flag.Parse()
 }
 
+// TODO: add flag to disable it
+// TODO: we can have an annotation when the last successful loop was executed
+// TODO: include dry-run
 func main() {
 	var cfg zap.Config
 	if _develLog {

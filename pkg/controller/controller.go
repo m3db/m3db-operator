@@ -25,11 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
-	"sort"
-	"strconv"
-	"sync"
-
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
@@ -40,6 +35,11 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
+	"reflect"
+	"sort"
+	"strconv"
+	"sync"
+	"time"
 
 	m3placement "github.com/m3db/m3/src/cluster/placement"
 
@@ -111,6 +111,9 @@ type M3DBController struct {
 	clusterLister  clusterlisters.M3DBClusterLister
 	clustersSynced cache.InformerSynced
 
+	pvcLister corelisters.PersistentVolumeClaimLister
+	pvcSynced cache.InformerSynced
+
 	clusterWorkQueue workqueue.RateLimitingInterface
 }
 
@@ -144,6 +147,7 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 
 	statefulSetInformer := options.filteredInformerFactory.Apps().V1().StatefulSets()
 	podInformer := options.filteredInformerFactory.Core().V1().Pods()
+	pvcInformer := options.filteredInformerFactory.Core().V1().PersistentVolumeClaims()
 	m3dbClusterInformer := options.m3dbClusterInformerFactory.Operator().V1alpha1().M3DBClusters()
 
 	samplescheme.AddToScheme(scheme.Scheme)
@@ -184,6 +188,9 @@ func NewM3DBController(opts ...Option) (*M3DBController, error) {
 
 		clusterLister:  m3dbClusterInformer.Lister(),
 		clustersSynced: m3dbClusterInformer.Informer().HasSynced,
+
+		pvcLister: pvcInformer.Lister(),
+		pvcSynced: pvcInformer.Informer().HasSynced,
 
 		clusterWorkQueue: clusterWorkQueue,
 	}
@@ -241,7 +248,7 @@ func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer cancel()
 
 	c.logger.Info("waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced, c.pvcSynced); !ok {
 		return errors.New("caches failed to sync")
 	}
 
@@ -771,6 +778,11 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
 	}
 
+	// Check whether cluster required replicas is equal to stateful set replicas, there is the same code above
+	if err := c.cleanupDanglingStorage(ctx, cluster); err != nil {
+		return fmt.Errorf("cleaning up dangling storage: %w", err)
+	}
+
 	c.logger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
 		zap.Int("zones", len(isoGroups)),
@@ -1265,6 +1277,65 @@ func (c *M3DBController) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster,
 	}
 
 	return cluster, nil
+}
+
+func (c *M3DBController) cleanupDanglingStorage(ctx context.Context, cluster *myspec.M3DBCluster) error {
+	labelSelector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
+
+	claims, err := c.pvcLister.PersistentVolumeClaims(cluster.Namespace).List(labelSelector)
+	if err != nil {
+		return fmt.Errorf("listing claims: %w", err)
+	}
+
+	claimsByName := map[string]*corev1.PersistentVolumeClaim{}
+	for _, claim := range claims {
+		claimsByName[claim.Name] = claim
+	}
+
+	pods, err := c.podLister.Pods(cluster.Namespace).List(labelSelector)
+	if err != nil {
+		return fmt.Errorf("listing pods: %w", err)
+	}
+
+	// remove all used PVCs from the map
+	for _, pod := range pods {
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim != nil {
+				delete(claimsByName, volume.PersistentVolumeClaim.ClaimName)
+			}
+		}
+	}
+
+	logger := c.logger.With(
+		zap.String("cluster", cluster.Name),
+		zap.String("namespace", cluster.Namespace))
+
+	for _, claim := range claims {
+		isOldClaim := claim.CreationTimestamp.DeepCopy().Add(-24 * time.Hour).After(time.Now())
+
+		logger.Info("Deleting persistent volume",
+			zap.String("persistent_volume", claim.Spec.VolumeName),
+			zap.Bool("is_old_enough", isOldClaim))
+
+		//err = c.kubeClient.CoreV1().PersistentVolumes().Delete(ctx, claim.Spec.VolumeName, metav1.DeleteOptions{})
+		//if err != nil {
+		//	return fmt.Errorf("deleting persistent volume: %w", err)
+		//}
+
+		logger.Info("Deleting persistent volume claim",
+			zap.String("persistent_volume_claim", claim.Spec.VolumeName),
+			zap.Bool("is_old_enough", isOldClaim))
+
+		//err = c.kubeClient.CoreV1().
+		//	PersistentVolumeClaims(cluster.Namespace).
+		//	Delete(ctx, claim.Name, metav1.DeleteOptions{})
+		//
+		//if err != nil {
+		//	return fmt.Errorf("deleting persistent volume claim: %w", err)
+		//}
+	}
+
+	return nil
 }
 
 func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
