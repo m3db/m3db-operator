@@ -244,6 +244,17 @@ func main() {
 	go filteredInformerFactory.Start(stopCh)
 	go m3dbClusterInformerFactory.Start(stopCh)
 
+	go func() {
+		for {
+			select {
+			case <-time.After(60 * time.Second):
+				logger.Info("Correct build running!")
+			case <-stopCh:
+				return
+			}
+		}
+	}()
+
 	// Trap the INT and TERM signals
 	signalChan := make(chan os.Signal, 2)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
