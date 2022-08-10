@@ -1344,7 +1344,7 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 		}
 
 		// Sometimes a PV can have a reclaim policy other than "Delete". Skip these PVCs,
-		// so we would not leave dangling PV which are hard to select because of the missing labels.
+		// so we would not leave dangling PVs which are hard to select because of the missing labels.
 		if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
 			logger.Warn("PVC has a PV with a non-delete reclaim policy. Skipping it to avoid leaving dangling PVs",
 				zap.String("pvc", pvc.Name),
