@@ -63,6 +63,7 @@ type testDeps struct {
 	statefulSetLister appsv1listers.StatefulSetLister
 	podLister         corev1listers.PodLister
 	crdLister         crdlisters.M3DBClusterLister
+	pvcLister         corev1listers.PersistentVolumeClaimLister
 	placementClient   *placement.MockClient
 	namespaceClient   *namespace.MockClient
 	clock             clock.Clock
@@ -109,6 +110,8 @@ func (deps *testDeps) newController(t *testing.T) *M3DBController {
 
 		clusterWorkQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), clusterWorkQueueName),
 		clusterLister:    deps.crdLister,
+
+		pvcLister: deps.pvcLister,
 	}
 }
 
@@ -139,6 +142,7 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 	kubeInformers := kubeinformers.NewSharedInformerFactory(deps.kubeClient, 0)
 	sets := kubeInformers.Apps().V1().StatefulSets()
 	pods := kubeInformers.Core().V1().Pods()
+	pvcs := kubeInformers.Core().V1().PersistentVolumeClaims()
 
 	crdInformers := crdinformers.NewSharedInformerFactory(deps.crdClient, 0)
 	crds := crdInformers.Operator().V1alpha1().M3DBClusters()
@@ -146,6 +150,7 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 	deps.statefulSetLister = sets.Lister()
 	deps.podLister = pods.Lister()
 	deps.crdLister = crds.Lister()
+	deps.pvcLister = pvcs.Lister()
 
 	go kubeInformers.Start(deps.stopCh)
 	go crdInformers.Start(deps.stopCh)

@@ -61,6 +61,9 @@ const (
 	ReasonFailSync    = "FailedToSync"
 	ReasonSuccessSync = "SuccessfulSync"
 
+	// Disk management events
+	ReasonPVCDeleted = "PVCDeleted"
+
 	// Misc events
 	ReasonLongerThanUsual = "TimeLongerThanUsual"
 	ReasonUnknown         = "Unknown"

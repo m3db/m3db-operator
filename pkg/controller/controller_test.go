@@ -68,6 +68,7 @@ import (
 const (
 	defaultTestImage     = "m3db:v1.0.0"
 	defaultConfigMapName = "configMapName"
+	defaultNamespace     = "namespace"
 )
 
 func newMeta(name string, labels, annotations map[string]string) *metav1.ObjectMeta {
@@ -75,50 +76,56 @@ func newMeta(name string, labels, annotations map[string]string) *metav1.ObjectM
 		Name:        name,
 		Labels:      labels,
 		Annotations: annotations,
-		Namespace:   "namespace",
+		Namespace:   defaultNamespace,
 	}
+}
+
+type testClusterParams struct {
+	sets                   []*metav1.ObjectMeta
+	pods                   []*corev1.Pod
+	replicationFactor      int
+	numInstances           int32
+	onDeleteUpdateStrategy bool
+	addRevision            bool
+	pvcs                   []*corev1.PersistentVolumeClaim
+	pvs                    []*corev1.PersistentVolume
 }
 
 func setupTestCluster(
 	t *testing.T,
 	clusterMeta metav1.ObjectMeta,
-	sets []*metav1.ObjectMeta,
-	pods []*corev1.Pod,
-	replicationFactor int,
-	numInstances int32,
-	onDeleteUpdateStrategy bool,
-	addRevision bool,
+	p testClusterParams,
 ) (*myspec.M3DBCluster, *testDeps) {
 	cfgMapName := defaultConfigMapName
 	cluster := &myspec.M3DBCluster{
 		ObjectMeta: clusterMeta,
 		Spec: myspec.ClusterSpec{
 			Image:                  defaultTestImage,
-			ReplicationFactor:      int32(replicationFactor),
+			ReplicationFactor:      int32(p.replicationFactor),
 			ConfigMapName:          &cfgMapName,
-			OnDeleteUpdateStrategy: onDeleteUpdateStrategy,
+			OnDeleteUpdateStrategy: p.onDeleteUpdateStrategy,
 		},
 	}
 	cluster.ObjectMeta.UID = "abcd"
-	groups := make([]myspec.IsolationGroup, 0, replicationFactor)
-	for i := 0; i < replicationFactor; i++ {
+	groups := make([]myspec.IsolationGroup, 0, p.replicationFactor)
+	for i := 0; i < p.replicationFactor; i++ {
 		group := myspec.IsolationGroup{
 			Name:         fmt.Sprintf("group%d", i),
-			NumInstances: numInstances,
+			NumInstances: p.numInstances,
 		}
 		groups = append(groups, group)
 	}
 	cluster.Spec.IsolationGroups = groups
 	cluster.ObjectMeta.Finalizers = []string{labels.EtcdDeletionFinalizer}
 
-	objects := make([]runtime.Object, len(sets))
-	statefulSets := make([]*appsv1.StatefulSet, len(sets))
-	for i, meta := range sets {
-		set, err := m3db.GenerateStatefulSet(cluster, groups[i].Name, numInstances)
+	objects := make([]runtime.Object, len(p.sets))
+	statefulSets := make([]*appsv1.StatefulSet, len(p.sets))
+	for i, meta := range p.sets {
+		set, err := m3db.GenerateStatefulSet(cluster, groups[i].Name, p.numInstances)
 		require.NoError(t, err)
 
 		set.Namespace = meta.Namespace
-		set.Status.ReadyReplicas = numInstances
+		set.Status.ReadyReplicas = p.numInstances
 		for k, v := range meta.Labels {
 			set.Labels[k] = v
 		}
@@ -126,7 +133,7 @@ func setupTestCluster(
 			set.Annotations[k] = v
 		}
 
-		if addRevision {
+		if p.addRevision {
 			set.Status.CurrentRevision = "current-revision"
 			set.Status.UpdateRevision = "current-revision"
 		}
@@ -142,9 +149,17 @@ func setupTestCluster(
 		}
 	}
 
-	for _, pod := range pods {
+	for _, pod := range p.pods {
 		// nolint:makezero
 		objects = append(objects, runtime.Object(pod))
+	}
+
+	for _, pvc := range p.pvcs {
+		objects = append(objects, runtime.Object(pvc))
+	}
+
+	for _, pv := range p.pvs {
+		objects = append(objects, runtime.Object(pv))
 	}
 
 	deps := newTestDeps(t, &testOpts{
@@ -199,7 +214,9 @@ func waitForStatefulSets(
 			sts = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
 			// Note: Simulate an update revision to make sure the updated
 			// replicas check is enforced.
+			mu.Lock()
 			updates++
+			mu.Unlock()
 			sts.Status.UpdateRevision = fmt.Sprintf("updated-revision-%d", updates)
 			sts.Status.CurrentRevision = fmt.Sprintf("%s-%s", sts.Name, opts.currentRevision)
 			if !opts.simulatePodsNotUpdated {
@@ -733,9 +750,11 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cluster, deps := setupTestCluster(
-				t, *test.cluster, test.sets, nil, test.replicationFactor, 1, false, false,
-			)
+			cluster, deps := setupTestCluster(t, *test.cluster, testClusterParams{
+				sets:              test.sets,
+				replicationFactor: test.replicationFactor,
+				numInstances:      1,
+			})
 			defer deps.cleanup()
 			c := deps.newController(t)
 
@@ -911,7 +930,11 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			const replicas = 3
-			cluster, deps := setupTestCluster(t, *test.cluster, test.sets, nil, replicas, 1, false, false)
+			cluster, deps := setupTestCluster(t, *test.cluster, testClusterParams{
+				sets:              test.sets,
+				replicationFactor: replicas,
+				numInstances:      1,
+			})
 			defer deps.cleanup()
 			c := deps.newController(t)
 
@@ -1065,9 +1088,13 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			nodes := int32(len(test.pods) / len(test.sets))
-			cluster, deps := setupTestCluster(
-				t, *rawCluster, test.sets, test.pods, int(replicas), nodes, true, false,
-			)
+			cluster, deps := setupTestCluster(t, *rawCluster, testClusterParams{
+				sets:                   test.sets,
+				pods:                   test.pods,
+				replicationFactor:      int(replicas),
+				numInstances:           nodes,
+				onDeleteUpdateStrategy: true,
+			})
 			defer deps.cleanup()
 			c := deps.newController(t)
 
@@ -1102,7 +1129,14 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 
 		pods = generatePods("cluster1", 3, 1, "current-revision")
 	)
-	cluster, deps := setupTestCluster(t, *clusterMeta, sets, pods, 3, 1, true, true)
+	cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+		sets:                   sets,
+		pods:                   pods,
+		replicationFactor:      3,
+		numInstances:           1,
+		onDeleteUpdateStrategy: true,
+		addRevision:            true,
+	})
 	defer deps.cleanup()
 	c := deps.newController(t)
 
@@ -1214,6 +1248,217 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestCleanupDanglingStorage(t *testing.T) {
+	var (
+		clusterName = "cluster123"
+		baseLabels  = map[string]string{
+			labels.App:     labels.AppM3DB,
+			labels.Cluster: clusterName,
+		}
+		clusterMeta = newMeta(clusterName, baseLabels, nil)
+	)
+
+	tests := []struct {
+		name      string
+		podsBySts map[int][]*corev1.Pod
+		pvcs      []*corev1.PersistentVolumeClaim
+		pvs       []*corev1.PersistentVolume
+
+		expectPVCNames []string
+	}{
+		{
+			name: "unused PVCs are removed",
+			podsBySts: map[int][]*corev1.Pod{
+				0: {
+					generatePodWithTransformation(clusterName, 0, 0, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{
+							generatePvcPodVolume("data", "pvc-0-0"),
+							{
+								Name: "local_cache",
+								VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
+									Path: "/cache",
+								}},
+							},
+						}
+					}),
+					generatePodWithTransformation(clusterName, 0, 1, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-0-1")}
+					}),
+				},
+				1: {
+					generatePodWithTransformation(clusterName, 1, 0, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-1-0")}
+					}),
+					generatePodWithTransformation(clusterName, 1, 1, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-1-1")}
+					}),
+				},
+			},
+			pvcs: []*corev1.PersistentVolumeClaim{
+				generatePVC("pvc-0-0", "pv-0-0", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+				generatePVC("pvc-0-1", "pv-0-1", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+				generatePVC("pvc-0-2", "pv-0-2", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+
+				generatePVC("pvc-1-0", "pv-1-0", labelsWithSTSName(baseLabels, clusterName+"-rep1")),
+				generatePVC("pvc-1-1", "pv-1-1", labelsWithSTSName(baseLabels, clusterName+"-rep1")),
+			},
+			pvs: []*corev1.PersistentVolume{
+				generatePV("pv-0-0", corev1.PersistentVolumeReclaimDelete),
+				generatePV("pv-0-1", corev1.PersistentVolumeReclaimDelete),
+				generatePV("pv-0-2", corev1.PersistentVolumeReclaimDelete),
+
+				generatePV("pv-1-0", corev1.PersistentVolumeReclaimDelete),
+				generatePV("pv-1-1", corev1.PersistentVolumeReclaimDelete),
+			},
+			expectPVCNames: []string{"pvc-0-0", "pvc-0-1", "pvc-1-0", "pvc-1-1"},
+		},
+		{
+			name: "does not remove pvcs for other application",
+			podsBySts: map[int][]*corev1.Pod{
+				0: {
+					generatePodWithTransformation(clusterName, 0, 0, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-0-0")}
+					}),
+					generatePodWithTransformation(clusterName, 0, 1, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-0-1")}
+					}),
+				},
+			},
+			pvcs: []*corev1.PersistentVolumeClaim{
+				generatePVC("pvc-0-0", "pv-0-0", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+				generatePVC("pvc-0-1", "pv-0-1", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+
+				generatePVC("tracing-pvc-0-0", "tracing-pv-0-0", map[string]string{
+					labels.App: "tracing",
+				}),
+			},
+			pvs: []*corev1.PersistentVolume{
+				generatePV("pv-0-0", corev1.PersistentVolumeReclaimDelete),
+				generatePV("pv-0-1", corev1.PersistentVolumeReclaimDelete),
+
+				generatePV("tracing-pv-0-0", corev1.PersistentVolumeReclaimDelete),
+			},
+			expectPVCNames: []string{"pvc-0-0", "pvc-0-1", "tracing-pvc-0-0"},
+		},
+		{
+			name: "does not delete PVCs where PV has non-delete reclaim policy",
+			podsBySts: map[int][]*corev1.Pod{
+				0: {
+					generatePodWithTransformation(clusterName, 0, 0, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-0-0")}
+					}),
+				},
+			},
+			pvcs: []*corev1.PersistentVolumeClaim{
+				generatePVC("pvc-0-0", "pv-0-0", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+
+				generatePVC("pvc-0-1", "pv-0-1", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+				generatePVC("pvc-0-2", "pv-0-2", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+			},
+			pvs: []*corev1.PersistentVolume{
+				generatePV("pv-0-0", corev1.PersistentVolumeReclaimDelete),
+
+				generatePV("pv-0-1", corev1.PersistentVolumeReclaimRetain),
+				generatePV("pv-0-2", corev1.PersistentVolumeReclaimRecycle),
+			},
+			expectPVCNames: []string{"pvc-0-0", "pvc-0-1", "pvc-0-2"},
+		},
+		{
+			name: "does not delete PVCs where name does not follow standard format",
+			podsBySts: map[int][]*corev1.Pod{
+				0: {
+					generatePodWithTransformation(clusterName, 0, 0, func(pod *corev1.Pod) {
+						pod.Spec.Volumes = []corev1.Volume{generatePvcPodVolume("data", "pvc-0-0")}
+					}),
+				},
+			},
+			pvcs: []*corev1.PersistentVolumeClaim{
+				generatePVC("pvc-0-0", "pv-0-0", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+				generatePVC("pvc-0-1-save-it", "pv-0-1", labelsWithSTSName(baseLabels, clusterName+"-rep0")),
+			},
+			pvs: []*corev1.PersistentVolume{
+				generatePV("pv-0-0", corev1.PersistentVolumeReclaimDelete),
+				generatePV("pv-0-1", corev1.PersistentVolumeReclaimRetain),
+			},
+			expectPVCNames: []string{"pvc-0-0", "pvc-0-1-save-it"},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			replicationFactor := len(test.podsBySts)
+			sets := generateSets(clusterName, int32(replicationFactor), "3", false)
+
+			var allPods []*corev1.Pod
+			for _, pods := range test.podsBySts {
+				allPods = append(allPods, pods...)
+			}
+
+			cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+				sets:              sets,
+				pods:              allPods,
+				replicationFactor: replicationFactor,
+				numInstances:      int32(len(allPods) / replicationFactor),
+				pvcs:              test.pvcs,
+				pvs:               test.pvs,
+			})
+
+			deps.namespaceClient.EXPECT().List().AnyTimes().Return(&admin.NamespaceGetResponse{
+				Registry: &namespacepb.Registry{},
+			}, nil)
+
+			var mockInstances []placement.Instance
+			for i, stsMeta := range sets {
+				pods := test.podsBySts[i]
+
+				sts, err := deps.statefulSetLister.StatefulSets(defaultNamespace).Get(stsMeta.Name)
+				require.NoError(t, err)
+
+				for _, pod := range pods {
+					podIdentity := &myspec.PodIdentity{Name: pod.Name}
+					deps.idProvider.EXPECT().
+						Identity(pod, gomock.Any()).
+						AnyTimes().
+						Return(podIdentity, nil)
+
+					podID, err := podidentity.IdentityJSON(podIdentity)
+					require.NoError(t, err)
+
+					inst := placement.NewMockInstance(deps.mockController)
+					inst.EXPECT().IsAvailable().AnyTimes().Return(true)
+					inst.EXPECT().ID().AnyTimes().Return(podID)
+					inst.EXPECT().Hostname().AnyTimes().Return(pod.Name)
+					inst.EXPECT().IsolationGroup().AnyTimes().Return(sts.Labels[labels.IsolationGroup])
+
+					mockInstances = append(mockInstances, inst)
+				}
+			}
+
+			mockPlacement := placement.NewMockPlacement(deps.mockController)
+			mockPlacement.EXPECT().NumInstances().AnyTimes().Return(len(mockInstances))
+			mockPlacement.EXPECT().Instances().AnyTimes().Return(mockInstances)
+			deps.placementClient.EXPECT().Get().AnyTimes().Return(mockPlacement, nil)
+
+			c := deps.newController(t)
+			require.NoError(t, c.handleClusterUpdate(context.Background(), cluster))
+
+			// use kubeClient instead of lister to get around caches
+			pvcs, err := deps.kubeClient.CoreV1().PersistentVolumeClaims(cluster.Namespace).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+
+			var pvcNames []string
+			for _, pvc := range pvcs.Items {
+				pvcNames = append(pvcNames, pvc.Name)
+			}
+			sort.Strings(pvcNames)
+
+			require.Equal(t, test.expectPVCNames, pvcNames)
+		})
+	}
+}
+
 func requireStatefulSetReplicas(
 	t *testing.T,
 	deps *testDeps,
@@ -1239,7 +1484,11 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 			newMeta("cluster1-rep0", nil, nil),
 		}
 	)
-	cluster, deps := setupTestCluster(t, *clusterMeta, sets, nil, 3, 1, false, false)
+	cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+		sets:              sets,
+		replicationFactor: 3,
+		numInstances:      1,
+	})
 	defer deps.cleanup()
 	controller := deps.newController(t)
 
@@ -1299,6 +1548,49 @@ func generatePod(clusterName string, rep, node int, revision string) *corev1.Pod
 	statefulSetName := fmt.Sprintf("%s-rep%d", clusterName, rep)
 
 	return generatePodForStatefulSet(clusterName, statefulSetName, node, revision)
+}
+
+func generatePodWithTransformation(clusterName string, rep, node int, f func(pod *corev1.Pod)) *corev1.Pod {
+	pod := generatePod(clusterName, rep, node, "")
+	f(pod)
+	return pod
+}
+
+func generatePVC(name string, pvName string, labels map[string]string) *corev1.PersistentVolumeClaim {
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: *newMeta(name, labels, nil),
+		Spec: corev1.PersistentVolumeClaimSpec{
+			VolumeName: pvName,
+		},
+		Status: corev1.PersistentVolumeClaimStatus{},
+	}
+}
+
+func generatePV(name string, reclaimPolicy corev1.PersistentVolumeReclaimPolicy) *corev1.PersistentVolume {
+	return &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeReclaimPolicy: reclaimPolicy,
+		},
+	}
+}
+
+func generatePvcPodVolume(name string, pvcName string) corev1.Volume {
+	return corev1.Volume{
+		Name: name,
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: pvcName,
+			},
+		},
+	}
+}
+
+func labelsWithSTSName(lbls map[string]string, stsName string) map[string]string {
+	lbls[labels.StatefulSet] = stsName
+	return lbls
 }
 
 func generatePodForStatefulSet(

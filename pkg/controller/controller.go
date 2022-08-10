@@ -25,23 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
-	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
-	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
-	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
-	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
-	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
-	"time"
-
-	m3placement "github.com/m3db/m3/src/cluster/placement"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -62,6 +50,17 @@ import (
 	"k8s.io/utils/pointer"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	m3placement "github.com/m3db/m3/src/cluster/placement"
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
+	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
+	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -778,9 +777,11 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
 	}
 
-	// Check whether cluster required replicas is equal to stateful set replicas, there is the same code above
-	if err := c.cleanupDanglingStorage(ctx, cluster); err != nil {
-		return fmt.Errorf("cleaning up dangling storage: %w", err)
+	// at this stage cluster should be stable, so should be safe to clean up storage
+	for _, group := range childrenSets {
+		if err := c.cleanupUnusedStorageForSts(ctx, cluster, group); err != nil {
+			return fmt.Errorf("cleaning up unused storage for stateful set %v: %w", group.Name, err)
+		}
 	}
 
 	c.logger.Info("nothing to do",
@@ -1279,63 +1280,95 @@ func (c *M3DBController) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster,
 	return cluster, nil
 }
 
-func (c *M3DBController) cleanupDanglingStorage(ctx context.Context, cluster *myspec.M3DBCluster) error {
-	labelSelector := klabels.SelectorFromSet(labels.BaseLabels(cluster))
+// cleanupUnusedStorageForSts removes all PVCs and PVs for the stateful which are not used.
+// This method should be called only when the cluster is stable and there are no ongoing deployments.
+func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster *myspec.M3DBCluster, sts *appsv1.StatefulSet) error {
+	logger := c.logger.With(zap.String("cluster", cluster.Name), zap.String("namespace", cluster.Namespace))
 
-	claims, err := c.pvcLister.PersistentVolumeClaims(cluster.Namespace).List(labelSelector)
+	lbls := labels.BaseLabels(cluster)
+	lbls[labels.StatefulSet] = sts.Name
+
+	labelSelector := klabels.SelectorFromSet(lbls)
+	pvcs, err := c.pvcLister.PersistentVolumeClaims(cluster.Namespace).List(labelSelector)
 	if err != nil {
-		return fmt.Errorf("listing claims: %w", err)
+		return fmt.Errorf("listing pvcs: %w", err)
 	}
 
-	claimsByName := map[string]*corev1.PersistentVolumeClaim{}
-	for _, claim := range claims {
-		claimsByName[claim.Name] = claim
+	pvcsToRemoveByName := make(map[string]*corev1.PersistentVolumeClaim, len(pvcs))
+	for _, pvc := range pvcs {
+		pvcsToRemoveByName[pvc.Name] = pvc
 	}
 
+	// first reclaim the PVCs which should be in use deciding by the parsed pod id and the replica count of the STS
+	lastPodIdInSTS := int(*sts.Spec.Replicas - 1)
+	for _, pvc := range pvcsToRemoveByName {
+		pvcPodId, err := parsePodIdFromPVCName(pvc.Name)
+		if err != nil {
+			logger.Error("Cannot parse pod id from the PVC name", zap.Error(err))
+
+			// reclaim the PVC just to be safe to not accidentally delete a PVC used by other applications
+			delete(pvcsToRemoveByName, pvc.Name)
+
+			continue
+		}
+
+		// PVC in use by one of the pods from the STS
+		if pvcPodId <= lastPodIdInSTS {
+			delete(pvcsToRemoveByName, pvc.Name)
+		}
+	}
+
+	// check whether there are any actually running pods which use any of the PVCs
 	pods, err := c.podLister.Pods(cluster.Namespace).List(labelSelector)
 	if err != nil {
 		return fmt.Errorf("listing pods: %w", err)
 	}
 
-	// remove all used PVCs from the map
 	for _, pod := range pods {
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
-				delete(claimsByName, volume.PersistentVolumeClaim.ClaimName)
+				delete(pvcsToRemoveByName, volume.PersistentVolumeClaim.ClaimName)
 			}
 		}
 	}
 
-	logger := c.logger.With(
-		zap.String("cluster", cluster.Name),
-		zap.String("namespace", cluster.Namespace))
+	// Deleting a PVC which PV has a reclaim policy of "Delete" will delete PV automatically,
+	// so we don't need to do anything regarding PV deletion.
+	for _, pvc := range pvcsToRemoveByName {
 
-	for _, claim := range claims {
-		isOldClaim := claim.CreationTimestamp.DeepCopy().Add(-24 * time.Hour).After(time.Now())
+		// using kube client directly, since this should be a very rare call and will not cause any significant load
+		// on the API server
+		pv, err := c.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("getting k8s pv: %w", err)
+		}
 
-		logger.Info("Deleting persistent volume",
-			zap.String("persistent_volume", claim.Spec.VolumeName),
-			zap.Bool("is_old_enough", isOldClaim))
+		// Sometimes a PV can have a reclaim policy other than "Delete". Skip these PVCs,
+		// so we would not leave dangling PV which are hard to select because of the missing labels.
+		if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
+			logger.Warn("PVC has a PV with a non-delete reclaim policy. Skipping it to avoid leaving dangling PVs",
+				zap.String("pvc", pvc.Name),
+				zap.String("pv", pv.Name),
+				zap.String("reclaim_policy", string(pv.Spec.PersistentVolumeReclaimPolicy)))
+			continue
+		}
 
-		//err = c.kubeClient.CoreV1().PersistentVolumes().Delete(ctx, claim.Spec.VolumeName, metav1.DeleteOptions{})
-		//if err != nil {
-		//	return fmt.Errorf("deleting persistent volume: %w", err)
-		//}
+		logger.Info("Deleting persistent volume claim", zap.String("pvc", pvc.Name))
 
-		logger.Info("Deleting persistent volume claim",
-			zap.String("persistent_volume_claim", claim.Spec.VolumeName),
-			zap.Bool("is_old_enough", isOldClaim))
+		err = c.kubeClient.CoreV1().PersistentVolumeClaims(cluster.Namespace).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return fmt.Errorf("deleting persistent pv pvc: %w", err)
+		}
 
-		//err = c.kubeClient.CoreV1().
-		//	PersistentVolumeClaims(cluster.Namespace).
-		//	Delete(ctx, claim.Name, metav1.DeleteOptions{})
-		//
-		//if err != nil {
-		//	return fmt.Errorf("deleting persistent volume claim: %w", err)
-		//}
+		c.recorder.NormalEvent(sts, eventer.ReasonPVCDeleted, "delete PVC %s successful", pvc.Name)
 	}
 
 	return nil
+}
+
+func parsePodIdFromPVCName(pvcName string) (int, error) {
+	parts := strings.Split(pvcName, "-")
+	return strconv.Atoi(parts[len(parts)-1])
 }
 
 func validateIsolationGroups(cluster *myspec.M3DBCluster) error {
