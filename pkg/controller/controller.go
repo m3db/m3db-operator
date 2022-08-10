@@ -31,6 +31,19 @@ import (
 	"strings"
 	"sync"
 
+	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
+	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
+	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
+	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
+	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
+	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
+	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
+	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
+	"github.com/m3db/m3db-operator/pkg/m3admin"
+	"github.com/m3db/m3db-operator/pkg/util/eventer"
+
+	m3placement "github.com/m3db/m3/src/cluster/placement"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -50,21 +63,9 @@ import (
 	"k8s.io/utils/pointer"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	m3placement "github.com/m3db/m3/src/cluster/placement"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
-
-	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
-	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
-	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
-	clusterlisters "github.com/m3db/m3db-operator/pkg/client/listers/m3dboperator/v1alpha1"
-	"github.com/m3db/m3db-operator/pkg/k8sops/annotations"
-	"github.com/m3db/m3db-operator/pkg/k8sops/labels"
-	"github.com/m3db/m3db-operator/pkg/k8sops/m3db"
-	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
-	"github.com/m3db/m3db-operator/pkg/m3admin"
-	"github.com/m3db/m3db-operator/pkg/util/eventer"
 )
 
 const (
