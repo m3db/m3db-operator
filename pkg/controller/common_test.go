@@ -161,6 +161,7 @@ func newTestDeps(t *testing.T, opts *testOpts) *testDeps {
 			sets.Informer().HasSynced,
 			pods.Informer().HasSynced,
 			crds.Informer().HasSynced,
+			pvcs.Informer().HasSynced,
 		)
 	}()
 
