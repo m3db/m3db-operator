@@ -214,7 +214,9 @@ func waitForStatefulSets(
 			sts = action.(kubetesting.UpdateActionImpl).GetObject().(*appsv1.StatefulSet)
 			// Note: Simulate an update revision to make sure the updated
 			// replicas check is enforced.
+			mu.Lock()
 			updates++
+			mu.Unlock()
 			sts.Status.UpdateRevision = fmt.Sprintf("updated-revision-%d", updates)
 			sts.Status.CurrentRevision = fmt.Sprintf("%s-%s", sts.Name, opts.currentRevision)
 			if !opts.simulatePodsNotUpdated {
