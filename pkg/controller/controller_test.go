@@ -94,7 +94,7 @@ type testClusterParams struct {
 func setupTestCluster(
 	t *testing.T,
 	clusterMeta metav1.ObjectMeta,
-	p testClusterParams,
+	p *testClusterParams,
 ) (*myspec.M3DBCluster, *testDeps) {
 	cfgMapName := defaultConfigMapName
 	cluster := &myspec.M3DBCluster{
@@ -155,10 +155,12 @@ func setupTestCluster(
 	}
 
 	for _, pvc := range p.pvcs {
+		// nolint:makezero
 		objects = append(objects, runtime.Object(pvc))
 	}
 
 	for _, pv := range p.pvs {
+		// nolint:makezero
 		objects = append(objects, runtime.Object(pv))
 	}
 
@@ -748,7 +750,7 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cluster, deps := setupTestCluster(t, *test.cluster, testClusterParams{
+			cluster, deps := setupTestCluster(t, *test.cluster, &testClusterParams{
 				sets:              test.sets,
 				replicationFactor: test.replicationFactor,
 				numInstances:      1,
@@ -928,7 +930,7 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			const replicas = 3
-			cluster, deps := setupTestCluster(t, *test.cluster, testClusterParams{
+			cluster, deps := setupTestCluster(t, *test.cluster, &testClusterParams{
 				sets:              test.sets,
 				replicationFactor: replicas,
 				numInstances:      1,
@@ -1086,7 +1088,7 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			nodes := int32(len(test.pods) / len(test.sets))
-			cluster, deps := setupTestCluster(t, *rawCluster, testClusterParams{
+			cluster, deps := setupTestCluster(t, *rawCluster, &testClusterParams{
 				sets:                   test.sets,
 				pods:                   test.pods,
 				replicationFactor:      int(replicas),
@@ -1127,7 +1129,7 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 
 		pods = generatePods("cluster1", 3, 1, "current-revision")
 	)
-	cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+	cluster, deps := setupTestCluster(t, *clusterMeta, &testClusterParams{
 		sets:                   sets,
 		pods:                   pods,
 		replicationFactor:      3,
@@ -1394,7 +1396,7 @@ func TestCleanupDanglingStorage(t *testing.T) {
 				allPods = append(allPods, pods...)
 			}
 
-			cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+			cluster, deps := setupTestCluster(t, *clusterMeta, &testClusterParams{
 				sets:              sets,
 				pods:              allPods,
 				replicationFactor: replicationFactor,
@@ -1443,7 +1445,9 @@ func TestCleanupDanglingStorage(t *testing.T) {
 			require.NoError(t, c.handleClusterUpdate(context.Background(), cluster))
 
 			// use kubeClient instead of lister to get around caches
-			pvcs, err := deps.kubeClient.CoreV1().PersistentVolumeClaims(cluster.Namespace).List(context.Background(), metav1.ListOptions{})
+			pvcs, err := deps.kubeClient.CoreV1().
+				PersistentVolumeClaims(cluster.Namespace).
+				List(context.Background(), metav1.ListOptions{})
 			require.NoError(t, err)
 
 			var pvcNames []string
@@ -1482,7 +1486,7 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 			newMeta("cluster1-rep0", nil, nil),
 		}
 	)
-	cluster, deps := setupTestCluster(t, *clusterMeta, testClusterParams{
+	cluster, deps := setupTestCluster(t, *clusterMeta, &testClusterParams{
 		sets:              sets,
 		replicationFactor: 3,
 		numInstances:      1,
@@ -1548,13 +1552,21 @@ func generatePod(clusterName string, rep, node int, revision string) *corev1.Pod
 	return generatePodForStatefulSet(clusterName, statefulSetName, node, revision)
 }
 
-func generatePodWithTransformation(clusterName string, rep, node int, f func(pod *corev1.Pod)) *corev1.Pod {
+func generatePodWithTransformation(
+	clusterName string,
+	rep, node int,
+	f func(pod *corev1.Pod),
+) *corev1.Pod {
 	pod := generatePod(clusterName, rep, node, "")
 	f(pod)
 	return pod
 }
 
-func generatePVC(name string, pvName string, labels map[string]string) *corev1.PersistentVolumeClaim {
+func generatePVC(
+	name string,
+	pvName string,
+	labels map[string]string,
+) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: *newMeta(name, labels, nil),
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -1564,7 +1576,10 @@ func generatePVC(name string, pvName string, labels map[string]string) *corev1.P
 	}
 }
 
-func generatePV(name string, reclaimPolicy corev1.PersistentVolumeReclaimPolicy) *corev1.PersistentVolume {
+func generatePV(
+	name string,
+	reclaimPolicy corev1.PersistentVolumeReclaimPolicy,
+) *corev1.PersistentVolume {
 	return &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

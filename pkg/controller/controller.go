@@ -51,6 +51,10 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	m3placement "github.com/m3db/m3/src/cluster/placement"
+	pkgerrors "github.com/pkg/errors"
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 	clientset "github.com/m3db/m3db-operator/pkg/client/clientset/versioned"
 	samplescheme "github.com/m3db/m3db-operator/pkg/client/clientset/versioned/scheme"
@@ -61,9 +65,6 @@ import (
 	"github.com/m3db/m3db-operator/pkg/k8sops/podidentity"
 	"github.com/m3db/m3db-operator/pkg/m3admin"
 	"github.com/m3db/m3db-operator/pkg/util/eventer"
-	pkgerrors "github.com/pkg/errors"
-	"github.com/uber-go/tally"
-	"go.uber.org/zap"
 )
 
 const (
@@ -247,7 +248,14 @@ func (c *M3DBController) Run(nWorkers int, stopCh <-chan struct{}) error {
 	defer cancel()
 
 	c.logger.Info("waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.clustersSynced, c.statefulSetsSynced, c.podsSynced, c.pvcSynced); !ok {
+	ok := cache.WaitForCacheSync(
+		stopCh,
+		c.clustersSynced,
+		c.statefulSetsSynced,
+		c.podsSynced,
+		c.pvcSynced,
+	)
+	if !ok {
 		return errors.New("caches failed to sync")
 	}
 
@@ -1281,9 +1289,17 @@ func (c *M3DBController) getParentCluster(pod *corev1.Pod) (*myspec.M3DBCluster,
 }
 
 // cleanupUnusedStorageForSts removes all PVCs and PVs for the stateful which are not used.
-// This method should be called only when the cluster is stable and there are no ongoing deployments.
-func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster *myspec.M3DBCluster, sts *appsv1.StatefulSet) error {
-	logger := c.logger.With(zap.String("cluster", cluster.Name), zap.String("namespace", cluster.Namespace))
+// This method should be called only when the cluster is stable
+// and there are no ongoing deployments.
+func (c *M3DBController) cleanupUnusedStorageForSts(
+	ctx context.Context,
+	cluster *myspec.M3DBCluster,
+	sts *appsv1.StatefulSet,
+) error {
+	logger := c.logger.With(
+		zap.String("cluster", cluster.Name),
+		zap.String("namespace", cluster.Namespace),
+	)
 
 	lbls := labels.BaseLabels(cluster)
 	lbls[labels.StatefulSet] = sts.Name
@@ -1299,10 +1315,11 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 		pvcsToRemoveByName[pvc.Name] = pvc
 	}
 
-	// first reclaim the PVCs which should be in use deciding by the parsed pod id and the replica count of the STS
-	lastPodIdInSTS := int(*sts.Spec.Replicas - 1)
+	// first reclaim the PVCs which should be in use deciding by the parsed pod id
+	// and the replica count of the STS
+	lastPodIDInSTS := int(*sts.Spec.Replicas - 1)
 	for _, pvc := range pvcsToRemoveByName {
-		pvcPodId, err := parsePodIdFromPVCName(pvc.Name)
+		pvcPodID, err := parsePodIDFromPVCName(pvc.Name)
 		if err != nil {
 			logger.Error("Cannot parse pod id from the PVC name", zap.Error(err))
 
@@ -1313,7 +1330,7 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 		}
 
 		// PVC in use by one of the pods from the STS
-		if pvcPodId <= lastPodIdInSTS {
+		if pvcPodID <= lastPodIDInSTS {
 			delete(pvcsToRemoveByName, pvc.Name)
 		}
 	}
@@ -1325,9 +1342,10 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 	}
 
 	for _, pod := range pods {
-		for _, volume := range pod.Spec.Volumes {
-			if volume.PersistentVolumeClaim != nil {
-				delete(pvcsToRemoveByName, volume.PersistentVolumeClaim.ClaimName)
+		for i := range pod.Spec.Volumes {
+			claim := pod.Spec.Volumes[i].PersistentVolumeClaim
+			if claim != nil {
+				delete(pvcsToRemoveByName, claim.ClaimName)
 			}
 		}
 	}
@@ -1335,10 +1353,11 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 	// Deleting a PVC which PV has a reclaim policy of "Delete" will delete PV automatically,
 	// so we don't need to do anything regarding PV deletion.
 	for _, pvc := range pvcsToRemoveByName {
-
-		// using kube client directly, since this should be a very rare call and will not cause any significant load
-		// on the API server
-		pv, err := c.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
+		// using kube client directly, since this should be a very rare call
+		// and will not cause any significant load on the API server
+		pv, err := c.kubeClient.CoreV1().
+			PersistentVolumes().
+			Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("getting k8s pv: %w", err)
 		}
@@ -1346,16 +1365,21 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 		// Sometimes a PV can have a reclaim policy other than "Delete". Skip these PVCs,
 		// so we would not leave dangling PVs which are hard to select because of the missing labels.
 		if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
-			logger.Warn("PVC has a PV with a non-delete reclaim policy. Skipping it to avoid leaving dangling PVs",
+			logger.Warn(
+				"PVC has a PV with a non-delete reclaim policy. "+
+					"Skipping it to avoid leaving dangling PVs",
 				zap.String("pvc", pvc.Name),
 				zap.String("pv", pv.Name),
-				zap.String("reclaim_policy", string(pv.Spec.PersistentVolumeReclaimPolicy)))
+				zap.String("reclaim_policy", string(pv.Spec.PersistentVolumeReclaimPolicy)),
+			)
 			continue
 		}
 
 		logger.Info("Deleting persistent volume claim", zap.String("pvc", pvc.Name))
 
-		err = c.kubeClient.CoreV1().PersistentVolumeClaims(cluster.Namespace).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
+		err = c.kubeClient.CoreV1().
+			PersistentVolumeClaims(cluster.Namespace).
+			Delete(ctx, pvc.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return fmt.Errorf("deleting persistent pv pvc: %w", err)
 		}
@@ -1366,7 +1390,7 @@ func (c *M3DBController) cleanupUnusedStorageForSts(ctx context.Context, cluster
 	return nil
 }
 
-func parsePodIdFromPVCName(pvcName string) (int, error) {
+func parsePodIDFromPVCName(pvcName string) (int, error) {
 	parts := strings.Split(pvcName, "-")
 	return strconv.Atoi(parts[len(parts)-1])
 }
