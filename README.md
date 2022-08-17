@@ -56,7 +56,7 @@ The following instructions are a quickstart to get a cluster up and running. Thi
 M3 stores its cluster placements and runtime metadata in [etcd](https://etcd.io/) and needs a running cluster to communicate with.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.14.0/example/etcd/etcd-basic.yaml
 ```
 
 ### Install the Operator
@@ -64,7 +64,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/ex
 Using `kubectl` (installs in the `default` namespace):
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.14.0/bundle.yaml
 ```
 
 ### Create an M3 Cluster
