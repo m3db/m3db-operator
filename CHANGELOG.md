@@ -2,8 +2,6 @@
 
 ## 0.14.0
 
-**WIP CHANGELOG**
-
 0.14.0 is a significant release, making the operator compatible with Kubernetes 1.22. Other notable features include
 supporting batch node adds and removals to speed up cluster membership changes.
 
@@ -12,9 +10,21 @@ supporting batch node adds and removals to speed up cluster membership changes.
 As of this release, the operator no longer installs its own CRD. You must install the CRD manifest from this repo, which
 includes a schema and is compatible with Kubernetes 1.22 by using `v1` of the CRD API.
 
-Before upgrading, it is recommended to apply the CRD manifest first. You may have to set
-`spec.preserveUnknownFields=false` in your existing CRD in order for Kubernetes to allow applying the new one.
+The upgrade steps are as follows:
 
+1. Change your existing operator deployment to set `-manage-crd=false` as a flag to the operator container. This will
+   ensure that the old operator will not overwrite the CRD if it restarts after the new CRD is applied.
+2. Modify the YAML definition of the new CRD to set `spec.preserveUnknownFields=false`. This is required if upgrading an
+   older CRD that was created without a schema.
+3. Apply the new CRD.
+4. Upgrade the operator image to `0.14.0`. You'll have to remove the `-manage-crd=false` flag, as it is no longer
+   supported by the operator.
+
+Change set:
+
+* [API] Ensure schema has embedded metadata fields ([#328][328])
+* [FEATURE] Fix progress annotations on cluster expansion/shrinking ([#324][324])
+* [API] schema: extendedOptions as untyped object ([#327][327])
 * [FEATURE] [*] Make operator compatible with Kubernetes 1.22 ([#325][325])
 * [MISC] Update go version to 1.18 ([#322][322])
 * [ENHANCEMENT] prevent scaling down to 0 instances ([#316][316])
@@ -419,3 +429,6 @@ If using a custom configmap, this same change will require a modification to you
 [316]: https://github.com/m3db/m3db-operator/pull/316
 [322]: https://github.com/m3db/m3db-operator/pull/322
 [325]: https://github.com/m3db/m3db-operator/pull/325
+[324]: https://github.com/m3db/m3db-operator/pull/324
+[327]: https://github.com/m3db/m3db-operator/pull/327
+[328]: https://github.com/m3db/m3db-operator/pull/328
