@@ -31,7 +31,7 @@ chmod +x "$GEN_GROUPS"
   "$@"
 
 # Generate CRD spec and schema.
-controller-gen crd paths=./pkg/apis/m3dboperator/v1alpha1/ +output:dir=helm/m3db-operator/templates
+controller-gen crd:generateEmbeddedObjectMeta=true paths=./pkg/apis/m3dboperator/v1alpha1/ +output:dir=helm/m3db-operator/templates
 
 # Ensure helm bundles the CRD first.
 (

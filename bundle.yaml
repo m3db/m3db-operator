@@ -103,6 +103,23 @@ spec:
                     type: string
                   metadata:
                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      finalizers:
+                        items:
+                          type: string
+                        type: array
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                      namespace:
+                        type: string
                     type: object
                   spec:
                     description: 'spec defines the desired characteristics of a volume
@@ -2168,6 +2185,23 @@ spec:
                               description: May contain labels and annotations that
                                 will be copied into the PVC when creating it. No other
                                 fields are allowed and will be rejected during validation.
+                              properties:
+                                annotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                finalizers:
+                                  items:
+                                    type: string
+                                  type: array
+                                labels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
                               type: object
                             spec:
                               description: The specification for the PersistentVolumeClaim.
@@ -3382,14 +3416,8 @@ spec:
                             options.
                           properties:
                             options:
-                              additionalProperties:
-                                description: RawMessage is a raw encoded JSON value.
-                                  It implements Marshaler and Unmarshaler and can
-                                  be used to delay JSON decoding or precompute a JSON
-                                  encoding.
-                                format: byte
-                                type: string
                               type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             type:
                               type: string
                           type: object
@@ -3492,6 +3520,23 @@ spec:
                 description: PodMetadata is for any Metadata that is unique to the
                   pods, and does not belong on any other objects, such as Prometheus
                   scrape tags
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  finalizers:
+                    items:
+                      type: string
+                    type: array
+                  labels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  name:
+                    type: string
+                  namespace:
+                    type: string
                 type: object
               podSecurityContext:
                 description: PodSecurityContext allows the user to specify an optional
@@ -5484,6 +5529,23 @@ spec:
                               description: May contain labels and annotations that
                                 will be copied into the PVC when creating it. No other
                                 fields are allowed and will be rejected during validation.
+                              properties:
+                                annotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                finalizers:
+                                  items:
+                                    type: string
+                                  type: array
+                                labels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
                               type: object
                             spec:
                               description: The specification for the PersistentVolumeClaim.
