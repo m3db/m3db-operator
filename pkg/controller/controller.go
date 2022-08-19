@@ -782,7 +782,7 @@ func (c *M3DBController) handleClusterUpdate(
 func (c *M3DBController) cleanupAnnotations(
 	ctx context.Context, logger *zap.Logger, childrenSets []*appsv1.StatefulSet,
 ) error {
-	c.logger.Debug("cleaning up progress annotations")
+	logger.Debug("cleaning up progress annotations")
 	for _, set := range childrenSets {
 		stsLogger := logger.With(
 			zap.String("sts", set.Name),
