@@ -628,7 +628,9 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error fetching active placement: %v", err)
 	}
 
-	clusterLogger.Info("found placement", zap.Int("currentPods", len(pods)), zap.Int("placementInsts", placement.NumInstances()))
+	clusterLogger.Info("found placement",
+		zap.Int("currentPods", len(pods)),
+		zap.Int("placementInsts", placement.NumInstances()))
 
 	unavailInsts := []string{}
 	for _, inst := range placement.Instances() {
