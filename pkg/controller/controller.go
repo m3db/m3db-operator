@@ -638,7 +638,8 @@ func (c *M3DBController) handleClusterUpdate(
 	}
 
 	if ln := len(unavailInsts); ln > 0 {
-		clusterLogger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
+		clusterLogger.Warn("waiting for instances to be available",
+			zap.Strings("instances", unavailInsts))
 		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", ln)
 		return nil
 	}
