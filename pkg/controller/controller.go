@@ -456,14 +456,14 @@ func (c *M3DBController) handleClusterUpdate(
 					// returned in calls to List because of the caching that the k8s client does.
 					// So if we receive an error because the StatefulSet already exists that's not
 					// indicative of a real problem.
-					c.logger.Info("statefulset already exists", zap.String("name", name))
+					clusterLogger.Info("statefulset already exists", zap.String("name", name))
 					return nil
 				}
-				c.logger.Error(err.Error())
+				clusterLogger.Error(err.Error())
 				return err
 			}
 
-			c.logger.Info("created statefulset", zap.String("name", name))
+			clusterLogger.Info("created statefulset", zap.String("name", name))
 			return nil
 		}
 	}
@@ -474,8 +474,7 @@ func (c *M3DBController) handleClusterUpdate(
 	// generation, it means Status will contain stale info.
 	for _, sts := range childrenSets {
 		if sts.Generation != sts.Status.ObservedGeneration {
-			c.logger.Warn("stateful set not up to date",
-				zap.String("namespace", sts.Namespace),
+			clusterLogger.Warn("stateful set not up to date",
 				zap.String("name", sts.Name),
 				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
 				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
@@ -491,8 +490,7 @@ func (c *M3DBController) handleClusterUpdate(
 	// If any of the statefulsets aren't ready, wait until they are as we'll get
 	// another event (ready == bootstrapped)
 	for _, sts := range childrenSets {
-		c.logger.Debug("processing set",
-			zap.String("namespace", sts.Namespace),
+		clusterLogger.Debug("processing set",
 			zap.String("name", sts.Name),
 			zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
 			zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
@@ -503,7 +501,7 @@ func (c *M3DBController) handleClusterUpdate(
 		)
 
 		if sts.Spec.Replicas == nil {
-			c.logger.Warn("skip check for statefulset, replicas is nil",
+			clusterLogger.Warn("skip check for statefulset, replicas is nil",
 				zap.String("name", sts.Name),
 				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
 				zap.Int32("updatedReplicas", sts.Status.UpdatedReplicas),
@@ -529,8 +527,7 @@ func (c *M3DBController) handleClusterUpdate(
 		}
 
 		if !ready {
-			c.logger.Info("waiting for statefulset to be ready",
-				zap.String("namespace", sts.Namespace),
+			clusterLogger.Info("waiting for statefulset to be ready",
 				zap.String("name", sts.Name),
 				zap.Int32("replicas", replicas),
 				zap.Int32("readyReplicas", sts.Status.ReadyReplicas),
@@ -551,7 +548,7 @@ func (c *M3DBController) handleClusterUpdate(
 		actual := childrenSetsByName[name]
 		expected, update, err := updatedStatefulSet(actual, cluster, isoGroups[i])
 		if err != nil {
-			c.logger.Error(err.Error())
+			clusterLogger.Error(err.Error())
 			return err
 		}
 
@@ -569,7 +566,7 @@ func (c *M3DBController) handleClusterUpdate(
 		if update {
 			_, err = c.applyStatefulSetUpdate(ctx, cluster, actual, expected)
 			if err != nil {
-				c.logger.Error(err.Error())
+				clusterLogger.Error(err.Error())
 				return err
 			}
 			return nil
@@ -585,9 +582,8 @@ func (c *M3DBController) handleClusterUpdate(
 		if onDeleteUpdateStrategy {
 			nodesUpdated, err := c.updateStatefulSetPods(ctx, cluster, actual)
 			if err != nil {
-				c.logger.Error("error performing update",
+				clusterLogger.Error("error performing update",
 					zap.Error(err),
-					zap.String("namespace", cluster.Namespace),
 					zap.String("name", actual.Name))
 				return err
 			}
@@ -609,12 +605,12 @@ func (c *M3DBController) handleClusterUpdate(
 
 	if err := c.reconcileNamespaces(cluster); err != nil {
 		c.recorder.WarningEvent(cluster, eventer.ReasonFailedCreate, "failed to create namespace: %s", err)
-		c.logger.Error("error reconciling namespaces", zap.Error(err))
+		clusterLogger.Error("error reconciling namespaces", zap.Error(err))
 		return err
 	}
 
 	if len(cluster.Spec.Namespaces) == 0 {
-		c.logger.Warn("cluster has no namespaces defined", zap.String("cluster", cluster.Name))
+		clusterLogger.Warn("cluster has no namespaces defined", zap.String("cluster", cluster.Name))
 		c.recorder.WarningEvent(cluster, eventer.ReasonUnknown, "cluster %s has no namespaces", cluster.Name)
 	}
 
@@ -632,7 +628,9 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error fetching active placement: %v", err)
 	}
 
-	c.logger.Info("found placement", zap.Int("currentPods", len(pods)), zap.Int("placementInsts", placement.NumInstances()))
+	clusterLogger.Info("found placement",
+		zap.Int("currentPods", len(pods)),
+		zap.Int("placementInsts", placement.NumInstances()))
 
 	unavailInsts := []string{}
 	for _, inst := range placement.Instances() {
@@ -642,7 +640,8 @@ func (c *M3DBController) handleClusterUpdate(
 	}
 
 	if ln := len(unavailInsts); ln > 0 {
-		c.logger.Warn("waiting for instances to be available", zap.Strings("instances", unavailInsts))
+		clusterLogger.Warn("waiting for instances to be available",
+			zap.Strings("instances", unavailInsts))
 		c.recorder.WarningEvent(cluster, eventer.ReasonLongerThanUsual, "current unavailable instances: %d", ln)
 		return nil
 	}
@@ -689,7 +688,7 @@ func (c *M3DBController) handleClusterUpdate(
 		if set.Spec.UpdateStrategy.Type == appsv1.OnDeleteStatefulSetStrategyType {
 			_, inProgressAnnotationExists := set.Annotations[annotations.ParallelUpdateInProgress]
 			if !inProgressAnnotationExists {
-				c.logger.Warn("skipping statefulset resize because it does not have progress annotation",
+				clusterLogger.Warn("skipping statefulset resize because it does not have progress annotation",
 					zap.String("sts", set.Name))
 				continue
 			}
@@ -702,7 +701,7 @@ func (c *M3DBController) handleClusterUpdate(
 		// Number of instances in the group AND currently in the placement.
 		inPlacement := int32(len(instancesInIsoGroup(placement, group.Name)))
 
-		setLogger := c.logger.With(
+		setLogger := clusterLogger.With(
 			zap.String("statefulSet", set.Name),
 			zap.Int32("inPlacement", inPlacement),
 			zap.Int32("current", current),
@@ -746,7 +745,7 @@ func (c *M3DBController) handleClusterUpdate(
 		if err = c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
 			set.Spec.Replicas = pointer.Int32Ptr(newCount)
 		}); err != nil {
-			c.logger.Error("error patching statefulset", zap.Error(err))
+			clusterLogger.Error("error patching statefulset", zap.Error(err))
 			return err
 		}
 
@@ -766,12 +765,12 @@ func (c *M3DBController) handleClusterUpdate(
 		return fmt.Errorf("error reconciling bootstrap status: %v", err)
 	}
 
-	err = c.cleanupAnnotations(ctx, childrenSets)
+	err = c.cleanupAnnotations(ctx, clusterLogger, childrenSets)
 	if err != nil {
 		return fmt.Errorf("error cleaning up annotations for on delete strategy: %w", err)
 	}
 
-	c.logger.Info("nothing to do",
+	clusterLogger.Info("nothing to do",
 		zap.Int("childrensets", len(childrenSets)),
 		zap.Int("zones", len(isoGroups)),
 		zap.Int64("generation", cluster.ObjectMeta.Generation),
@@ -781,32 +780,37 @@ func (c *M3DBController) handleClusterUpdate(
 }
 
 func (c *M3DBController) cleanupAnnotations(
-	ctx context.Context, childrenSets []*appsv1.StatefulSet,
+	ctx context.Context, logger *zap.Logger, childrenSets []*appsv1.StatefulSet,
 ) error {
-	c.logger.Debug("cleaning up progress annotations")
+	logger.Debug("cleaning up progress annotations")
 	for _, set := range childrenSets {
+		stsLogger := logger.With(
+			zap.String("sts", set.Name),
+		)
+
 		// NB(cerkauskas): we want to delete annotation no matter the strategy of cluster.
 		// Strategy could be changed while update is happening and we still want to remove
 		// the annotation since there is nothing more to do for operator.
 		if _, ok := set.Annotations[annotations.ParallelUpdateInProgress]; !ok {
-			c.logger.Debug("skipping set because it does not have progress annotation",
+			stsLogger.Debug("skipping set because it does not have progress annotation",
 				zap.String("sts", set.Name))
 			continue
 		}
 
-		c.logger.Info("removing update annotation for statefulset",
+		stsLogger.Info("removing update annotation for statefulset",
 			zap.String("sts", set.Name))
 
 		if err := c.patchStatefulSet(ctx, set, func(set *appsv1.StatefulSet) {
 			delete(set.Annotations, annotations.ParallelUpdateInProgress)
 		}); err != nil {
-			c.logger.Error("failed to remove annotation",
+			stsLogger.Error("failed to remove annotation",
 				zap.String("sts", set.Name),
 				zap.Error(err))
 			return err
 		}
 	}
-	c.logger.Info("cleaned up progress annotations")
+
+	logger.Info("cleaned up progress annotations")
 	return nil
 }
 
