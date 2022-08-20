@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/client-go/tools/cache"
+
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -211,6 +213,7 @@ func TestNodeForPod(t *testing.T) {
 	defer func() {
 		close(stopCh)
 	}()
+	cache.WaitForCacheSync(stopCh, kubeInformer.Core().V1().Nodes().Informer().HasSynced)
 
 	p := newTestProvider(t, WithNodeLister(nodeLister))
 

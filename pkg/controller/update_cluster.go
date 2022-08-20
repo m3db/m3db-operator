@@ -515,6 +515,8 @@ func (c *M3DBController) expandPlacementForSet(
 	if err != nil {
 		return err
 	}
+	// give a deterministic order to the pods for easy testing with gomock comparisons.
+	sort.Sort(podsByName(pods))
 
 	podsToAdd := make([]*corev1.Pod, 0, len(pods))
 	for _, pod := range pods {
@@ -532,10 +534,23 @@ func (c *M3DBController) expandPlacementForSet(
 		}
 	}
 	if len(podsToAdd) == 0 {
-		return errors.New("could not find pod absent from placement")
+		c.logger.Info("pods missing from placement are not indexed yet.")
+		return nil
 	}
 
 	return c.addPodsToPlacement(ctx, cluster, podsToAdd)
+}
+
+type podsByName []*corev1.Pod
+
+func (p podsByName) Len() int {
+	return len(p)
+}
+func (p podsByName) Less(i, j int) bool {
+	return p[i].Name < p[j].Name
+}
+func (p podsByName) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
 }
 
 // shrinkPlacementForSet takes a StatefulSet that needs to be shrunk and removes any pods

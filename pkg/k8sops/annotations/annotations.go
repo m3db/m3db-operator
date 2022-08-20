@@ -76,3 +76,12 @@ func PodAnnotations(cluster *myspec.M3DBCluster) map[string]string {
 
 	return base
 }
+
+// Copy the provided annotations to a new map.
+func Copy(annotations map[string]string) map[string]string {
+	m := make(map[string]string, len(annotations))
+	for k, v := range annotations {
+		m[k] = v
+	}
+	return m
+}
