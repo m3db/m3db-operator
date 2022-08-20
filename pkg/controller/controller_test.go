@@ -1270,7 +1270,7 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 }
 
 func generateSets(
-// nolint:unparam
+	// nolint:unparam
 	clusterName string,
 	rf int32,
 	updateVal string,
