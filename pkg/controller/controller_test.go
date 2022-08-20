@@ -277,9 +277,7 @@ func waitForStatefulSets(
 			seen    int
 		)
 		// Start with all failed.
-		for _, name := range opts.expectedStatefulSets {
-			failed = append(failed, name)
-		}
+		failed = append(failed, opts.expectedStatefulSets...)
 		for name, found := range actualSets {
 			if found {
 				seen++
