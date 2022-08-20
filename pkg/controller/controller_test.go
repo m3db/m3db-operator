@@ -286,7 +286,7 @@ func waitForStatefulSets(
 				updated = append(updated, name)
 
 				// Remove from failed.
-				filterFailed := failed[:]
+				filterFailed := failed
 				failed = failed[:0]
 				for _, elem := range filterFailed {
 					if elem != name {
@@ -933,7 +933,8 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 				expectError:             test.expError,
 			}, func(result waitForStatefulSetsResult) bool {
 				if len(test.expFailedUpdateStatefulSets) > 0 {
-					return assert.ObjectsAreEqual(test.expFailedUpdateStatefulSets, result.failedUpdateStatefulSets)
+					return assert.ObjectsAreEqual(test.expFailedUpdateStatefulSets,
+						result.failedUpdateStatefulSets)
 				}
 				return result.done
 			})
@@ -1219,7 +1220,6 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 	requireStatefulSetReplicas(t, deps, "cluster1-rep0", 1)
 	requireStatefulSetReplicas(t, deps, "cluster1-rep1", 3)
 	requireStatefulSetReplicas(t, deps, "cluster1-rep2", 1)
-
 }
 
 func requireStatefulSetReplicas(
@@ -1270,7 +1270,7 @@ func TestHandleUpdateClusterFrozen(t *testing.T) {
 }
 
 func generateSets(
-	// nolint:unparam
+// nolint:unparam
 	clusterName string,
 	rf int32,
 	updateVal string,

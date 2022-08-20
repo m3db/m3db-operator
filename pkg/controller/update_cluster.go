@@ -418,7 +418,8 @@ func (c *M3DBController) addPodsToPlacement(
 func (c *M3DBController) checkPodsForReplacement(
 	cluster *myspec.M3DBCluster,
 	pods []*corev1.Pod,
-	pl placement.Placement) (string, *corev1.Pod, error) {
+	pl placement.Placement,
+) (string, *corev1.Pod, error) {
 	insts := pl.Instances()
 	sort.Sort(placement.ByIDAscending(insts))
 
@@ -546,9 +547,11 @@ type podsByName []*corev1.Pod
 func (p podsByName) Len() int {
 	return len(p)
 }
+
 func (p podsByName) Less(i, j int) bool {
 	return p[i].Name < p[j].Name
 }
+
 func (p podsByName) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }

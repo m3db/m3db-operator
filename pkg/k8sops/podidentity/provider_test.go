@@ -26,8 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/client-go/tools/cache"
-
 	myspec "github.com/m3db/m3db-operator/pkg/apis/m3dboperator/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
