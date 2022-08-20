@@ -43,9 +43,9 @@ Members of the M3 team hold office hours on the third Thursday of every month fr
 
 ### Dependencies
 
-The M3 operator targets Kubernetes **1.11** and **1.12**. We aim to target the latest two minor versions supported by GKE but welcome community contributions to support more versions
+The M3 operator targets Kubernetes **1.21** and higher. We aim to target the latest two minor versions supported by GKE but welcome community contributions to support more versions.
 
-The M3 operator is intended for creating highly available clusters across distinct failure domains. For this reason it only support Kubernetes clusters with nodes **in at least 3 zones**, but [support][https://github.com/m3db/m3db-operator/issues/68] for zonal clusters is coming soon.
+The M3 operator is intended for creating highly available clusters across distinct failure domains. For this reason it only support Kubernetes clusters with nodes **in at least 3 zones**.
 
 ## Usage
 
@@ -56,7 +56,7 @@ The following instructions are a quickstart to get a cluster up and running. Thi
 M3 stores its cluster placements and runtime metadata in [etcd](https://etcd.io/) and needs a running cluster to communicate with.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/example/etcd/etcd-basic.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.14.0/example/etcd/etcd-basic.yaml
 ```
 
 ### Install the Operator
@@ -64,7 +64,7 @@ kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/ex
 Using `kubectl` (installs in the `default` namespace):
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.13.0/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/m3db/m3db-operator/v0.14.0/bundle.yaml
 ```
 
 ### Create an M3 Cluster
