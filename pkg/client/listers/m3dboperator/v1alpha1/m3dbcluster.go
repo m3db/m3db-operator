@@ -31,6 +31,7 @@ import (
 
 // M3DBClusterLister helps list M3DBClusters.
 // All objects returned here must be treated as read-only.
+// CHANGE
 type M3DBClusterLister interface {
 	// List lists all M3DBClusters in the indexer.
 	// Objects returned here must be treated as read-only.
