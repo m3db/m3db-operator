@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -47,6 +46,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -172,6 +172,7 @@ type waitForStatefulSetsResult struct {
 	updatedStatefulSets      []string
 	failedUpdateStatefulSets []string
 	podUpdateGroups          [][]string
+	done                     bool
 }
 
 func waitForStatefulSets(
@@ -180,12 +181,14 @@ func waitForStatefulSets(
 	cluster *myspec.M3DBCluster,
 	verb string,
 	opts waitForStatefulSetsOptions,
-) (waitForStatefulSetsResult, bool) {
+	until func(waitForStatefulSetsResult) bool,
+) waitForStatefulSetsResult {
 	var (
 		mu          sync.Mutex
 		updates     int
 		actualSets  = make(map[string]bool)
 		updatedPods []string
+		deletedPods = make(map[string]bool)
 		ctx         = context.Background()
 	)
 
@@ -235,86 +238,75 @@ func waitForStatefulSets(
 		"delete", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
 			podName := action.(kubetesting.DeleteActionImpl).GetName()
 			mu.Lock()
-			updatedPods = append(updatedPods, podName)
+			// delete can be called multiple times for the same pod since the podLister is async updated.
+			if !deletedPods[podName] {
+				deletedPods[podName] = true
+				updatedPods = append(updatedPods, podName)
+			}
 			mu.Unlock()
 
 			return false, nil, nil
 		})
 
-	// Iterate through the expected stateful sets twice (or at least 5 times) to make sure
-	// we see all stateful sets that we expect and also be able to catch any extra stateful
-	// sets that we don't.
 	var (
-		iters           = math.Max(float64(2*len(opts.expectedStatefulSets)), 10)
-		finalErr        error
 		podUpdateGroups [][]string
+		waitResult      waitForStatefulSetsResult
 	)
-	for i := 0; i < int(iters); i++ {
+	start := time.Now()
+	done := false
+	// Contiously update the cluster until the stop condition has been satisfied or a timeout of 5s.
+	for !done && time.Since(start) < time.Second*5 {
 		err := controller.handleClusterUpdate(ctx, cluster)
 		if opts.expectError != "" {
-			finalErr = err
+			if err != nil && err.Error() == opts.expectError {
+				return waitForStatefulSetsResult{}
+			}
 		} else {
 			require.NoError(t, err)
 		}
 
 		mu.Lock()
-		var seen int
-		for _, found := range actualSets {
-			if found {
-				seen++
-			}
-		}
 		if len(updatedPods) > 0 {
 			podUpdateGroups = append(podUpdateGroups, updatedPods)
 			updatedPods = nil
 		}
-		mu.Unlock()
 
-		if seen != len(opts.expectedStatefulSets) {
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
+		var (
+			updated []string
+			failed  []string
+			seen    int
+		)
+		// Start with all failed.
+		failed = append(failed, opts.expectedStatefulSets...)
+		for name, found := range actualSets {
+			if found {
+				seen++
 
-	mu.Lock()
-	defer mu.Unlock()
+				// Updated.
+				updated = append(updated, name)
 
-	var (
-		updated []string
-		failed  []string
-		seen    int
-	)
-	// Start with all failed.
-	for _, name := range opts.expectedStatefulSets {
-		failed = append(failed, name)
-	}
-	for name, found := range actualSets {
-		if found {
-			seen++
-
-			// Updated.
-			updated = append(updated, name)
-
-			// Remove from failed.
-			filterFailed := failed[:]
-			failed = failed[:0]
-			for _, elem := range filterFailed {
-				if elem != name {
-					failed = append(failed, elem)
+				// Remove from failed.
+				filterFailed := failed
+				failed = failed[:0]
+				for _, elem := range filterFailed {
+					if elem != name {
+						failed = append(failed, elem)
+					}
 				}
 			}
 		}
+		waitResult = waitForStatefulSetsResult{
+			updatedStatefulSets:      updated,
+			failedUpdateStatefulSets: failed,
+			podUpdateGroups:          podUpdateGroups,
+			done:                     seen == len(opts.expectedStatefulSets),
+		}
+		mu.Unlock()
+
+		done = until(waitResult)
 	}
 
-	if opts.expectError != "" {
-		require.EqualError(t, finalErr, opts.expectError)
-	}
-
-	done := seen == len(opts.expectedStatefulSets)
-	return waitForStatefulSetsResult{
-		updatedStatefulSets:      updated,
-		failedUpdateStatefulSets: failed,
-		podUpdateGroups:          podUpdateGroups,
-	}, done
+	return waitResult
 }
 
 func TestNew(t *testing.T) {
@@ -739,11 +731,13 @@ func TestHandleUpdateClusterCreatesStatefulSets(t *testing.T) {
 			defer deps.cleanup()
 			c := deps.newController(t)
 
-			_, done := waitForStatefulSets(t, c, cluster, "create", waitForStatefulSetsOptions{
+			result := waitForStatefulSets(t, c, cluster, "create", waitForStatefulSetsOptions{
 				setReadyReplicas:     false,
 				expectedStatefulSets: test.expCreateStatefulSets,
+			}, func(result waitForStatefulSetsResult) bool {
+				return result.done
 			})
-			assert.True(t, done, "expected all sets to be created")
+			assert.True(t, result.done, "expected all sets to be created")
 		})
 	}
 }
@@ -931,17 +925,23 @@ func TestHandleUpdateClusterUpdatesStatefulSets(t *testing.T) {
 				})
 			}
 
-			result, done := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
+			result := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
 				setReadyReplicas:        true,
 				expectedStatefulSets:    test.expUpdateStatefulSets,
 				simulatePodsNotUpdated:  test.simulatePodsNotUpdated,
 				simulateStaleGeneration: test.simulateStaleGeneration,
 				expectError:             test.expError,
+			}, func(result waitForStatefulSetsResult) bool {
+				if len(test.expFailedUpdateStatefulSets) > 0 {
+					return assert.ObjectsAreEqual(test.expFailedUpdateStatefulSets,
+						result.failedUpdateStatefulSets)
+				}
+				return result.done
 			})
 			if test.expNotDone {
-				assert.False(t, done, "expected not all sets to be updated")
+				assert.False(t, result.done, "expected not all sets to be updated")
 			} else {
-				assert.True(t, done, "expected all sets to be updated")
+				assert.True(t, result.done, "expected all sets to be updated")
 			}
 			if len(test.expFailedUpdateStatefulSets) > 0 {
 				assert.Equal(t, test.expFailedUpdateStatefulSets, result.failedUpdateStatefulSets)
@@ -1075,12 +1075,14 @@ func TestHandleUpdateClusterOnDeleteStrategy(t *testing.T) {
 
 			cluster.Spec.Image = newImage
 
-			result, done := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
+			result := waitForStatefulSets(t, c, cluster, "update", waitForStatefulSetsOptions{
 				setReadyReplicas:     true,
 				expectedStatefulSets: test.expUpdateStatefulSets,
 				currentRevision:      currentRevision,
+			}, func(result waitForStatefulSetsResult) bool {
+				return result.done && assert.ObjectsAreEqual(test.expPodUpdateGroups, result.podUpdateGroups)
 			})
-			assert.True(t, done, "expected all sets to be updated")
+			assert.True(t, result.done, "expected all sets to be updated")
 			assert.Equal(t, test.expPodUpdateGroups, result.podUpdateGroups)
 		})
 	}
@@ -1189,7 +1191,11 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 				for k, v := range sts.Labels {
 					pod.Labels[k] = v
 				}
-				require.NoError(t, deps.kubeClient.Tracker().Add(pod))
+				err = deps.kubeClient.Tracker().Add(pod)
+				if kerrors.IsAlreadyExists(err) {
+					return true, sts, nil
+				}
+				require.NoError(t, err)
 				deps.idProvider.EXPECT().
 					Identity(pod, gomock.Any()).
 					AnyTimes().
@@ -1197,21 +1203,23 @@ func TestHandleResizeClusterOnDeleteStrategy(t *testing.T) {
 
 				return true, sts, nil
 			})
+	start := time.Now()
 
-	for i := 0; i < 10; i++ {
+	annotationExists := true
+	for annotationExists && time.Since(start) < time.Second*5 {
 		require.NoError(t, c.handleClusterUpdate(context.Background(), cluster))
+
+		sts, err := deps.statefulSetLister.StatefulSets("namespace").Get("cluster1-rep1")
+		require.NoError(t, err)
+
+		// Let's make sure that annotation is removed when everything is done
+		_, annotationExists = sts.Annotations[annotations.ParallelUpdateInProgress]
 	}
+	require.False(t, annotationExists)
 
 	requireStatefulSetReplicas(t, deps, "cluster1-rep0", 1)
 	requireStatefulSetReplicas(t, deps, "cluster1-rep1", 3)
 	requireStatefulSetReplicas(t, deps, "cluster1-rep2", 1)
-
-	sts, err := deps.statefulSetLister.StatefulSets("namespace").Get("cluster1-rep1")
-	require.NoError(t, err)
-
-	// Let's make sure that annotation is removed when everything is done
-	_, ok := sts.Annotations[annotations.ParallelUpdateInProgress]
-	require.False(t, ok)
 }
 
 func requireStatefulSetReplicas(

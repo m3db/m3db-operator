@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -211,6 +212,7 @@ func TestNodeForPod(t *testing.T) {
 	defer func() {
 		close(stopCh)
 	}()
+	cache.WaitForCacheSync(stopCh, kubeInformer.Core().V1().Nodes().Informer().HasSynced)
 
 	p := newTestProvider(t, WithNodeLister(nodeLister))
 

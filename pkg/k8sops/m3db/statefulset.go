@@ -178,7 +178,7 @@ func NewBaseStatefulSet(ssName, isolationGroup string, cluster *myspec.M3DBClust
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ssName,
 			Labels:      objLabels,
-			Annotations: objAnnotations,
+			Annotations: annotations.Copy(objAnnotations),
 		},
 		Spec: stsSpec,
 	}

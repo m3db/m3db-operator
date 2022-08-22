@@ -911,6 +911,12 @@ func (c *M3DBController) updateStatefulSetPods(
 			if err := c.kubeClient.CoreV1().
 				Pods(pod.Namespace).
 				Delete(ctx, pod.Name, metav1.DeleteOptions{}); err != nil {
+				if kerrors.IsNotFound(err) {
+					// This pod was already deleted in a previous iteration of the reconcile loop. This can happen
+					// since the index of the podLister is updated async.
+					logger.Info("pod already deleted", zap.String("pod", pod.Name))
+					continue
+				}
 				return false, err
 			}
 			names = append(names, pod.Name)
