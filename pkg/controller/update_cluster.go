@@ -55,10 +55,11 @@ import (
 )
 
 var (
-	errEmptyPodList         = errors.New("cannot find removal candidate in empty list")
-	errNoPodsInPlacement    = errors.New("no pods were found in the placement")
-	errNilNamespaceRegistry = errors.New("nil registry for namespaces")
-	errPodNotInPlacement    = errors.New("instance not found in placement")
+	errEmptyPodList              = errors.New("cannot find removal candidate in empty list")
+	errNoPodsInPlacement         = errors.New("no pods were found in the placement")
+	errNilNamespaceRegistry      = errors.New("nil registry for namespaces")
+	errPodNotInPlacement         = errors.New("instance not found in placement")
+	errPodNotAbsentFromPlacement = errors.New("could not find pod absent from placement")
 )
 
 // reconcileNamespaces will delete any namespaces currently in the cluster that
@@ -535,8 +536,7 @@ func (c *M3DBController) expandPlacementForSet(
 		}
 	}
 	if len(podsToAdd) == 0 {
-		c.logger.Info("pods missing from placement are not indexed yet.")
-		return nil
+		return errPodNotAbsentFromPlacement
 	}
 
 	return c.addPodsToPlacement(ctx, cluster, podsToAdd)
