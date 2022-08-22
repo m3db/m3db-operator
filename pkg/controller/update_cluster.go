@@ -56,7 +56,6 @@ import (
 
 var (
 	errEmptyPodList              = errors.New("cannot find removal candidate in empty list")
-	errNoPodsInPlacement         = errors.New("no pods were found in the placement")
 	errNilNamespaceRegistry      = errors.New("nil registry for namespaces")
 	errPodNotInPlacement         = errors.New("instance not found in placement")
 	errPodNotAbsentFromPlacement = errors.New("could not find pod absent from placement")
