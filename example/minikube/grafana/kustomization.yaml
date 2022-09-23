@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+commonLabels:
+  app.kubernetes.io/name: grafana
+  app.kubernetes.io/part-of: m3db-operator
+resources:
+- deployment.yaml
+- service.yaml
+# m3db dashboards source: https://github.com/m3db/m3/tree/master/integrations/grafana
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - dashboards-provisioning.yaml
+      - dashboards/grafana-internal-metrics.json
+      - dashboards/m3db-node-details.json
+      - dashboards/m3db-coordinator-details.json
+  - name: grafana-datasources
+    files:
+      - datasources-provisioning.yaml
