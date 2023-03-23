@@ -28,3 +28,7 @@ spec:
             - name: ENVIRONMENT
               value: {{ .Values.environment }}
       serviceAccount: {{ .Values.operator.name }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

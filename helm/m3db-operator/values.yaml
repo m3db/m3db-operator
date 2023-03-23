@@ -4,3 +4,4 @@ image:
   repository: quay.io/m3db/m3db-operator
   tag: v0.14.0
 environment: production
+affinity: {}
