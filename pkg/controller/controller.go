@@ -1345,6 +1345,7 @@ func updatedStatefulSet(
 	// annotation. This ensures that users can always set an update annotation and then
 	// wait for it to be removed to know if the operator has processed a StatefulSet.
 	if !update {
+		updateSpecTemplate(actual)
 		delete(actual.Annotations, annotations.Update)
 		delete(actual.Annotations, annotations.ParallelUpdate)
 		return actual, true, nil
@@ -1358,7 +1359,18 @@ func updatedStatefulSet(
 	expected.Status = actual.DeepCopy().Status
 
 	copyAnnotations(expected, actual)
+	updateSpecTemplate(expected)
 	return expected, true, nil
+}
+
+// updates spec template so that rollout update is always performed.
+func updateSpecTemplate(sts *appsv1.StatefulSet) {
+	if sts.Spec.Template.Annotations == nil {
+		sts.Spec.Template.Annotations = map[string]string{}
+	}
+
+	now, _ := metav1.Now().MarshalQueryParameter()
+	sts.Spec.Template.Annotations[annotations.Rollout] = now
 }
 
 func copyAnnotations(expected, actual *appsv1.StatefulSet) {
